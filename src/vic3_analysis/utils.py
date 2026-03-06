@@ -9,6 +9,11 @@ elif os.name == "posix":  # macOS or Linux
         "~/.local/share/Steam/steamapps/common/Victoria 3/game"
     )
 
+replace_strings = [
+    '?=',
+    '!=',
+]
+
 def parse_merge(path, merge_levels: int = 0):
     """Given a directory, return a Tree as if all .txt files in the directory were a single file"""
 
@@ -19,8 +24,9 @@ def parse_merge(path, merge_levels: int = 0):
             if filename.endswith(".md"):
                 continue  # Skip markdown files
             content = f.read()
-            # Replace all '?=' with '=' to prevent pyradox from treating them as merge directives
-            content = content.replace("?=", "=")
+            # Replace all special strings with '=' to prevent pyradox from treating them as merge directives
+            for old, new in replace_strings:
+                content = content.replace(old, new)
             tree = pyradox.parse(content)
             result.merge(tree, merge_levels)
     return result

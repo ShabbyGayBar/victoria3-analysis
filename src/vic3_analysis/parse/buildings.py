@@ -14,6 +14,21 @@ class BuildingsParser(Tree):
         parse_tree = parse_merge(parse_dir)
         self.update(parse_tree.to_python())
 
+        parse_dir = os.path.join(game_dir, "common", "script_values")
+        parse_tree = parse_merge(parse_dir)
+        self.cost_modifiers = {}
+        for key, value in parse_tree.to_python().items():
+            if key.startswith("construction_cost_"):
+                self.cost_modifiers[key] = int(value)
+
+        for building_key, building_values in self.items():
+            if "required_construction" not in building_values.keys():
+                continue
+            cost_modifier = building_values["required_construction"]
+            building_values.append(
+                "required_construction_points", self.cost_modifiers[cost_modifier]
+            )
+
     def to_dataframe(self) -> pd.DataFrame:
         results = []
         for building_key, building_values in self.items():
