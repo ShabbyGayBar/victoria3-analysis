@@ -1,29 +1,20 @@
-from vic3_analysis import VIC3_DIR, parse_merge, goods, production_method_groups
+from vic3_analysis import (
+    VIC3_DIR,
+    parse_merge,
+    BuildingsParser,
+    goods,
+    production_method_groups,
+)
 import os
 import re
 import pandas as pd
 from pyradox import Tree
 from typing import Any
 
-def _buildings(game_dir: str | None = None) -> dict[str, list[str]]:
-    if game_dir is None:
-        game_dir = VIC3_DIR
 
-    parse_dir = os.path.join(game_dir, "common", "buildings")
-    parse_tree = parse_merge(parse_dir)
-    result = {}
-    for key, subtree in parse_tree.items():
-        if not isinstance(subtree, Tree):
-            continue  # Skip non-tree entries
-        pmg = subtree.to_python().get("production_method_groups")
-        if isinstance(pmg, list):
-            result[key] = pmg
-        else:
-            result[key] = [pmg]
-    return result
-
-
-def _parse_pm(goods_dict: dict[str, Any], game_dir: str | None = None) -> dict[str, Any]:
+def _parse_pm(
+    goods_dict: dict[str, Any], game_dir: str | None = None
+) -> dict[str, Any]:
     if game_dir is None:
         game_dir = VIC3_DIR
 
@@ -114,7 +105,7 @@ def production_method(game_dir: str | None = None) -> pd.DataFrame:
     df_goods = goods(game_dir)
     goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
 
-    buildings_dict = _buildings(game_dir)
+    buildings_dict = BuildingsParser(game_dir).production_method_groups()
 
     pmg_dict = production_method_groups(game_dir)
 
