@@ -25,8 +25,8 @@ def parse_merge(path, merge_levels: int = 0):
                 continue  # Skip markdown files
             content = f.read()
             # Replace all special strings with '=' to prevent pyradox from treating them as merge directives
-            for old, new in replace_strings:
-                content = content.replace(old, new)
+            for str in replace_strings:
+                content = content.replace(str, '=')
             tree = pyradox.parse(content)
             result.merge(tree, merge_levels)
     return result
