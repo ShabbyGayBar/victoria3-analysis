@@ -56,17 +56,22 @@ def _parse_pm(
         for level_str, value in building_modifiers["level_scaled"].items():
             if level_str.startswith("building_employment_"):
                 result[key]["employment"] += value
+        if "unlocking_technologies" in subtree.keys():
+            result[key]["unlocking_technologies"] = str(
+                subtree["unlocking_technologies"]
+            )
     return result
 
 
 def _to_dataframe(
-    buildings_dict: dict[str, list[str]],
+    buildings_pmg_dict: dict[str, list[str]],
     pmg_dict: dict[str, list[str]],
     pm_dict: dict[str, Any],
     goods_dict: dict[str, Any],
+    buildings_tech_dict: dict = {},
 ) -> pd.DataFrame:
     data = []
-    for building, pmg_list in buildings_dict.items():
+    for building, pmg_list in buildings_pmg_dict.items():
         for pmg in pmg_list:
             if pmg not in pmg_dict:
                 raise ValueError(
@@ -75,27 +80,34 @@ def _to_dataframe(
             for pm in pmg_dict[pmg]:
                 if pm not in pm_dict:
                     goods_output = {}
-                    for goods_key in goods_dict.keys():
-                        goods_output[goods_key] = 0
                     employment = 0
+                    tech = str(buildings_tech_dict.get(building, ""))
                 else:
                     goods_output = {}
                     for goods_key in goods_dict.keys():
-                        if goods_key in pm_dict[pm]:
-                            goods_output[goods_key] = pm_dict[pm][goods_key]
-                        else:
-                            goods_output[goods_key] = 0
+                        goods_output[goods_key] = pm_dict[pm].get(goods_key, 0)
                     employment = pm_dict[pm]["employment"]
+                    if "unlocking_technologies" in pm_dict[pm].keys():
+                        tech = str(pm_dict[pm]["unlocking_technologies"])
+                    elif building in buildings_tech_dict:
+                        tech = str(buildings_tech_dict[building])
+                    else:
+                        tech = ""
                 data.append(
                     {
                         "building": building,
                         "production_method_group": pmg,
                         "production_method": pm,
+                        "unlocking_technologies": tech,
                         "employment": employment,
                         **goods_output,
                     }
                 )
-    return pd.DataFrame(data)
+    result = pd.DataFrame(data)
+    result["unlocking_technologies"] = result["unlocking_technologies"].fillna("None")
+    result["unlocking_technologies"] = result["unlocking_technologies"].replace("", "None")
+    result = result.fillna(0)
+    return result
 
 
 def production_method(game_dir: str | None = None) -> pd.DataFrame:
@@ -105,10 +117,22 @@ def production_method(game_dir: str | None = None) -> pd.DataFrame:
     df_goods = goods(game_dir)
     goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
 
-    buildings_dict = BuildingsParser(game_dir).production_method_groups()
+    buildings_tree = BuildingsParser(game_dir)
+    buildings_pmg_dict = buildings_tree.production_method_groups()
+    # Get building technology information
+    buildings_tech_dict = {}
+    for building_key, building_values in buildings_tree.items():
+        if "unlocking_technologies" in building_values.keys():
+            buildings_tech_dict[building_key] = str(
+                building_values["unlocking_technologies"]
+            )
+        else:
+            buildings_tech_dict[building_key] = "buildings_pmg_dict"
 
     pmg_dict = production_method_groups(game_dir)
 
     pm_dict = _parse_pm(goods_dict, game_dir)
 
-    return _to_dataframe(buildings_dict, pmg_dict, pm_dict, goods_dict)
+    return _to_dataframe(
+        buildings_pmg_dict, pmg_dict, pm_dict, goods_dict, buildings_tech_dict
+    )

@@ -4,6 +4,7 @@ from vic3_analysis import (
     goods,
     production_method_groups,
     production_method,
+    technology,
 )
 import pandas as pd
 from itertools import product
@@ -29,8 +30,10 @@ def _all_combinations(lists: List[Iterable[Any]]) -> Iterable[Tuple[Any, ...]]:
 
 
 class ProductionUnit(dict):
-    def __init__(self, employment: int, production: dict[str, int]):
+
+    def __init__(self, production: dict[str, int], employment: int = 0, era: int = 0):
         super().__init__()
+        self["era"] = era
         self["employment"] = employment
         self.update(production)
 
@@ -41,12 +44,13 @@ class ProductionUnit(dict):
                 result[key] += other[key]
             else:
                 result[key] = other[key]
-        return ProductionUnit(employment=0, production=result)
+        result["era"] = max(self["era"], other["era"])
+        return ProductionUnit(production=result)
 
     def profit(self, goods_cost: dict[str, int]) -> int:
         profit = 0
         for good, amount in self.items():
-            if good == "employment":
+            if good in ["employment", "era"]:
                 continue
             profit += goods_cost[good] * amount
         return profit
@@ -56,6 +60,7 @@ class ProductionUnit(dict):
             return float("inf")  # Infinite profit per employment if employment is zero
         return self.profit(goods_cost) / self["employment"]
 
+
 def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
     if game_dir is None:
         game_dir = VIC3_DIR
@@ -63,6 +68,10 @@ def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
     # Get goods costs
     df_goods = goods(game_dir)
     goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
+
+    # Get technology to era mapping
+    df_tech = technology(game_dir)
+    tech_era_dict = dict(zip(df_tech["tech_key"], df_tech["era"]))
 
     # Get production method groups to production methods mapping
     pmg_pm_dict = production_method_groups(game_dir)
@@ -77,6 +86,11 @@ def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
             building_cost_dict[building_key] = building_values[
                 "required_construction_points"
             ]
+    # Get building group information
+    building_group_dict = {}
+    for building_key, building_values in buildings_tree.items():
+        if "building_group" in building_values.keys():
+            building_group_dict[building_key] = building_values["building_group"]
 
     # Get production method employment and production output
     df_pm = production_method()
@@ -85,6 +99,7 @@ def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
         if row["building"] not in building_cost_dict:
             continue  # Skip if building is not in building_cost_dict
         pm_dict[row["production_method"]] = ProductionUnit(
+            era=tech_era_dict.get(row["unlocking_technologies"], 0),
             employment=row["employment"],
             production={good: row[good] for good in goods_dict.keys() if good in row},
         )
@@ -97,11 +112,13 @@ def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
             pm_lists.append(pmg_pm_dict[pmg])
         # iterate through all combinations of production methods for this building
         for combo in _all_combinations(pm_lists):
-            building = ProductionUnit(employment=0, production={})
+            building = ProductionUnit(production={})
             key = building_key + "(" + "+".join(combo) + ")"
             for pm in combo:
                 building += pm_dict[pm]
             row_dict = {"key": key}
+            row_dict["building_group"] = building_group_dict[building_key]
+            row_dict["era"] = building["era"]
             row_dict["construction_cost"] = building_cost_dict[building_key]
             row_dict["profit"] = building.profit(goods_dict)
             row_dict.update(building)
