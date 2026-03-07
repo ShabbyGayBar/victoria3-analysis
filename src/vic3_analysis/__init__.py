@@ -6,3 +6,5 @@ from vic3_analysis.parse.goods import goods
 from vic3_analysis.parse.production_method_groups import production_method_groups
 from vic3_analysis.parse.production_methods import production_method
 from vic3_analysis.parse.technology import technology
+
+from vic3_analysis.analysis.production import production_analysis
