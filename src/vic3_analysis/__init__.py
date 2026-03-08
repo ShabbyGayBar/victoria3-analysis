@@ -7,4 +7,4 @@ from vic3_analysis.parse.production_method_groups import production_method_group
 from vic3_analysis.parse.production_methods import production_method
 from vic3_analysis.parse.technology import technology
 
-from vic3_analysis.analysis.production import production_analysis
+from vic3_analysis.analysis.production import production_table, ProductionAnalyzer

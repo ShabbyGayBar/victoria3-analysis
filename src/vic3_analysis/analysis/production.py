@@ -6,6 +6,9 @@ from vic3_analysis import (
     production_method,
     technology,
 )
+import re
+import numpy as np
+import scipy.optimize as opt
 import pandas as pd
 from itertools import product
 from typing import Iterable, List, Tuple, Any
@@ -61,7 +64,7 @@ class ProductionUnit(dict):
         return self.profit(goods_cost) / self["employment"]
 
 
-def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
+def production_table(game_dir: str | None = None) -> pd.DataFrame:
     if game_dir is None:
         game_dir = VIC3_DIR
 
@@ -126,3 +129,176 @@ def production_analysis(game_dir: str | None = None) -> pd.DataFrame:
 
     result = pd.DataFrame(possible_buildings)
     return result
+
+
+class ProductionAnalyzer:
+    def __init__(self, game_dir: str | None = None, df: pd.DataFrame | None = None):
+        if df is not None:
+            self.df = df
+        else:
+            self.df = production_table(game_dir)
+        self.df_raw = self.df.copy()  # Keep a copy of the raw DataFrame for reference
+
+    def goods_index(self) -> List[str]:
+        return [
+            col
+            for col in self.df.columns
+            if col
+            not in [
+                "key",
+                "building_group",
+                "era",
+                "construction_cost",
+                "profit",
+                "employment",
+            ]
+        ]
+
+    def goods_matrix(self) -> np.ndarray:
+        goods_index = self.goods_index()
+        return self.df[goods_index].to_numpy()
+
+    def production_index(self) -> List[str]:
+        return [
+            col
+            for col in self.df.columns
+            if col not in ["key", "building_group", "era"]
+        ]
+
+    def production_matrix(self) -> np.ndarray:
+        return self.df[self.production_index()].to_numpy()
+
+    def key_index(self) -> List[str]:
+        return self.df["key"].tolist()
+
+    def profit_vector(self) -> np.ndarray:
+        return self.df["profit"].to_numpy()
+
+    def employment_vector(self) -> np.ndarray:
+        return self.df["employment"].to_numpy()
+
+    def construction_cost_vector(self) -> np.ndarray:
+        return self.df["construction_cost"].to_numpy()
+
+    def era_vector(self) -> np.ndarray:
+        return self.df["era"].to_numpy()
+
+    def find_same_buildings(self, building_key: str) -> List[int]:
+        return self.df[self.df["key"].str.startswith(building_key)].index.tolist()
+
+    def find_same_building_group(self, building_group: str) -> List[int]:
+        return self.df[self.df["building_group"] == building_group].index.tolist()
+
+    def restore(self):
+        self.df = self.df_raw.copy()
+
+    def filter_by_era(self, era: int):
+        self.df = self.df[self.df["era"] < era].copy()
+
+    def filter_by_building_group(self, building_group: str):
+        self.df = self.df[self.df["building_group"] != building_group].copy()
+
+    def filter_by_production_method(
+        self, building_key: str, production_method_key: str
+    ):
+        pattern = re.compile(rf"{building_key}\((?=.*{production_method_key}).*\)")
+        matches = self.df["key"].apply(lambda x: bool(pattern.match(x)))
+        self.df = self.df[~matches].copy()
+
+    def constraint_limit_import(
+        self, limit: float = 0.0
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        # Constraint: No imports more than the limit (default is 0, meaning no imports allowed)
+        A = -self.goods_matrix().T  # Negate to convert to <= 0 form
+        b = (
+            np.ones(self.goods_matrix().shape[1]) * limit
+        )  # Vector of limits for <= constraints
+        return A, b
+
+    def constraint_limit_employment(
+        self, limit: float
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        # Constraint: Total employment must be less than or equal to the limit
+        return self.employment_vector().T, np.array([limit])
+
+    def constraint_limit_construction_cost(
+        self, limit: float
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        # Constraint: Total construction cost must be less than or equal to the limit
+        return self.construction_cost_vector().T, np.array([limit])
+
+    def constraint_limit_building(
+        self, building_key: str, limit: float
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        # Constraint: Cannot build specific building more than the limit
+        indices = self.find_same_buildings(building_key)
+        A = np.zeros(len(self.df))
+        for idx in indices:
+            A[idx] = 1
+        b = np.array([limit])
+        return A, b
+
+    def constraint_produce(
+        self, good_key: str, limit: float = 1
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        # Constraint: Must produce at least a certain amount of a specific good
+        goods_index = self.goods_index()
+        if good_key not in goods_index:
+            raise ValueError(f"Good '{good_key}' not found in goods index.")
+        idx = goods_index.index(good_key)
+        A = -self.goods_matrix()[:, idx].T  # Negate to convert to >= limit form
+        b = np.array([-limit])  # Vector of limits for >= constraints
+        return A, b
+
+    def gdp_per_capita(
+        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> float:
+        if level.ndim != 1:
+            raise ValueError("level must be a 1-D array.")
+        if level.shape[0] != len(self.df):
+            raise ValueError("level length must match the number of rows in self.df.")
+
+        total_profit = float(np.dot(level, self.profit_vector()))
+        total_employment = float(np.dot(level, self.employment_vector()))
+        if total_employment == 0:
+            return float("inf")  # Infinite GDP per capita if no employment
+        return total_profit / total_employment
+
+    def linprog(
+        self,
+        c: np.ndarray[tuple[int], np.dtype[np.float64]],
+        inequality_constraints: List[Tuple[np.ndarray, np.ndarray]],
+        equality_constraints: List[Tuple[np.ndarray, np.ndarray]] = [],
+    ) -> pd.DataFrame:
+        A_ub = (
+            np.vstack([constraint[0] for constraint in inequality_constraints])
+            if inequality_constraints
+            else None
+        )
+        b_ub = (
+            np.hstack([constraint[1] for constraint in inequality_constraints])
+            if inequality_constraints
+            else None
+        )
+        A_eq = (
+            np.vstack([constraint[0] for constraint in equality_constraints])
+            if equality_constraints
+            else None
+        )
+        b_eq = (
+            np.hstack([constraint[1] for constraint in equality_constraints])
+            if equality_constraints
+            else None
+        )
+        res = opt.linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq)
+        if not res.success:
+            raise ValueError(f"Optimization failed: {res.message}")
+        df = pd.DataFrame(
+            {
+                "building_key": self.key_index(),
+                "optimized_level": res.x,
+            }
+        )
+        # sort by optimized level in descending order
+        df = df.sort_values(by="optimized_level", ascending=False)
+        return df
