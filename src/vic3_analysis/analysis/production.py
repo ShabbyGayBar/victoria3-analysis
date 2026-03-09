@@ -1,5 +1,5 @@
 from vic3_analysis import (
-    VIC3_DIR,
+    get_vic3_directory,
     BuildingsParser,
     goods,
     production_method_groups,
@@ -66,7 +66,7 @@ class ProductionUnit(dict):
 
 def production_table(game_dir: str | None = None) -> pd.DataFrame:
     if game_dir is None:
-        game_dir = VIC3_DIR
+        game_dir = get_vic3_directory()
 
     # Get goods costs
     df_goods = goods(game_dir)

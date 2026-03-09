@@ -1,10 +1,10 @@
-from vic3_analysis import VIC3_DIR
+from vic3_analysis import get_vic3_directory
 import os
 import re
 import pandas as pd
 from pyradox import parse_file
 
-GAME_FILE_PATH = os.path.join(VIC3_DIR, "common", "buy_packages", "00_buy_packages.txt")
+GAME_FILE_PATH = os.path.join(get_vic3_directory(), "common", "buy_packages", "00_buy_packages.txt")
 
 
 def _wealth_number(key: str):

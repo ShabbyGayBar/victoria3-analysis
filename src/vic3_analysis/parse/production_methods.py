@@ -1,5 +1,5 @@
 from vic3_analysis import (
-    VIC3_DIR,
+    get_vic3_directory,
     parse_merge,
     BuildingsParser,
     goods,
@@ -16,7 +16,7 @@ def _parse_pm(
     goods_dict: dict[str, Any], game_dir: str | None = None
 ) -> dict[str, Any]:
     if game_dir is None:
-        game_dir = VIC3_DIR
+        game_dir = get_vic3_directory()
 
     parse_dir = os.path.join(game_dir, "common", "production_methods")
     parse_tree = parse_merge(parse_dir)
@@ -112,7 +112,7 @@ def _to_dataframe(
 
 def production_method(game_dir: str | None = None) -> pd.DataFrame:
     if game_dir is None:
-        game_dir = VIC3_DIR
+        game_dir = get_vic3_directory()
 
     df_goods = goods(game_dir)
     goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))

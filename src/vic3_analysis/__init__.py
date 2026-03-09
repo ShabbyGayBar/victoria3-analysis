@@ -1,4 +1,4 @@
-from vic3_analysis.utils import VIC3_DIR, parse_merge
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 from vic3_analysis.parse.buy_packages import buy_packages
 from vic3_analysis.parse.buildings import BuildingsParser

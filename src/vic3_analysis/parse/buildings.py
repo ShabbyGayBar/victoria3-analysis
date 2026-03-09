@@ -1,4 +1,4 @@
-from vic3_analysis import VIC3_DIR, parse_merge
+from vic3_analysis import get_vic3_directory, parse_merge
 import os
 import pandas as pd
 from pyradox import Tree
@@ -8,7 +8,7 @@ class BuildingsParser(Tree):
     def __init__(self, game_dir: str | None = None):
         super().__init__()
         if game_dir is None:
-            game_dir = VIC3_DIR
+            game_dir = get_vic3_directory()
 
         parse_dir = os.path.join(game_dir, "common", "buildings")
         parse_tree = parse_merge(parse_dir)

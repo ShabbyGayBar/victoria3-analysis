@@ -1,4 +1,4 @@
-from vic3_analysis import VIC3_DIR, parse_merge
+from vic3_analysis import get_vic3_directory, parse_merge
 import os
 import pandas as pd
 from pyradox import Tree
@@ -6,7 +6,7 @@ from pyradox import Tree
 
 def goods(file_dir: str | None = None) -> pd.DataFrame:
     if file_dir is None:
-        file_dir = VIC3_DIR
+        file_dir = get_vic3_directory()
 
     parse_dir = os.path.join(file_dir, "common", "goods")
     parse_tree = parse_merge(parse_dir)
