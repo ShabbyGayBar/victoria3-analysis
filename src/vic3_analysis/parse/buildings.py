@@ -1,3 +1,10 @@
+"""
+Parser for Victoria 3 building definitions.
+
+Reads building data from the game's ``common/buildings`` directory and exposes
+it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
+and production-method-group look-ups.
+"""
 from vic3_analysis import get_vic3_directory, parse_merge
 import os
 import pandas as pd
@@ -5,7 +12,27 @@ from pyradox import Tree
 
 
 class BuildingsParser(Tree):
+    """A ``pyradox.Tree`` populated with Victoria 3 building definitions.
+
+    On construction the parser reads all building ``.txt`` files from the game
+    directory, resolves ``required_construction`` keys to their numeric point
+    values using the game's ``script_values``, and stores the resolved value
+    under the ``required_construction_points`` key for each building entry.
+
+    Attributes:
+        cost_modifiers: Mapping of construction-cost script-value names (e.g.
+            ``"construction_cost_urban"``) to their integer values, extracted
+            from ``common/script_values``.
+    """
+
     def __init__(self, game_dir: str | None = None):
+        """Initialise and populate the buildings tree.
+
+        Args:
+            game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
+                the directory is located automatically via
+                :func:`~vic3_analysis.utils.get_vic3_directory`.
+        """
         super().__init__()
         if game_dir is None:
             game_dir = get_vic3_directory()
@@ -30,6 +57,15 @@ class BuildingsParser(Tree):
             )
 
     def to_dataframe(self) -> pd.DataFrame:
+        """Convert the buildings tree to a flat ``pandas.DataFrame``.
+
+        Scalar attributes of each building are preserved as columns; nested
+        ``Tree``, ``list``, and ``dict`` values are omitted.
+
+        Returns:
+            A ``DataFrame`` with one row per building and one column per scalar
+            attribute.
+        """
         results = []
         for building_key, building_values in self.items():
             building = {"building": building_key}
@@ -41,6 +77,12 @@ class BuildingsParser(Tree):
         return pd.DataFrame(results)
 
     def production_method_groups(self) -> dict[str, list[str]]:
+        """Return a mapping of building keys to their production-method-group lists.
+
+        Returns:
+            A dict where each key is a building identifier and each value is a
+            list of production-method-group keys associated with that building.
+        """
         result = {}
         for building_key, building_values in self.items():
             if isinstance(building_values, Tree):

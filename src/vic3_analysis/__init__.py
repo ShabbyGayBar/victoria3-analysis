@@ -1,3 +1,10 @@
+"""
+vic3_analysis package.
+
+Provides utilities and parsers for analysing Victoria 3 game data, including
+buildings, goods, production methods, technologies, and economic optimisation.
+"""
+
 from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 from vic3_analysis.parse.buy_packages import buy_packages

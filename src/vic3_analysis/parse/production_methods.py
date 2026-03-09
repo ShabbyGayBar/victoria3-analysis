@@ -1,3 +1,10 @@
+"""
+Parser for Victoria 3 production-method definitions.
+
+Reads all ``.txt`` files under ``common/production_methods``, combines them
+with building and goods data, and exposes per-production-method employment and
+goods-flow values as a flat ``pandas.DataFrame``.
+"""
 from vic3_analysis import (
     get_vic3_directory,
     parse_merge,
@@ -15,6 +22,31 @@ from typing import Any
 def _parse_pm(
     goods_dict: dict[str, Any], game_dir: str | None = None
 ) -> dict[str, Any]:
+    """Parse raw production-method data from the game files.
+
+    Reads all ``.txt`` files under ``common/production_methods`` and extracts
+    per-method goods flows (positive for output, negative for input) and
+    employment.  Methods that do not define ``workforce_scaled`` building
+    modifiers are skipped.
+
+    Args:
+        goods_dict: Mapping of good keys to their base costs, used to identify
+            which modifier strings correspond to known goods.
+        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
+            directory is located automatically via
+            :func:`~vic3_analysis.utils.get_vic3_directory`.
+
+    Returns:
+        A dict mapping each production-method key to another dict that contains
+        numeric values for each good key (positive = output, negative = input),
+        an ``"employment"`` value, and optionally an
+        ``"unlocking_technologies"`` string.
+
+    Raises:
+        ValueError: If a goods modifier string cannot be classified as either
+            an input or an output, or if the associated good key cannot be
+            identified.
+    """
     if game_dir is None:
         game_dir = get_vic3_directory()
 
@@ -70,6 +102,33 @@ def _to_dataframe(
     goods_dict: dict[str, Any],
     buildings_tech_dict: dict = {},
 ) -> pd.DataFrame:
+    """Assemble a flat DataFrame from pre-parsed building/PM/goods mappings.
+
+    Iterates over every building → production-method-group → production-method
+    combination and creates one row per combination, filling in employment,
+    goods flows, and unlocking-technology information.
+
+    Args:
+        buildings_pmg_dict: Mapping of building keys to their ordered lists of
+            production-method-group keys.
+        pmg_dict: Mapping of production-method-group keys to their ordered
+            lists of production-method keys.
+        pm_dict: Mapping of production-method keys to their stats dicts (as
+            returned by :func:`_parse_pm`).
+        goods_dict: Mapping of good keys to their base costs.
+        buildings_tech_dict: Optional mapping of building keys to their
+            unlocking-technology strings.  Defaults to an empty dict.
+
+    Returns:
+        A ``DataFrame`` with columns ``"building"``,
+        ``"production_method_group"``, ``"production_method"``,
+        ``"unlocking_technologies"``, ``"employment"``, and one column per
+        good key.  Missing numeric values are filled with ``0``.
+
+    Raises:
+        ValueError: If a production-method-group referenced by a building is
+            not found in *pmg_dict*.
+    """
     data = []
     for building, pmg_list in buildings_pmg_dict.items():
         for pmg in pmg_list:
@@ -111,6 +170,21 @@ def _to_dataframe(
 
 
 def production_method(game_dir: str | None = None) -> pd.DataFrame:
+    """Parse all Victoria 3 production-method data into a flat DataFrame.
+
+    Combines buildings, production-method-groups, production-methods, and
+    goods data from the game files into a single table.
+
+    Args:
+        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
+            directory is located automatically via
+            :func:`~vic3_analysis.utils.get_vic3_directory`.
+
+    Returns:
+        A ``DataFrame`` with one row per (building, production-method-group,
+        production-method) combination, containing employment numbers, goods
+        flows, and unlocking-technology information.
+    """
     if game_dir is None:
         game_dir = get_vic3_directory()
 
