@@ -1,6 +1,4 @@
-from . import THIS_DIR
 from vic3_analysis import production_table, ProductionAnalyzer
-import os
 
 def test_production_analysis():
     df_production_table = production_table()
