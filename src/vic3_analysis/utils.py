@@ -45,7 +45,7 @@ def get_vic3_directory() -> str:
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), game_suffix)
 
 
-def parse_merge(path, merge_levels: int = 0):
+def parse_merge(path: str, merge_levels: int = 0) -> pyradox.Tree:
     """Parse all ``.txt`` files in *path* and merge them into a single Tree.
 
     Args:

@@ -7,6 +7,7 @@ DataFrame of all possible building configurations, and
 :class:`ProductionAnalyzer` for filtering and linear-programming optimisation
 of building portfolios.
 """
+
 from vic3_analysis import (
     get_vic3_directory,
     BuildingsParser,
@@ -48,9 +49,6 @@ class ProductionUnit(dict):
     the earliest era at which this configuration becomes available.  Supports
     addition (``+``) to aggregate multiple production methods.
 
-    Attributes:
-        Keys are good names plus the reserved keys ``"era"`` and
-        ``"employment"``.
     """
 
     def __init__(self, production: dict[str, int], employment: int = 0, era: int = 0):

@@ -1,0 +1,79 @@
+site_name: Victoria 3 Analysis
+site_description: A Python package for analyzing Victoria 3 game data.
+repo_url: "https://github.com/ShabbyGayBar/victoria3-analysis"
+repo_name: "ShabbyGayBar/victoria3-analysis"
+site_dir: "site"
+watch: [mkdocs.yml, README.md, src/vic3_analysis]
+theme:
+  name: material
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google   # or "numpy", "sphinx"
+            # show_signature: true
+            # members_order: source
+            backlinks: tree
+            docstring_options:
+              ignore_init_summary: true
+            docstring_section_style: list
+            filters: ["!^_"]
+            heading_level: 1
+            inherited_members: true
+            merge_init_into_class: true
+            parameter_headings: true
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            show_source: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            summary: true
+
+markdown_extensions:
+- attr_list
+- admonition
+- callouts:
+    strip_period: false
+- footnotes
+- pymdownx.details
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+- pymdownx.highlight:
+    pygments_lang_class: true
+- pymdownx.magiclink
+- pymdownx.snippets:
+    base_path: [!relative $config_dir]
+    check_paths: true
+- pymdownx.superfences
+- pymdownx.tabbed:
+    alternate_style: true
+    slugify: !!python/object/apply:pymdownx.slugs.slugify
+      kwds:
+        case: lower
+- pymdownx.tasklist:
+    custom_checkbox: true
+- pymdownx.tilde
+- toc:
+    permalink: "¤"
+
+nav:
+- Home:
+  - Overview: index.md
+  - License: license.md
+- Usage:
+  - usage/index.md
+- API reference: api.md
