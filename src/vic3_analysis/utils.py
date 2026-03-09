@@ -1,3 +1,7 @@
+"""
+Utility helpers for locating the Victoria 3 game installation and parsing
+Paradox script files.
+"""
 import os
 from glob import glob
 import errno
@@ -21,6 +25,15 @@ game_directories = {}
 
 
 def get_vic3_directory() -> str:
+    """Search common Steam library paths and return the Victoria 3 game directory.
+
+    Returns:
+        The absolute path to the ``Victoria 3/game`` directory.
+
+    Raises:
+        FileNotFoundError: If the Victoria 3 game directory cannot be found
+            in any of the known Steam library locations.
+    """
     game_suffix = "Victoria 3/game"
 
     for prefix in prefixes:
@@ -33,7 +46,17 @@ def get_vic3_directory() -> str:
 
 
 def parse_merge(path, merge_levels: int = 0):
-    """Given a directory, return a Tree as if all .txt files in the directory were a single file"""
+    """Parse all ``.txt`` files in *path* and merge them into a single Tree.
+
+    Args:
+        path: Directory containing the Paradox script (``.txt``) files to parse.
+        merge_levels: Number of levels deep to merge nested Trees. Passed
+            directly to ``pyradox.Tree.merge``.  Defaults to ``0``.
+
+    Returns:
+        A ``pyradox.Tree`` representing the merged contents of all ``.txt``
+        files found in *path* (sorted alphabetically).
+    """
 
     result = pyradox.Tree()
     for filename in sorted(os.listdir(path)):

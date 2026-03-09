@@ -1,3 +1,10 @@
+"""
+Parser for Victoria 3 technology definitions.
+
+Reads all ``.txt`` files under ``common/technology/technologies`` and returns
+each technology's key attributes (including its numeric era) as a
+``pandas.DataFrame``.
+"""
 from vic3_analysis import get_vic3_directory, parse_merge
 import os
 import re
@@ -13,6 +20,27 @@ skip_keys = [
 
 
 def technology(game_dir: str | None = None) -> pd.DataFrame:
+    """Parse Victoria 3 technology definitions into a DataFrame.
+
+    Reads all ``.txt`` files from ``common/technology/technologies``, skipping
+    keys that are not useful for analysis (``modifier``, ``ai_weight``,
+    ``unlocking_technologies``, ``on_researched``), and converts ``era_N``
+    strings to their integer era numbers.
+
+    Args:
+        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
+            directory is located automatically via
+            :func:`~vic3_analysis.utils.get_vic3_directory`.
+
+    Returns:
+        A ``DataFrame`` with one row per technology.  Always contains a
+        ``"tech_key"`` column and an ``"era"`` column (integer), plus any
+        additional scalar attributes defined in the game files.
+
+    Raises:
+        ValueError: If a technology entry contains a nested ``Tree`` value for
+            an unexpected key, or if the ``"era"`` value cannot be parsed.
+    """
     if game_dir is None:
         game_dir = get_vic3_directory()
 

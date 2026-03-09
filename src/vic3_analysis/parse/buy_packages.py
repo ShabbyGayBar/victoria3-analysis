@@ -1,3 +1,10 @@
+"""
+Parser for Victoria 3 pop buy-package definitions.
+
+Reads ``common/buy_packages/00_buy_packages.txt`` and exposes each wealth
+level's political strength and good-consumption values as a
+``pandas.DataFrame``.
+"""
 from vic3_analysis import get_vic3_directory
 import os
 import re
@@ -8,11 +15,36 @@ GAME_FILE_PATH = os.path.join(get_vic3_directory(), "common", "buy_packages", "0
 
 
 def _wealth_number(key: str):
+    """Extract the numeric wealth level from a ``wealth_N`` key string.
+
+    Args:
+        key: A string of the form ``"wealth_<number>"``.
+
+    Returns:
+        The integer wealth level, or ``None`` if *key* does not match the
+        expected pattern.
+    """
     match = re.fullmatch(r"wealth_(\d+)", key)
     return int(match.group(1)) if match else None
 
 
 def _parse_rows(tree):
+    """Parse a buy-packages ``pyradox.Tree`` into row dicts and column names.
+
+    Iterates over all ``wealth_N`` entries in *tree*, extracting political
+    strength and per-good consumption values.
+
+    Args:
+        tree: A ``pyradox.Tree`` representing the parsed buy-packages file.
+
+    Returns:
+        A tuple of:
+        - ``rows``: A list of dicts, one per wealth level, sorted by wealth
+          number.  Each dict contains ``"wealth"``, ``"political_strength"``,
+          and one key per ``popneed_*`` good consumed at that wealth level.
+        - ``popneed_columns``: An ordered list of the ``popneed_*`` column
+          names encountered while parsing, in first-seen order.
+    """
     rows = []
     popneed_columns = []
     popneed_seen = set()
@@ -47,6 +79,21 @@ def _parse_rows(tree):
 
 
 def buy_packages(file_path: str | None = None) -> pd.DataFrame:
+    """Parse a Victoria 3 buy-packages file into a ``pandas.DataFrame``.
+
+    Args:
+        file_path: Path to the buy-packages ``.txt`` file.  Defaults to the
+            standard location inside the auto-detected Victoria 3 game
+            directory.
+
+    Returns:
+        A ``DataFrame`` with one row per wealth level and columns for
+        ``"wealth"``, ``"political_strength"``, and one column per
+        ``popneed_*`` good.  Missing consumption values are filled with ``0``.
+
+    Raises:
+        FileNotFoundError: If *file_path* does not point to an existing file.
+    """
     if file_path is None:
         file_path = GAME_FILE_PATH
 
