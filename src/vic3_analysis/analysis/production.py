@@ -205,6 +205,84 @@ def production_table(game_dir: str | None = None) -> pd.DataFrame:
     return result
 
 
+class OptimizeResult:
+    """Structured result of an optimisation run, including the optimal building levels and summary statistics."""
+
+    def __init__(
+        self,
+        key_index: List[str],
+        level: np.ndarray[tuple[int], np.dtype[np.float64]],
+        goods_index: List[str],
+        net_goods: np.ndarray,
+        profit: float,
+        employment: float,
+        construction_cost: float,
+    ):
+        """Initialise the optimisation result.
+
+        Args:
+            level: Optimal building levels as a 1-D array of shape ``(n_buildings,)``.
+            net_goods: Net goods flows for the optimal allocation.
+            gdp: Total GDP for the optimal allocation.
+            employment: Total employment for the optimal allocation.
+            construction_cost: Total construction cost for the optimal allocation.
+        """
+        self.key_index = key_index
+        self.level = level
+        self.goods_index = goods_index
+        self.net_goods = net_goods
+        self.gdp = profit * 52  # Convert weekly profit to annual GDP
+        self.employment = employment
+        self.construction_cost = construction_cost
+
+    def gdp_per_capita(self) -> float:
+        """Calculate GDP per capita for the optimal allocation.
+
+        Returns:
+            GDP divided by employment, or ``float("inf")`` if employment is zero.
+        """
+        if self.employment == 0:
+            return float("inf")
+        return self.gdp / self.employment
+
+    def level_to_df(self) -> pd.DataFrame:
+        df = pd.DataFrame(
+            {
+                "building_key": self.key_index,
+                "level": self.level,
+            }
+        )
+        # remove rows with zero level
+        df = df[df["level"] > 0].copy()
+        # sort by optimized level in descending order
+        df = df.sort_values(by="level", ascending=False)
+        return df
+
+    def net_goods_to_df(self) -> pd.DataFrame:
+        goods_index = self.goods_index
+        df = pd.DataFrame(
+            {
+                "goods": goods_index,
+                "output": self.net_goods,
+            }
+        )
+        # remove rows with zero level
+        df = df[df["output"] > 0].copy()
+        # sort by optimized level in descending order
+        df = df.sort_values(by="output", ascending=False)
+        return df
+
+    def __str__(self) -> str:
+        return (
+            f"Optimal GDP: {self.gdp}\n"
+            f"Optimal Employment: {self.employment}\n"
+            f"Optimal GDP per Capita: {self.gdp_per_capita()}\n"
+            f"Optimal Construction Cost: {self.construction_cost}\n"
+            f"Optimal Building Levels:\n{self.level_to_df()}\n"
+            f"Net Goods Output:\n{self.net_goods_to_df()}"
+        )
+
+
 class ProductionAnalyzer:
     """Wraps a production table DataFrame and provides analysis/optimisation helpers.
 
@@ -357,6 +435,25 @@ class ProductionAnalyzer:
         """Reset ``self.df`` to the original unfiltered production table."""
         self.df = self.df_raw.copy()
 
+    def add_throughput_bonus(self, building_key: str, bonus_multiplier: float):
+        """Add a throughput bonus to all configurations of a specific building.
+
+        This method modifies the active DataFrame in-place, increasing the
+        profit and net goods of all configurations of *building_key* by
+        multiplying them by *bonus_multiplier*.
+
+        Args:
+            building_key: The building identifier prefix to search for (e.g.
+                ``"building_iron_mine"``).
+            bonus_multiplier: The factor by which to multiply the profit and
+                net goods of the affected configurations (e.g. 1.5 for a 50%
+                bonus).
+        """
+        indices = self.find_same_buildings(building_key)
+        self.df.loc[indices, "profit"] *= bonus_multiplier
+        goods_index = self.goods_index()
+        self.df.loc[indices, goods_index] *= bonus_multiplier
+
     def filter_by_era(self, era: int):
         """Keep only building configurations unlocked before *era*.
 
@@ -373,9 +470,7 @@ class ProductionAnalyzer:
         """
         self.df = self.df[self.df["building_group"] != building_group].copy()
 
-    def filter_by_production_method(
-        self, building_key: str, production_method_key: str
-    ):
+    def filter_by_production_method(self, production_method_key: str):
         """Remove configurations that include a specific production method.
 
         Args:
@@ -384,9 +479,8 @@ class ProductionAnalyzer:
                 excluded.  Any configuration key matching
                 ``"<building_key>(...<production_method_key>...)"`` is dropped.
         """
-        pattern = re.compile(rf"{building_key}\((?=.*{production_method_key}).*\)")
-        matches = self.df["key"].apply(lambda x: bool(pattern.match(x)))
-        self.df = self.df[~matches].copy()
+        pattern = re.compile(rf"\b{re.escape(production_method_key)}\b")
+        self.df = self.df[~self.df["key"].str.contains(pattern)].copy()
 
     def constraint_limit_import(
         self, limit: float = 0.0
@@ -500,23 +594,19 @@ class ProductionAnalyzer:
         b = np.array([-limit])  # Vector of limits for >= constraints
         return A, b
 
-    def gdp(
-        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
-    ) -> float:
-        """Calculate total GDP for a given building-level allocation.
+    def profit(self, level: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
+        """Calculate total profit for a given building-level allocation.
 
         Args:
             level: 1-D array of shape ``(n_buildings,)`` specifying the level
                 of each building configuration.
 
         Returns:
-            Total GDP for the given allocation.
+            Total profit for the given allocation.
         """
         return float(np.dot(level, self.profit_vector()))
 
-    def total_employment(
-        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
-    ) -> float:
+    def employment(self, level: np.ndarray[tuple[int], np.dtype[np.float64]]) -> float:
         """Calculate total employment for a given building-level allocation.
 
         Args:
@@ -526,8 +616,8 @@ class ProductionAnalyzer:
             Total employment for the given allocation.
         """
         return float(np.dot(level, self.employment_vector()))
-    
-    def total_construction_cost(
+
+    def construction_cost(
         self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> float:
         """Calculate total construction cost for a given building-level allocation.
@@ -539,7 +629,7 @@ class ProductionAnalyzer:
             Total construction cost for the given allocation.
         """
         return float(np.dot(level, self.construction_cost_vector()))
-    
+
     def net_goods(
         self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> np.ndarray:
@@ -551,19 +641,19 @@ class ProductionAnalyzer:
         Returns:
             Net goods flows for the given allocation.
         """
-        return np.dot(self.goods_matrix(), level)
+        return np.dot(level, self.goods_matrix())
 
-    def gdp_per_capita(
+    def profit_per_capita(
         self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> float:
-        """Calculate GDP per capita for a given building-level allocation.
+        """Calculate profit per capita for a given building-level allocation.
 
         Args:
             level: 1-D array of shape ``(n_buildings,)`` specifying the level
                 of each building configuration.
 
         Returns:
-            Total GDP divided by total employment, or ``float("inf")`` when
+            Total profit divided by total employment, or ``float("inf")`` when
             total employment is zero.
 
         Raises:
@@ -575,17 +665,17 @@ class ProductionAnalyzer:
         if level.shape[0] != len(self.df):
             raise ValueError("level length must match the number of rows in self.df.")
 
-        total_employment = self.total_employment(level)
+        total_employment = self.employment(level)
         if total_employment == 0:
-            return float("inf")  # Infinite GDP per capita if no employment
-        return self.gdp(level) / total_employment
+            return float("inf")  # Infinite profit per capita if no employment
+        return self.profit(level) / total_employment
 
     def linprog(
         self,
         c: np.ndarray[tuple[int], np.dtype[np.float64]],
         inequality_constraints: List[Tuple[np.ndarray, np.ndarray]],
         equality_constraints: List[Tuple[np.ndarray, np.ndarray]] = [],
-    ) -> pd.DataFrame:
+    ) -> OptimizeResult:
         """Solve a linear programme over building levels.
 
         Minimises ``c @ x`` subject to the given inequality and equality
@@ -632,12 +722,12 @@ class ProductionAnalyzer:
         res = opt.linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq)
         if not res.success:
             raise ValueError(f"Optimization failed: {res.message}")
-        df = pd.DataFrame(
-            {
-                "building_key": self.key_index(),
-                "level": res.x,
-            }
+        return OptimizeResult(
+            key_index=self.key_index(),
+            level=res.x,
+            goods_index=self.goods_index(),
+            net_goods=self.net_goods(res.x),
+            profit=self.profit(res.x),
+            employment=self.employment(res.x),
+            construction_cost=self.construction_cost(res.x),
         )
-        # sort by optimized level in descending order
-        df = df.sort_values(by="level", ascending=False)
-        return df

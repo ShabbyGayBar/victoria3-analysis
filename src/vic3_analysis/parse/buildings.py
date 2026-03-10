@@ -96,3 +96,24 @@ class BuildingsParser(Tree):
             else:
                 result[building_key] = [pmg]
         return result
+
+    def building_groups(self) -> dict[str, list[str]]:
+        """Return a mapping of building group keys to their member building keys.
+
+        Returns:
+            A dict where each key is a building group identifier and each value
+            is a list of building identifiers that belong to that group.
+        """
+        result = {}
+        for building_key, building_values in self.items():
+            if isinstance(building_values, Tree):
+                group = building_values.to_python().get("building_group")
+            elif isinstance(building_values, dict):
+                group = building_values.get("building_group")
+            else:
+                continue  # Skip non-dict entries
+            if group is not None:
+                if group not in result:
+                    result[group] = []
+                result[group].append(building_key)
+        return result
