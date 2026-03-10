@@ -5,13 +5,12 @@ Reads ``common/buy_packages/00_buy_packages.txt`` and exposes each wealth
 level's political strength and good-consumption values as a
 ``pandas.DataFrame``.
 """
+
 from vic3_analysis import get_vic3_directory
 import os
 import re
 import pandas as pd
 from pyradox import parse_file
-
-GAME_FILE_PATH = os.path.join(get_vic3_directory(), "common", "buy_packages", "00_buy_packages.txt")
 
 
 def _wealth_number(key: str):
@@ -95,7 +94,9 @@ def buy_packages(file_path: str | None = None) -> pd.DataFrame:
         FileNotFoundError: If *file_path* does not point to an existing file.
     """
     if file_path is None:
-        file_path = GAME_FILE_PATH
+        file_path = os.path.join(
+            get_vic3_directory(), "common", "buy_packages", "00_buy_packages.txt"
+        )
 
     if not os.path.isfile(file_path):
         raise FileNotFoundError(
