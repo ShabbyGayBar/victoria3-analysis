@@ -500,6 +500,59 @@ class ProductionAnalyzer:
         b = np.array([-limit])  # Vector of limits for >= constraints
         return A, b
 
+    def gdp(
+        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> float:
+        """Calculate total GDP for a given building-level allocation.
+
+        Args:
+            level: 1-D array of shape ``(n_buildings,)`` specifying the level
+                of each building configuration.
+
+        Returns:
+            Total GDP for the given allocation.
+        """
+        return float(np.dot(level, self.profit_vector()))
+
+    def total_employment(
+        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> float:
+        """Calculate total employment for a given building-level allocation.
+
+        Args:
+            level: 1-D array of shape ``(n_buildings,)`` specifying the level
+                of each building configuration.
+        Returns:
+            Total employment for the given allocation.
+        """
+        return float(np.dot(level, self.employment_vector()))
+    
+    def total_construction_cost(
+        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> float:
+        """Calculate total construction cost for a given building-level allocation.
+
+        Args:
+            level: 1-D array of shape ``(n_buildings,)`` specifying the level
+                of each building configuration.
+        Returns:
+            Total construction cost for the given allocation.
+        """
+        return float(np.dot(level, self.construction_cost_vector()))
+    
+    def net_goods(
+        self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray:
+        """Calculate net goods flows for a given building-level allocation.
+
+        Args:
+            level: 1-D array of shape ``(n_buildings,)`` specifying the level
+                of each building configuration.
+        Returns:
+            Net goods flows for the given allocation.
+        """
+        return np.dot(self.goods_matrix(), level)
+
     def gdp_per_capita(
         self, level: np.ndarray[tuple[int], np.dtype[np.float64]]
     ) -> float:
@@ -510,7 +563,7 @@ class ProductionAnalyzer:
                 of each building configuration.
 
         Returns:
-            Total profit divided by total employment, or ``float("inf")`` when
+            Total GDP divided by total employment, or ``float("inf")`` when
             total employment is zero.
 
         Raises:
@@ -522,11 +575,10 @@ class ProductionAnalyzer:
         if level.shape[0] != len(self.df):
             raise ValueError("level length must match the number of rows in self.df.")
 
-        total_profit = float(np.dot(level, self.profit_vector()))
-        total_employment = float(np.dot(level, self.employment_vector()))
+        total_employment = self.total_employment(level)
         if total_employment == 0:
             return float("inf")  # Infinite GDP per capita if no employment
-        return total_profit / total_employment
+        return self.gdp(level) / total_employment
 
     def linprog(
         self,
@@ -583,9 +635,9 @@ class ProductionAnalyzer:
         df = pd.DataFrame(
             {
                 "building_key": self.key_index(),
-                "optimized_level": res.x,
+                "level": res.x,
             }
         )
         # sort by optimized level in descending order
-        df = df.sort_values(by="optimized_level", ascending=False)
+        df = df.sort_values(by="level", ascending=False)
         return df
