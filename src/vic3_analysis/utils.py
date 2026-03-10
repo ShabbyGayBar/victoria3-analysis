@@ -11,7 +11,7 @@ import pyradox
 # Uses glob, but not recursively (no **).
 prefixes = [
     r"/Program Files*/Steam/steamapps/common/",  # windows
-    r"/Steam/steamapps/common/",
+    r"~/.local/share/Steam/steamapps/common/", # linux
     r"~/Library/Application Support/Steam/steamapps/common/",  # mac
     r"~/*steam/steam/SteamApps/common",  # linux
 ]
@@ -37,7 +37,7 @@ def get_vic3_directory() -> str:
     game_suffix = "Victoria 3/game"
 
     for prefix in prefixes:
-        pattern = os.path.join(prefix, game_suffix)
+        pattern = os.path.join(os.path.expanduser(prefix), game_suffix)
         candidates = glob(pattern)
         if len(candidates) > 0:
             return candidates[0]
