@@ -75,5 +75,6 @@ nav:
   - Overview: index.md
   - License: license.md
 - Usage:
-  - usage/index.md
+  - usage/parse.md
+  - usage/analysis.md
 - API reference: api.md

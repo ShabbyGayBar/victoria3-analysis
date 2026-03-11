@@ -223,7 +223,7 @@ class OptimizeResult:
         Args:
             level: Optimal building levels as a 1-D array of shape ``(n_buildings,)``.
             net_goods: Net goods flows for the optimal allocation.
-            gdp: Total GDP for the optimal allocation.
+            profit: Total profit for the optimal allocation.
             employment: Total employment for the optimal allocation.
             construction_cost: Total construction cost for the optimal allocation.
         """
@@ -474,7 +474,6 @@ class ProductionAnalyzer:
         """Remove configurations that include a specific production method.
 
         Args:
-            building_key: The building identifier prefix.
             production_method_key: The production-method key that should be
                 excluded.  Any configuration key matching
                 ``"<building_key>(...<production_method_key>...)"`` is dropped.
