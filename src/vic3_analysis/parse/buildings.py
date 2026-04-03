@@ -39,7 +39,7 @@ class BuildingsParser(Tree):
 
         parse_dir = os.path.join(game_dir, "common", "buildings")
         parse_tree = parse_merge(parse_dir)
-        self.update(parse_tree.to_python())
+        self.update(parse_tree)
 
         parse_dir = os.path.join(game_dir, "common", "script_values")
         parse_tree = parse_merge(parse_dir)
