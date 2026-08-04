@@ -8,7 +8,7 @@ The method responsible for performing the optimization is `linprog()`, which ret
 
 To perform a production optimization, we must first acquire the following:
 
-+ A `production_table` containing all possible buildings with different settings of production methods, which is already provided when calling the `ProductionAnalyzer` constructor.
++ A `production_table` containing all possible buildings with different settings of production methods, which is already provided when calling the `ProductionAnalyzer` constructor. Each row corresponds to one specific building configuration: the `building` column holds the building key (e.g. `building_steel_mill`) and the `production_method` column holds the concatenated production methods for that configuration (e.g. `pm_steamworks+pm_atmospheric_engine`); the remaining columns record the building group, era, construction cost, profit, employment, and the net flow of each tradeable good.
 
 + An objective vector, which serves as a function representing the objective value you want to minimize. For example, if you want to minimize the total construction cost, the objective vector should be `construction_cost_vector()` of the `ProductionAnalyzer` instance. All objective vector functions provided by the `ProductionAnalyzer` instance ends with `_vector()`, and the name before `_vector()` indicates the objective value it represents.
 

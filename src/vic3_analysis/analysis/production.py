@@ -134,10 +134,11 @@ def production_table(game_dir: str | None = None) -> pd.DataFrame:
     Returns:
         A ``DataFrame`` where each row represents one specific building
         configuration (a unique combination of production methods).  The
-        ``"key"`` column encodes ``"<building>(<pm1>+<pm2>+...)"``; other
-        columns include ``"building_group"``, ``"era"``,
-        ``"construction_cost"``, ``"profit"``, ``"employment"``, and one
-        column per tradeable good.
+        ``"building"`` column holds the building key and the
+        ``"production_method"`` column holds the concatenated production
+        methods (``"<pm1>+<pm2>+..."``); other columns include
+        ``"building_group"``, ``"era"``, ``"construction_cost"``,
+        ``"profit"``, ``"employment"``, and one column per tradeable good.
     """
     if game_dir is None:
         game_dir = get_vic3_directory()
@@ -190,10 +191,12 @@ def production_table(game_dir: str | None = None) -> pd.DataFrame:
         # iterate through all combinations of production methods for this building
         for combo in _all_combinations(pm_lists):
             building = ProductionUnit(production={})
-            key = building_key + "(" + "+".join(combo) + ")"
             for pm in combo:
                 building += pm_dict[pm]
-            row_dict = {"key": key}
+            row_dict = {
+                "building": building_key,
+                "production_method": "+".join(combo),
+            }
             row_dict["building_group"] = building_group_dict[building_key]
             row_dict["era"] = building["era"]
             row_dict["construction_cost"] = building_cost_dict[building_key]
@@ -314,15 +317,17 @@ class ProductionAnalyzer:
 
         Returns:
             Column names that represent tradeable goods (i.e. all columns
-            except ``"key"``, ``"building_group"``, ``"era"``,
-            ``"construction_cost"``, ``"profit"``, and ``"employment"``).
+            except ``"building"``, ``"production_method"``,
+            ``"building_group"``, ``"era"``, ``"construction_cost"``,
+            ``"profit"``, and ``"employment"``).
         """
         return [
             col
             for col in self.df.columns
             if col
             not in [
-                "key",
+                "building",
+                "production_method",
                 "building_group",
                 "era",
                 "construction_cost",
@@ -346,12 +351,13 @@ class ProductionAnalyzer:
 
         Returns:
             Column names that represent production values (i.e. all columns
-            except ``"key"``, ``"building_group"``, and ``"era"``).
+            except ``"building"``, ``"production_method"``,
+            ``"building_group"``, and ``"era"``).
         """
         return [
             col
             for col in self.df.columns
-            if col not in ["key", "building_group", "era"]
+            if col not in ["building", "production_method", "building_group", "era"]
         ]
 
     def production_matrix(self) -> np.ndarray:
@@ -365,10 +371,16 @@ class ProductionAnalyzer:
     def key_index(self) -> List[str]:
         """Return the list of building-configuration keys for active rows.
 
+        Each key is reconstructed from the ``"building"`` and
+        ``"production_method"`` columns as ``"<building>(<pms>)"``.
+
         Returns:
-            Values from the ``"key"`` column, in DataFrame order.
+            The combined building-configuration keys, in DataFrame order.
         """
-        return self.df["key"].tolist()
+        return [
+            f"{b}({pm})"
+            for b, pm in zip(self.df["building"], self.df["production_method"])
+        ]
 
     def profit_vector(self) -> np.ndarray:
         """Return a 1-D NumPy array of per-level profits for active rows.
@@ -410,14 +422,14 @@ class ProductionAnalyzer:
         """Return DataFrame indices of all configurations for a given building.
 
         Args:
-            building_key: The building identifier prefix to search for (e.g.
+            building_key: The building identifier to search for (e.g.
                 ``"building_iron_mine"``).
 
         Returns:
-            List of integer row indices whose ``"key"`` column starts with
+            List of integer row indices whose ``"building"`` column matches
             *building_key*.
         """
-        return self.df[self.df["key"].str.startswith(building_key)].index.tolist()
+        return self.df[self.df["building"] == building_key].index.tolist()
 
     def find_same_building_group(self, building_group: str) -> List[int]:
         """Return DataFrame indices of all configurations in a building group.
@@ -443,7 +455,7 @@ class ProductionAnalyzer:
         multiplying them by *bonus_multiplier*.
 
         Args:
-            building_key: The building identifier prefix to search for (e.g.
+            building_key: The building identifier to search for (e.g.
                 ``"building_iron_mine"``).
             bonus_multiplier: The factor by which to multiply the profit and
                 net goods of the affected configurations (e.g. 1.5 for a 50%
@@ -475,11 +487,12 @@ class ProductionAnalyzer:
 
         Args:
             production_method_key: The production-method key that should be
-                excluded.  Any configuration key matching
-                ``"<building_key>(...<production_method_key>...)"`` is dropped.
+                excluded.  Any configuration whose ``"production_method"``
+                column contains *production_method_key* as a whole word is
+                dropped.
         """
         pattern = re.compile(rf"\b{re.escape(production_method_key)}\b")
-        self.df = self.df[~self.df["key"].str.contains(pattern)].copy()
+        self.df = self.df[~self.df["production_method"].str.contains(pattern)].copy()
 
     def constraint_limit_import(
         self, limit: float = 0.0
