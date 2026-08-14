@@ -58,7 +58,9 @@ class StateRegionsParser(Tree):
         results = []
         for state_region_key, state_region_values in self.items():
             state_region = {"key": state_region_key}
-            state_region["province_count"] = len(self.provinces_of(state_region_key))
+            state_region["province_count"] = len(
+                list(state_region_values.find_all("provinces"))
+            )
             for attribute_key, attribute_value in state_region_values.items():
                 if attribute_key == "capped_resources":
                     for resource_key, resource_value in attribute_value.items():
@@ -85,42 +87,3 @@ class StateRegionsParser(Tree):
             if column.startswith("resource_") or column.startswith("undiscovered_amount_resource_") or column.startswith("discovered_amount_resource_"):
                 results[column] = pd.to_numeric(results[column], errors="coerce").fillna(0).astype(int)
         return results
-
-    def provinces_of(self, state_region_key: str | None = None) -> list[str]:
-        """Return a list of all province keys that belong to any state region."""
-        provinces = []
-        state_region_values = self[state_region_key]
-        if not isinstance(state_region_values, Tree):
-            raise ValueError(
-                f"State region '{state_region_key}' does not exist or is not a valid Tree."
-            )
-        for attribute_key, attribute_value in state_region_values.items():
-            if attribute_key == "provinces":
-                provinces.append(attribute_value)
-        return provinces
-
-    def traits_of(self, state_region_key: str | None = None) -> list[str]:
-        """Return a list of all trait keys that belong to any state region."""
-        traits = []
-        state_region_values = self[state_region_key]
-        if not isinstance(state_region_values, Tree):
-            raise ValueError(
-                f"State region '{state_region_key}' does not exist or is not a valid Tree."
-            )
-        for attribute_key, attribute_value in state_region_values.items():
-            if attribute_key == "traits":
-                traits.append(attribute_value)
-        return traits
-
-    def arable_resources_of(self, state_region_key: str | None = None) -> list[str]:
-        """Return a list of all arable resource keys that belong to any state region."""
-        arable_resources = []
-        state_region_values = self[state_region_key]
-        if not isinstance(state_region_values, Tree):
-            raise ValueError(
-                f"State region '{state_region_key}' does not exist or is not a valid Tree."
-            )
-        for attribute_key, attribute_value in state_region_values.items():
-            if attribute_key == "arable_resources":
-                arable_resources.append(attribute_value)
-        return arable_resources
