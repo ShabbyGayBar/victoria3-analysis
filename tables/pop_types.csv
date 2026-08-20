@@ -1,0 +1,16 @@
+pop_type,texture,color,start_quality_of_life,wage_weight,paid_private_wage,literacy_target,education_access,dependent_wage,unemployment,political_engagement_base,political_engagement_literacy_factor,qualifications_growth_desc,working_adult_ratio,pays_land_tax,unemployment_wealth,can_always_hire,military,ignores_employment_proportionality,subsistence_income,consumption_mult,sol_change_impact,is_slave
+academics,gfx/interface/icons/pops_icons/academics.dds,hsv { 0.94 0.51 0.37 },10,4.0,True,0.8,0.5,0.5,True,0.7,0.3,ACADEMICS_QUALIFICATIONS_DESC,,,,,,,,,,
+aristocrats,gfx/interface/icons/pops_icons/aristocrats.dds,hsv { 0.60 0.58 0.46 },20,5.0,False,0.6,,0.0,True,0.7,0.3,ARISTOCRATS_QUALIFICATIONS_DESC,0.2,,,,,,,,,
+bureaucrats,gfx/interface/icons/pops_icons/bureaucrats.dds,hsv { 0.25 0.40 0.50 },10,4.0,True,0.4,0.5,0.5,True,0.5,0.5,BUREAUCRATS_QUALIFICATIONS_DESC,,,,,,,,,,
+capitalists,gfx/interface/icons/pops_icons/capitalists.dds,hsv { 0.52 0.32 0.49 },20,5.0,False,0.7,,0.0,True,0.7,0.3,CAPITALISTS_QUALIFICATIONS_DESC,,,,,,,,,,
+clergymen,gfx/interface/icons/pops_icons/clergymen.dds,hsv { 0.13 0.52 0.91 },10,3.0,True,0.8,0.5,0.5,True,0.5,0.5,CLERGYMEN_QUALIFICATIONS_DESC,,,,,,,,,,
+clerks,gfx/interface/icons/pops_icons/clerks.dds,hsv { 0.28 0.40 0.75 },7,1.5,True,0.2,0.25,0.5,True,0.2,0.6,CLERKS_QUALIFICATIONS_DESC,,,,,,,,,,
+engineers,gfx/interface/icons/pops_icons/engineers.dds,hsv { 0.07 0.57 0.77 },10,3.0,True,0.8,0.25,0.5,True,0.5,1.0,ENGINEERS_QUALIFICATIONS_DESC,,,,,,,,,,
+farmers,gfx/interface/icons/pops_icons/farmers.dds,hsv { 0.54 0.58 0.82 },10,2.0,True,,,0.5,True,0.4,0.4,FARMERS_QUALIFICATIONS_DESC,,True,,,,,,,,
+laborers,gfx/interface/icons/pops_icons/laborers.dds,hsv { 0.02 0.38 0.37 },5,1.0,True,,,0.5,True,0.1,0.7,,,,10.0,True,,,,,,
+machinists,gfx/interface/icons/pops_icons/machinists.dds,hsv { 0.92 0.40 0.78 },7,1.5,True,0.1,,0.5,True,0.25,0.6,MACHINISTS_QUALIFICATIONS_DESC,,,,,,,,,,
+officers,gfx/interface/icons/pops_icons/officers.dds,hsv { 0.12 0.51 0.36 },10,5.0,True,0.5,,0.5,True,0.7,0.3,OFFICERS_QUALIFICATIONS_DESC,,,,,True,True,,,,
+peasants,gfx/interface/icons/pops_icons/peasants.dds,hsv { 0.58 0.34 0.81 },5,0.2,True,,,0.25,False,0.1,0.5,,,True,,True,,True,True,0.05,0.01,
+shopkeepers,gfx/interface/icons/pops_icons/shopkeepers.dds,hsv { 0.41 0.45 0.88 },10,3.0,True,0.2,,0.5,True,0.3,0.6,SHOPKEEPERS_QUALIFICATIONS_DESC,,,,,,,,,,
+slaves,gfx/interface/icons/pops_icons/slaves.dds,hsv { 0.11 0.21 0.68 },1,0.0,,,,0.0,True,0.1,0.8,,0.5,,,True,,,,,,True
+soldiers,gfx/interface/icons/pops_icons/soldiers.dds,hsv { 0.80 0.20 0.56 },7,1.5,True,,,0.5,True,0.2,0.6,,,,,True,True,True,,,,
