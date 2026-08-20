@@ -12,13 +12,6 @@ import re
 import pandas as pd
 from pyradox import Tree
 
-skip_keys = [
-    "modifier",
-    "ai_weight",
-    "unlocking_technologies",
-    "on_researched",
-]
-
 
 def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
     """Parse Victoria 3 technology definitions into a DataFrame.
@@ -51,11 +44,11 @@ def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
     for tech_key, subtree in parse_tree.items():
         tech_item = {"tech_key": tech_key}
         for key, value in subtree.items():
-            if key in skip_keys:
+            if isinstance(value, list):
+                value = "+".join(str(v) for v in value)
+            elif isinstance(value, (dict, Tree)):
                 continue
-            if isinstance(value, Tree):
-                raise ValueError(f"Expected non-tree entry for {key}, got Tree")
-            if key == "era":
+            elif key == "era":
                 # Extract era number from string like "era_1"
                 match = re.match(r"era_(\d+)", value)
                 if match:

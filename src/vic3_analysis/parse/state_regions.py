@@ -74,11 +74,15 @@ class StateRegionsParser(Tree):
                         )
                     resource_key = attribute_value["type"]
                     undiscovered_amount = int(
-                        attribute_value.find("undiscovered_amount", 0)
-                    )  # pyright: ignore[reportArgumentType]
+                        attribute_value.find(
+                            "undiscovered_amount", 0
+                        )  # pyright: ignore[reportArgumentType]
+                    )
                     discovered_amount = int(
-                        attribute_value.find("discovered_amount", 0)
-                    )  # pyright: ignore[reportArgumentType]
+                        attribute_value.find(
+                            "discovered_amount", 0
+                        )  # pyright: ignore[reportArgumentType]
+                    )
                     state_region[f"resource_{resource_key}"] = (
                         undiscovered_amount + discovered_amount
                     )
