@@ -46,13 +46,20 @@ def _all_combinations(lists: List[Iterable[Any]]) -> Iterable[Tuple[Any, ...]]:
 class ProductionUnit(dict):
     """A dict-like snapshot of one building level's production statistics.
 
-    Stores goods flows (positive = output, negative = input), employment, and
-    the earliest era at which this configuration becomes available.  Supports
-    addition (``+``) to aggregate multiple production methods.
+    Stores goods flows (positive = output, negative = input), total and
+    per-profession employment, and the earliest era at which this
+    configuration becomes available.  Supports addition (``+``) to aggregate
+    multiple production methods.
 
     """
 
-    def __init__(self, production: dict[str, int], employment: int = 0, era: int = 0):
+    def __init__(
+        self,
+        production: dict[str, int],
+        employment: int = 0,
+        era: int = 0,
+        employment_by_profession: dict[str, int] | None = None,
+    ):
         """Initialise a :class:`ProductionUnit`.
 
         Args:
@@ -60,17 +67,23 @@ class ProductionUnit(dict):
                 level (positive = output, negative = input).
             employment: Number of pops employed per building level.
             era: Minimum era required to unlock this production configuration.
+            employment_by_profession: Mapping of ``"<profession>"`` keys to the
+                number of pops of that profession employed per building level.
+                Stored as ``"employment_<profession>"`` entries.
         """
         super().__init__()
         self["era"] = era
         self["employment"] = employment
         self.update(production)
+        if employment_by_profession:
+            for profession, amount in employment_by_profession.items():
+                self[f"employment_{profession}"] = amount
 
     def __add__(self, other):
         """Combine two :class:`ProductionUnit` instances into one.
 
-        Goods amounts are summed; ``"era"`` is set to the maximum of the two
-        units; ``"employment"`` is summed.
+        Goods amounts, employment (total and per-profession) are summed;
+        ``"era"`` is set to the maximum of the two units.
 
         Args:
             other: Another :class:`ProductionUnit` (or compatible dict).
@@ -87,8 +100,8 @@ class ProductionUnit(dict):
         result["era"] = max(self["era"], other["era"])
         return ProductionUnit(production=result)
 
-    def profit(self, goods_cost: dict[str, int]) -> int:
-        """Calculate the net profit per building level.
+    def profit_nominal(self, goods_cost: dict[str, int]) -> int:
+        """Calculate the net nominal profit per building level.
 
         Args:
             goods_cost: Mapping of good keys to their base market prices.
@@ -99,7 +112,7 @@ class ProductionUnit(dict):
         """
         profit = 0
         for good, amount in self.items():
-            if good in ["employment", "era"]:
+            if good == "era" or good.startswith("employment"):
                 continue
             profit += goods_cost[good] * amount
         return profit
@@ -116,7 +129,7 @@ class ProductionUnit(dict):
         """
         if self["employment"] == 0:
             return float("inf")  # Infinite profit per employment if employment is zero
-        return self.profit(goods_cost) / self["employment"]
+        return self.profit_nominal(goods_cost) / self["employment"]
 
 
 def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
@@ -124,8 +137,8 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
 
     For every building that has a construction cost, enumerates every
     combination of production methods (one per production-method-group) and
-    records the aggregated employment, goods flows, profit, era, and
-    construction cost.
+    records the aggregated employment (total and per profession), goods flows,
+    nominal profit, era, and construction cost.
 
     Args:
         game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
@@ -139,7 +152,8 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
         ``"production_method"`` column holds the concatenated production
         methods (``"<pm1>+<pm2>+..."``); other columns include
         ``"building_group"``, ``"era"``, ``"construction_cost"``,
-        ``"profit"``, ``"employment"``, and one column per tradeable good.
+        ``"profit_nominal"``, ``"employment"``, ``"employment_<profession>"`` (one
+        per profession), and one ``"goods_<good>"`` column per tradeable good.
     """
     if game_dir is None:
         game_dir = get_vic3_directory()
@@ -172,7 +186,10 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
             building_group_dict[building_key] = building_values["building_group"]
 
     # Get production method employment and production output
-    df_pm = ProductionMethodParser().to_dataframe()
+    df_pm = ProductionMethodParser(game_dir).to_dataframe()
+    employment_profession_keys = [
+        col for col in df_pm.columns if col.startswith("employment_")
+    ]
     pm_dict = {}
     for _, row in df_pm.iterrows():
         if row["building"] not in building_cost_dict:
@@ -184,6 +201,10 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
                 good: row[f"goods_{good}"]
                 for good in goods_dict.keys()
                 if f"goods_{good}" in row
+            },
+            employment_by_profession={
+                col[len("employment_") :]: row[col]
+                for col in employment_profession_keys
             },
         )
 
@@ -204,9 +225,16 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
             }
             row_dict["building_group"] = building_group_dict[building_key]
             row_dict["era"] = building["era"]
+            row_dict["employment"] = building["employment"]
             row_dict["construction_cost"] = building_cost_dict[building_key]
-            row_dict["profit"] = building.profit(goods_dict)
-            row_dict.update(building)
+            row_dict["profit_nominal"] = building.profit_nominal(goods_dict)
+            for key, amount in building.items():
+                if key in ("era", "employment"):
+                    continue
+                if key.startswith("employment_"):
+                    row_dict[key] = amount
+                else:
+                    row_dict[f"goods_{key}"] = amount
             possible_buildings.append(row_dict)
 
     result = pd.DataFrame(possible_buildings)
@@ -222,7 +250,7 @@ class OptimizeResult:
         level: np.ndarray[tuple[int], np.dtype[np.float64]],
         goods_index: List[str],
         net_goods: np.ndarray,
-        profit: float,
+        profit_nominal: float,
         employment: float,
         construction_cost: float,
     ):
@@ -231,7 +259,7 @@ class OptimizeResult:
         Args:
             level: Optimal building levels as a 1-D array of shape ``(n_buildings,)``.
             net_goods: Net goods flows for the optimal allocation.
-            profit: Total profit for the optimal allocation.
+            profit_nominal: Total nominal profit for the optimal allocation.
             employment: Total employment for the optimal allocation.
             construction_cost: Total construction cost for the optimal allocation.
         """
@@ -239,7 +267,7 @@ class OptimizeResult:
         self.level = level
         self.goods_index = goods_index
         self.net_goods = net_goods
-        self.gdp = profit * 52  # Convert weekly profit to annual GDP
+        self.gdp = profit_nominal * 52  # Convert weekly profit_nominal to annual GDP
         self.employment = employment
         self.construction_cost = construction_cost
 
@@ -323,25 +351,10 @@ class ProductionAnalyzer:
         """Return the list of good-key column names in the active DataFrame.
 
         Returns:
-            Column names that represent tradeable goods (i.e. all columns
-            except ``"building"``, ``"production_method"``,
-            ``"building_group"``, ``"era"``, ``"construction_cost"``,
-            ``"profit"``, and ``"employment"``).
+            Column names that represent tradeable goods, i.e. all columns
+            prefixed with ``"goods_"``.
         """
-        return [
-            col
-            for col in self.df.columns
-            if col
-            not in [
-                "building",
-                "production_method",
-                "building_group",
-                "era",
-                "construction_cost",
-                "profit",
-                "employment",
-            ]
-        ]
+        return [col for col in self.df.columns if col.startswith("goods_")]
 
     def goods_matrix(self) -> np.ndarray:
         """Return a NumPy matrix of goods flows for all active rows.
@@ -396,7 +409,7 @@ class ProductionAnalyzer:
             Array of shape ``(n_buildings,)`` containing the net profit value
             for each building configuration.
         """
-        return self.df["profit"].to_numpy()
+        return self.df["profit_nominal"].to_numpy()
 
     def employment_vector(self) -> np.ndarray:
         """Return a 1-D NumPy array of per-level employment for active rows.
@@ -458,18 +471,18 @@ class ProductionAnalyzer:
         """Add a throughput bonus to all configurations of a specific building.
 
         This method modifies the active DataFrame in-place, increasing the
-        profit and net goods of all configurations of *building_key* by
+        profit_nominal and net goods of all configurations of *building_key* by
         multiplying them by *bonus_multiplier*.
 
         Args:
             building_key: The building identifier to search for (e.g.
                 ``"building_iron_mine"``).
-            bonus_multiplier: The factor by which to multiply the profit and
+            bonus_multiplier: The factor by which to multiply the profit_nominal and
                 net goods of the affected configurations (e.g. 1.5 for a 50%
                 bonus).
         """
         indices = self.find_same_buildings(building_key)
-        self.df.loc[indices, "profit"] *= bonus_multiplier
+        self.df.loc[indices, "profit_nominal"] *= bonus_multiplier
         goods_index = self.goods_index()
         self.df.loc[indices, goods_index] *= bonus_multiplier
 
@@ -606,9 +619,10 @@ class ProductionAnalyzer:
             ValueError: If *good_key* is not present in the goods index.
         """
         goods_index = self.goods_index()
-        if good_key not in goods_index:
+        column = f"goods_{good_key}"
+        if column not in goods_index:
             raise ValueError(f"Good '{good_key}' not found in goods index.")
-        idx = goods_index.index(good_key)
+        idx = goods_index.index(column)
         A = -self.goods_matrix()[:, idx].T  # Negate to convert to >= limit form
         b = np.array([-limit])  # Vector of limits for >= constraints
         return A, b
@@ -746,7 +760,7 @@ class ProductionAnalyzer:
             level=res.x,
             goods_index=self.goods_index(),
             net_goods=self.net_goods(res.x),
-            profit=self.profit(res.x),
+            profit_nominal=self.profit(res.x),
             employment=self.employment(res.x),
             construction_cost=self.construction_cost(res.x),
         )
