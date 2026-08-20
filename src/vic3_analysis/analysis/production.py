@@ -13,7 +13,7 @@ from vic3_analysis import (
     BuildingsParser,
     goods,
     production_method_groups,
-    production_method,
+    ProductionMethodParser,
     technology,
 )
 from pathlib import Path
@@ -172,7 +172,7 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
             building_group_dict[building_key] = building_values["building_group"]
 
     # Get production method employment and production output
-    df_pm = production_method()
+    df_pm = ProductionMethodParser().to_dataframe()
     pm_dict = {}
     for _, row in df_pm.iterrows():
         if row["building"] not in building_cost_dict:
@@ -180,7 +180,11 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
         pm_dict[row["production_method"]] = ProductionUnit(
             era=tech_era_dict.get(row["unlocking_technologies"], 0),
             employment=row["employment"],
-            production={good: row[good] for good in goods_dict.keys() if good in row},
+            production={
+                good: row[f"goods_{good}"]
+                for good in goods_dict.keys()
+                if f"goods_{good}" in row
+            },
         )
 
     possible_buildings = []

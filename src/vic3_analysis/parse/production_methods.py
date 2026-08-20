@@ -1,9 +1,12 @@
 """
 Parser for Victoria 3 production-method definitions.
 
-Reads all ``.txt`` files under ``common/production_methods``, combines them
-with building and goods data, and exposes per-production-method employment and
-goods-flow values as a flat ``pandas.DataFrame``.
+Reads all ``.txt`` files under ``common/production_methods`` and exposes them
+as a :class:`ProductionMethodParser` (a ``pyradox.Tree`` subclass) that
+supports raw per-method iteration, per-profession employment look-ups, and
+flat ``pandas.DataFrame`` conversion combining building and
+production-method-group data with per-method attributes and appended
+employment and goods-flow columns.
 """
 
 from vic3_analysis import (
@@ -17,199 +20,224 @@ from pathlib import Path
 import re
 import pandas as pd
 from pyradox import Tree
-from typing import Any
+from typing import Any, Iterator
 
 
-def _parse_pm(
-    goods_dict: dict[str, Any], game_dir: str | Path | None = None
-) -> dict[str, Any]:
-    """Parse raw production-method data from the game files.
+class ProductionMethodParser(Tree):
+    """A ``pyradox.Tree`` populated with Victoria 3 production-method definitions.
 
-    Reads all ``.txt`` files under ``common/production_methods`` and extracts
-    per-method goods flows (positive for output, negative for input) and
-    employment.  Methods that do not define ``workforce_scaled`` building
-    modifiers are skipped.
-
-    Args:
-        goods_dict: Mapping of good keys to their base costs, used to identify
-            which modifier strings correspond to known goods.
-        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
-            directory is located automatically via
-            :func:`~vic3_analysis.utils.get_vic3_directory`.
-
-    Returns:
-        A dict mapping each production-method key to another dict that contains
-        numeric values for each good key (positive = output, negative = input),
-        an ``"employment"`` value, and optionally an
-        ``"unlocking_technologies"`` string.
-
-    Raises:
-        ValueError: If a goods modifier string cannot be classified as either
-            an input or an output, or if the associated good key cannot be
-            identified.
+    On construction the parser reads all production-method ``.txt`` files from
+    the game's ``common/production_methods`` directory.  Raw entries can be
+    iterated via :meth:`items` (inherited from ``Tree``); per-method employment
+    (total and broken down by profession) is available via :meth:`employment`;
+    and a flat per-configuration table of production-method attributes plus
+    appended employment and goods-flow columns is built by
+    :meth:`to_dataframe`.
     """
-    if game_dir is None:
-        game_dir = get_vic3_directory()
 
-    parse_dir = Path(game_dir) / "common" / "production_methods"
-    parse_tree = parse_merge(parse_dir)
-    result = {}
-    for key, subtree in parse_tree.items():
-        if not isinstance(subtree, Tree):
-            continue  # Skip non-tree entries
-        building_modifiers = subtree.to_python().get("building_modifiers")
-        if not isinstance(building_modifiers, dict):
-            continue  # Skip if building_modifiers is not a dict
-        if "workforce_scaled" not in building_modifiers.keys():
-            continue  # Skip if workforce_scaled is not a key in building_modifiers
-        result[key] = {}
-        for goods_str, value in building_modifiers["workforce_scaled"].items():
-            if not goods_str.startswith("goods_"):
-                continue
-            # Determine goods type
-            for goods_key in goods_dict.keys():
-                if re.search(goods_key, goods_str):
-                    if goods_str.startswith("goods_output_"):
-                        result[key][goods_key] = value
-                        break
-                    elif goods_str.startswith("goods_input_"):
-                        result[key][goods_key] = -value
-                        break
-                    else:
-                        raise ValueError(
-                            f"Could not determine if goods is input or output from string: {goods_str}"
-                        )
-            else:
-                raise ValueError(
-                    f"Could not determine goods type from string: {goods_str}"
-                )
-        result[key]["employment"] = 0
-        if "level_scaled" not in building_modifiers.keys():
-            continue  # Skip if level_scaled is not a key in building_modifiers
-        for level_str, value in building_modifiers["level_scaled"].items():
-            if level_str.startswith("building_employment_"):
-                result[key]["employment"] += value
-        if "unlocking_technologies" in subtree.keys():
-            result[key]["unlocking_technologies"] = str(
-                subtree["unlocking_technologies"]
+    def __init__(self, game_dir: str | Path | None = None):
+        """Initialise and populate the production-methods tree.
+
+        Args:
+            game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
+                the directory is located automatically via
+                :func:`~vic3_analysis.utils.get_vic3_directory`.
+        """
+        super().__init__()
+        self._python_cache: dict[str, dict[str, Any]] = {}
+        if game_dir is None:
+            game_dir = get_vic3_directory()
+        self._game_dir = game_dir
+
+        parse_dir = Path(game_dir) / "common" / "production_methods"
+        parse_tree = parse_merge(parse_dir)
+        self.update(parse_tree)
+
+    def _pm_to_python(self, pm_key: str, pm_values: Any) -> dict[str, Any]:
+        """Return a plain dict view of a production-method entry, caching it.
+
+        ``pyradox.Tree`` values are converted via ``to_python()`` once and
+        memoised per production-method key; subsequent look-ups reuse the
+        cached dict.  Plain ``dict`` values are returned as-is.  Non-container
+        entries yield an empty dict.
+        """
+        if isinstance(pm_values, Tree):
+            cached = self._python_cache.get(pm_key)
+            if cached is None:
+                cached = pm_values.to_python()
+                self._python_cache[pm_key] = cached
+            return cached
+        if isinstance(pm_values, dict):
+            return pm_values
+        return {}
+
+    def _iter_building_modifiers(
+        self,
+    ) -> Iterator[tuple[str, dict[str, Any]]]:
+        """Yield ``(pm_key, building_modifiers)`` for each method defining them."""
+        for key, subtree in self.items():
+            if not isinstance(subtree, Tree):
+                continue  # Skip non-tree entries
+            building_modifiers = self._pm_to_python(key, subtree).get(
+                "building_modifiers"
             )
-    return result
+            if isinstance(building_modifiers, dict):
+                yield key, building_modifiers
 
+    def employment(self) -> dict[str, dict[str, Any]]:
+        """Return per-method employment broken down by profession.
 
-def _to_dataframe(
-    buildings_pmg_dict: dict[str, list[str]],
-    pmg_dict: dict[str, list[str]],
-    pm_dict: dict[str, Any],
-    goods_dict: dict[str, Any],
-    buildings_tech_dict: dict = {},
-) -> pd.DataFrame:
-    """Assemble a flat DataFrame from pre-parsed building/PM/goods mappings.
+        Iterates every production method in the tree and, for each one that
+        defines ``building_modifiers``, reads its ``level_scaled`` modifiers to
+        compute the total employment and one ``employment_<profession>``
+        value per profession (e.g. ``employment_laborers``).  Methods without
+        ``level_scaled`` employment modifiers still appear with a zero total.
 
-    Iterates over every building → production-method-group → production-method
-    combination and creates one row per combination, filling in employment,
-    goods flows, and unlocking-technology information.
+        Returns:
+            A dict mapping each production-method key to a dict containing an
+            ``"employment"`` value (total across all professions) and one
+            ``"employment_<profession>"`` value per profession that the method
+            employs.
+        """
+        result: dict[str, dict[str, Any]] = {}
+        for key, building_modifiers in self._iter_building_modifiers():
+            pm_entry: dict[str, Any] = {"employment": 0}
+            level_scaled = building_modifiers.get("level_scaled")
+            if isinstance(level_scaled, dict):
+                for level_str, value in level_scaled.items():
+                    if level_str.startswith("building_employment_"):
+                        pm_entry["employment"] += value
+                        match = re.match(r"building_employment_(.+)_add$", level_str)
+                        if match:
+                            pm_entry[f"employment_{match.group(1)}"] = value
+            result[key] = pm_entry
+        return result
 
-    Args:
-        buildings_pmg_dict: Mapping of building keys to their ordered lists of
-            production-method-group keys.
-        pmg_dict: Mapping of production-method-group keys to their ordered
-            lists of production-method keys.
-        pm_dict: Mapping of production-method keys to their stats dicts (as
-            returned by :func:`_parse_pm`).
-        goods_dict: Mapping of good keys to their base costs.
-        buildings_tech_dict: Optional mapping of building keys to their
-            unlocking-technology strings.  Defaults to an empty dict.
+    def _goods_io(self, goods_dict: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        """Return per-method net goods flows from ``workforce_scaled`` modifiers.
 
-    Returns:
-        A ``DataFrame`` with columns ``"building"``,
-        ``"production_method_group"``, ``"production_method"``,
-        ``"unlocking_technologies"``, ``"employment"``, and one column per
-        good key.  Missing numeric values are filled with ``0``.
+        Iterates every production method in the tree and, for each one that
+        defines ``building_modifiers``, reads its ``workforce_scaled`` modifiers
+        to compute the net flow of each good (positive for output, negative for
+        input).  Methods without ``workforce_scaled`` still appear with an empty
+        flows dict.
 
-    Raises:
-        ValueError: If a production-method-group referenced by a building is
-            not found in *pmg_dict*.
-    """
-    data = []
-    for building, pmg_list in buildings_pmg_dict.items():
-        for pmg in pmg_list:
-            if pmg not in pmg_dict:
-                raise ValueError(
-                    f"Production method group {pmg} not found for building {building}"
-                )
-            for pm in pmg_dict[pmg]:
-                if pm not in pm_dict:
-                    goods_output = {}
-                    employment = 0
-                    tech = str(buildings_tech_dict.get(building, ""))
+        Args:
+            goods_dict: Mapping of good keys to their base costs, used to
+                identify which modifier strings correspond to known goods.
+
+        Returns:
+            A dict mapping each production-method key to a dict that maps good
+            keys to their signed net amounts (positive = output, negative =
+            input).
+
+        Raises:
+            ValueError: If a goods modifier string cannot be classified as
+                either an input or an output, or if the associated good key
+                cannot be identified.
+        """
+        result: dict[str, dict[str, Any]] = {}
+        for key, building_modifiers in self._iter_building_modifiers():
+            result[key] = {}
+            workforce_scaled = building_modifiers.get("workforce_scaled")
+            if not isinstance(workforce_scaled, dict):
+                continue
+            for goods_str, value in workforce_scaled.items():
+                match = re.match(r"goods_(output|input)_(.+)_add$", goods_str)
+                if not match:
+                    continue
+                good = match.group(2)
+                if good not in goods_dict:
+                    raise ValueError(
+                        f"Could not determine goods type from string: {goods_str}"
+                    )
+                result[key][good] = value if match.group(1) == "output" else -value
+        return result
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Build a flat DataFrame of per-configuration production-method stats.
+
+        Combines the parsed production methods with building and
+        production-method-group data into one row per
+        (building, production-method-group, production-method) combination.
+        The production method's scalar attributes are preserved as columns,
+        ``list`` values are concatenated into ``+``-joined strings, and nested
+        ``dict``/``Tree`` values (such as ``building_modifiers``) are omitted.
+        Total and per-profession employment and per-good net flows (positive =
+        output, negative = input) are appended as columns at the end.  Goods
+        columns are prefixed with ``goods_`` to distinguish them from
+        attribute columns.
+
+        Returns:
+            A ``DataFrame`` with ``"building"``,
+            ``"production_method_group"`` and ``"production_method"`` key
+            columns, the production method's scalar/list attributes, and
+            appended ``"employment"`` (total), ``"employment_<profession>"``
+            and ``"goods_<good>"`` columns.  Employment and goods columns are
+            zero-filled; scalar-attribute columns are left missing (``NaN``)
+            when a method does not define them, matching
+            :meth:`BuildingsParser.to_dataframe`.
+
+        Raises:
+            ValueError: If a goods modifier string cannot be classified as
+                either an input or an output, if the associated good key
+                cannot be identified, or if a production-method-group referenced
+                by a building is not found.
+        """
+        game_dir = self._game_dir
+
+        df_goods = goods(game_dir)
+        goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
+
+        buildings_tree = BuildingsParser(game_dir)
+        buildings_pmg_dict = buildings_tree.production_method_groups()
+
+        pmg_dict = production_method_groups(game_dir)
+
+        employment_dict = self.employment()
+        goods_flows = self._goods_io(goods_dict)
+
+        # Collect every per-profession employment key (e.g. "employment_laborers")
+        employment_profession_keys: set[str] = {
+            k
+            for pm_data in employment_dict.values()
+            for k in pm_data
+            if k.startswith("employment_") and k != "employment"
+        }
+
+        # Precompute per-method scalar/list attributes (skip dict/Tree), cached
+        pm_attrs: dict[str, dict[str, Any]] = {}
+        for pm_key, pm_values in self.items():
+            py = self._pm_to_python(pm_key, pm_values)
+            attrs: dict[str, Any] = {}
+            for attribute_key, attribute_value in py.items():
+                if isinstance(attribute_value, list):
+                    attrs[attribute_key] = "+".join(str(v) for v in attribute_value)
+                elif isinstance(attribute_value, (dict, Tree)):
+                    continue  # Skip nested containers
                 else:
-                    goods_output = {}
-                    for goods_key in goods_dict.keys():
-                        goods_output[goods_key] = pm_dict[pm].get(goods_key, 0)
-                    employment = pm_dict[pm]["employment"]
-                    if "unlocking_technologies" in pm_dict[pm].keys():
-                        tech = str(pm_dict[pm]["unlocking_technologies"])
-                    elif building in buildings_tech_dict:
-                        tech = str(buildings_tech_dict[building])
-                    else:
-                        tech = ""
-                data.append(
-                    {
+                    attrs[attribute_key] = attribute_value
+            pm_attrs[pm_key] = attrs
+
+        data: list[dict[str, Any]] = []
+        for building, pmg_list in buildings_pmg_dict.items():
+            for pmg in pmg_list:
+                if pmg not in pmg_dict:
+                    raise ValueError(
+                        f"Production method group {pmg} not found for building {building}"
+                    )
+                for pm in pmg_dict[pmg]:
+                    emp = employment_dict.get(pm, {})
+                    flows = goods_flows.get(pm, {})
+                    row: dict[str, Any] = {
                         "building": building,
                         "production_method_group": pmg,
                         "production_method": pm,
-                        "unlocking_technologies": tech,
-                        "employment": employment,
-                        **goods_output,
+                        **pm_attrs.get(pm, {}),
+                        "employment": emp.get("employment", 0),
+                        **{k: emp.get(k, 0) for k in employment_profession_keys},
+                        **{f"goods_{gk}": flows.get(gk, 0) for gk in goods_dict.keys()},
                     }
-                )
-    result = pd.DataFrame(data)
-    result["unlocking_technologies"] = result["unlocking_technologies"].fillna("None")
-    result["unlocking_technologies"] = result["unlocking_technologies"].replace(
-        "", "None"
-    )
-    result = result.fillna(0)
-    return result
+                    data.append(row)
 
-
-def production_method(game_dir: str | Path | None = None) -> pd.DataFrame:
-    """Parse all Victoria 3 production-method data into a flat DataFrame.
-
-    Combines buildings, production-method-groups, production-methods, and
-    goods data from the game files into a single table.
-
-    Args:
-        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
-            directory is located automatically via
-            :func:`~vic3_analysis.utils.get_vic3_directory`.
-
-    Returns:
-        A ``DataFrame`` with one row per (building, production-method-group,
-        production-method) combination, containing employment numbers, goods
-        flows, and unlocking-technology information.
-    """
-    if game_dir is None:
-        game_dir = get_vic3_directory()
-
-    df_goods = goods(game_dir)
-    goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
-
-    buildings_tree = BuildingsParser(game_dir)
-    buildings_pmg_dict = buildings_tree.production_method_groups()
-    # Get building technology information
-    buildings_tech_dict = {}
-    for building_key, building_values in buildings_tree.items():
-        if "unlocking_technologies" in building_values.keys():
-            buildings_tech_dict[building_key] = str(
-                building_values["unlocking_technologies"]
-            )
-        else:
-            buildings_tech_dict[building_key] = "buildings_pmg_dict"
-
-    pmg_dict = production_method_groups(game_dir)
-
-    pm_dict = _parse_pm(goods_dict, game_dir)
-
-    return _to_dataframe(
-        buildings_pmg_dict, pmg_dict, pm_dict, goods_dict, buildings_tech_dict
-    )
+        return pd.DataFrame(data)
