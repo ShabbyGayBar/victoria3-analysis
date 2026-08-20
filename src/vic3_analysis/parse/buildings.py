@@ -5,8 +5,9 @@ Reads building data from the game's ``common/buildings`` directory and exposes
 it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and production-method-group look-ups.
 """
+
 from vic3_analysis import get_vic3_directory, parse_merge
-import os
+from pathlib import Path
 import pandas as pd
 from pyradox import Tree
 
@@ -25,7 +26,7 @@ class BuildingsParser(Tree):
             from ``common/script_values``.
     """
 
-    def __init__(self, game_dir: str | None = None):
+    def __init__(self, game_dir: str | Path | None = None):
         """Initialise and populate the buildings tree.
 
         Args:
@@ -37,11 +38,11 @@ class BuildingsParser(Tree):
         if game_dir is None:
             game_dir = get_vic3_directory()
 
-        parse_dir = os.path.join(game_dir, "common", "buildings")
+        parse_dir = Path(game_dir) / "common" / "buildings"
         parse_tree = parse_merge(parse_dir)
         self.update(parse_tree)
 
-        parse_dir = os.path.join(game_dir, "common", "script_values")
+        parse_dir = Path(game_dir) / "common" / "script_values"
         parse_tree = parse_merge(parse_dir)
         self.cost_modifiers = {}
         for key, value in parse_tree.to_python().items():

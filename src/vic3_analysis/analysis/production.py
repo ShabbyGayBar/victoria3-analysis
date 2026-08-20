@@ -16,6 +16,7 @@ from vic3_analysis import (
     production_method,
     technology,
 )
+from pathlib import Path
 import re
 import numpy as np
 import scipy.optimize as opt
@@ -118,7 +119,7 @@ class ProductionUnit(dict):
         return self.profit(goods_cost) / self["employment"]
 
 
-def production_table(game_dir: str | None = None) -> pd.DataFrame:
+def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
     """Build a DataFrame of all possible building configurations and their stats.
 
     For every building that has a construction cost, enumerates every
@@ -295,7 +296,9 @@ class ProductionAnalyzer:
             :meth:`restore` to reset any applied filters.
     """
 
-    def __init__(self, game_dir: str | None = None, df: pd.DataFrame | None = None):
+    def __init__(
+        self, game_dir: str | Path | None = None, df: pd.DataFrame | None = None
+    ):
         """Initialise the analyser.
 
         Args:

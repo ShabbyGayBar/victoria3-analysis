@@ -7,7 +7,7 @@ level's political strength and good-consumption values as a
 """
 
 from vic3_analysis import get_vic3_directory
-import os
+from pathlib import Path
 import re
 import pandas as pd
 from pyradox import parse_file
@@ -77,7 +77,7 @@ def _parse_rows(tree):
     return rows, popneed_columns
 
 
-def buy_packages(file_path: str | None = None) -> pd.DataFrame:
+def buy_packages(file_path: str | Path | None = None) -> pd.DataFrame:
     """Parse a Victoria 3 buy-packages file into a ``pandas.DataFrame``.
 
     Args:
@@ -94,11 +94,12 @@ def buy_packages(file_path: str | None = None) -> pd.DataFrame:
         FileNotFoundError: If *file_path* does not point to an existing file.
     """
     if file_path is None:
-        file_path = os.path.join(
-            get_vic3_directory(), "common", "buy_packages", "00_buy_packages.txt"
+        file_path = (
+            get_vic3_directory() / "common" / "buy_packages" / "00_buy_packages.txt"
         )
+    file_path = Path(file_path)
 
-    if not os.path.isfile(file_path):
+    if not file_path.is_file():
         raise FileNotFoundError(
             f"Could not find the file at {file_path}. Please check the path and try again."
         )

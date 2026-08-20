@@ -5,8 +5,9 @@ Reads all ``.txt`` files under ``common/technology/technologies`` and returns
 each technology's key attributes (including its numeric era) as a
 ``pandas.DataFrame``.
 """
+
 from vic3_analysis import get_vic3_directory, parse_merge
-import os
+from pathlib import Path
 import re
 import pandas as pd
 from pyradox import Tree
@@ -19,7 +20,7 @@ skip_keys = [
 ]
 
 
-def technology(game_dir: str | None = None) -> pd.DataFrame:
+def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
     """Parse Victoria 3 technology definitions into a DataFrame.
 
     Reads all ``.txt`` files from ``common/technology/technologies``, skipping
@@ -44,7 +45,7 @@ def technology(game_dir: str | None = None) -> pd.DataFrame:
     if game_dir is None:
         game_dir = get_vic3_directory()
 
-    parse_dir = os.path.join(game_dir, "common", "technology", "technologies")
+    parse_dir = Path(game_dir) / "common" / "technology" / "technologies"
     parse_tree = parse_merge(parse_dir)
     result = []
     for tech_key, subtree in parse_tree.items():

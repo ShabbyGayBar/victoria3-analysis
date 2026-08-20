@@ -5,6 +5,7 @@ Reads all ``.txt`` files under ``common/production_methods``, combines them
 with building and goods data, and exposes per-production-method employment and
 goods-flow values as a flat ``pandas.DataFrame``.
 """
+
 from vic3_analysis import (
     get_vic3_directory,
     parse_merge,
@@ -12,7 +13,7 @@ from vic3_analysis import (
     goods,
     production_method_groups,
 )
-import os
+from pathlib import Path
 import re
 import pandas as pd
 from pyradox import Tree
@@ -20,7 +21,7 @@ from typing import Any
 
 
 def _parse_pm(
-    goods_dict: dict[str, Any], game_dir: str | None = None
+    goods_dict: dict[str, Any], game_dir: str | Path | None = None
 ) -> dict[str, Any]:
     """Parse raw production-method data from the game files.
 
@@ -50,7 +51,7 @@ def _parse_pm(
     if game_dir is None:
         game_dir = get_vic3_directory()
 
-    parse_dir = os.path.join(game_dir, "common", "production_methods")
+    parse_dir = Path(game_dir) / "common" / "production_methods"
     parse_tree = parse_merge(parse_dir)
     result = {}
     for key, subtree in parse_tree.items():
@@ -164,12 +165,14 @@ def _to_dataframe(
                 )
     result = pd.DataFrame(data)
     result["unlocking_technologies"] = result["unlocking_technologies"].fillna("None")
-    result["unlocking_technologies"] = result["unlocking_technologies"].replace("", "None")
+    result["unlocking_technologies"] = result["unlocking_technologies"].replace(
+        "", "None"
+    )
     result = result.fillna(0)
     return result
 
 
-def production_method(game_dir: str | None = None) -> pd.DataFrame:
+def production_method(game_dir: str | Path | None = None) -> pd.DataFrame:
     """Parse all Victoria 3 production-method data into a flat DataFrame.
 
     Combines buildings, production-method-groups, production-methods, and

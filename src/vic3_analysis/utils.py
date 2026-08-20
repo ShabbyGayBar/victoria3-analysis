@@ -2,16 +2,17 @@
 Utility helpers for locating the Victoria 3 game installation and parsing
 Paradox script files.
 """
-import os
-from glob import glob
+
 import errno
+import os
+from pathlib import Path
 import pyradox
 
 # If you know the location of your games but it is not being found automatically, add it to the top of this list.
 # Uses glob, but not recursively (no **).
 prefixes = [
     r"/Program Files*/Steam/steamapps/common/",  # windows
-    r"~/.local/share/Steam/steamapps/common/", # linux
+    r"~/.local/share/Steam/steamapps/common/",  # linux
     r"~/Library/Application Support/Steam/steamapps/common/",  # mac
     r"~/*steam/steam/SteamApps/common",  # linux
 ]
@@ -24,7 +25,7 @@ replace_strings = [
 game_directories = {}
 
 
-def get_vic3_directory() -> str:
+def get_vic3_directory() -> Path:
     """Search common Steam library paths and return the Victoria 3 game directory.
 
     Returns:
@@ -37,15 +38,15 @@ def get_vic3_directory() -> str:
     game_suffix = "Victoria 3/game"
 
     for prefix in prefixes:
-        pattern = os.path.join(os.path.expanduser(prefix), game_suffix)
-        candidates = glob(pattern)
-        if len(candidates) > 0:
+        full = Path(prefix).expanduser() / game_suffix
+        candidates = list(Path(full.root).glob(str(full.relative_to(full.root))))
+        if candidates:
             return candidates[0]
     else:
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), game_suffix)
 
 
-def parse_merge(path: str, merge_levels: int = 0) -> pyradox.Tree:
+def parse_merge(path: str | Path, merge_levels: int = 0) -> pyradox.Tree:
     """Parse all ``.txt`` files in *path* and merge them into a single Tree.
 
     Args:
@@ -59,15 +60,13 @@ def parse_merge(path: str, merge_levels: int = 0) -> pyradox.Tree:
     """
 
     result = pyradox.Tree()
-    for filename in sorted(os.listdir(path)):
-        fullpath = os.path.join(path, filename)
-        with open(fullpath, "r", encoding="utf-8-sig") as f:
-            if filename.endswith(".md"):
-                continue  # Skip markdown files
-            content = f.read()
-            # Replace all special strings with '=' to prevent pyradox from treating them as merge directives
-            for str in replace_strings:
-                content = content.replace(str, "=")
-            tree = pyradox.parse(content)
-            result.merge(tree, merge_levels)
+    for entry in sorted(Path(path).iterdir(), key=lambda p: p.name):
+        if entry.suffix == ".md":
+            continue  # Skip markdown files
+        content = entry.read_text(encoding="utf-8-sig")
+        # Replace all special strings with '=' to prevent pyradox from treating them as merge directives
+        for str in replace_strings:
+            content = content.replace(str, "=")
+        tree = pyradox.parse(content)
+        result.merge(tree, merge_levels)
     return result

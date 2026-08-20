@@ -5,8 +5,9 @@ Reads state region data from the game's ``map_data/state_regions`` directory and
 it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and state region look-ups.
 """
+
 from vic3_analysis import get_vic3_directory, parse_merge
-import os
+from pathlib import Path
 import pandas as pd
 from pyradox import Tree
 
@@ -20,6 +21,7 @@ _skip_keys = [
     "capped_resources",
 ]
 
+
 class StateRegionsParser(Tree):
     """A ``pyradox.Tree`` subclass for parsing Victoria 3 state region definitions.
 
@@ -29,7 +31,7 @@ class StateRegionsParser(Tree):
     ``pandas.DataFrame`` and for looking up state region attributes & resources.
     """
 
-    def __init__(self, game_dir: str | None = None):
+    def __init__(self, game_dir: str | Path | None = None):
         """Initialise and populate the state regions tree.
 
         Args:
@@ -41,7 +43,7 @@ class StateRegionsParser(Tree):
         if game_dir is None:
             game_dir = get_vic3_directory()
 
-        parse_dir = os.path.join(game_dir, "map_data", "state_regions")
+        parse_dir = Path(game_dir) / "map_data" / "state_regions"
         parse_tree = parse_merge(parse_dir)
         self.update(parse_tree)
 
@@ -71,12 +73,24 @@ class StateRegionsParser(Tree):
                             f"Expected 'resource' attribute to be a Tree, got {type(attribute_value)}"
                         )
                     resource_key = attribute_value["type"]
-                    undiscovered_amount = int(attribute_value.find("undiscovered_amount", 0)) # pyright: ignore[reportArgumentType]
-                    discovered_amount = int(attribute_value.find("discovered_amount", 0)) # pyright: ignore[reportArgumentType]
-                    state_region[f"resource_{resource_key}"] = undiscovered_amount + discovered_amount
-                    state_region[f"undiscovered_amount_resource_{resource_key}"] = undiscovered_amount
-                    state_region[f"discovered_amount_resource_{resource_key}"] = discovered_amount
-                if attribute_key in _skip_keys or isinstance(attribute_value, (list, dict, Tree)):
+                    undiscovered_amount = int(
+                        attribute_value.find("undiscovered_amount", 0)
+                    )  # pyright: ignore[reportArgumentType]
+                    discovered_amount = int(
+                        attribute_value.find("discovered_amount", 0)
+                    )  # pyright: ignore[reportArgumentType]
+                    state_region[f"resource_{resource_key}"] = (
+                        undiscovered_amount + discovered_amount
+                    )
+                    state_region[f"undiscovered_amount_resource_{resource_key}"] = (
+                        undiscovered_amount
+                    )
+                    state_region[f"discovered_amount_resource_{resource_key}"] = (
+                        discovered_amount
+                    )
+                if attribute_key in _skip_keys or isinstance(
+                    attribute_value, (list, dict, Tree)
+                ):
                     continue
                 state_region[attribute_key] = attribute_value
             results.append(state_region)
@@ -84,6 +98,14 @@ class StateRegionsParser(Tree):
         # For every column whose name starts with "resource_" or "undiscovered_amount_resource_" or "discovered_amount_resource_",
         # convert the column to numeric, coercing errors to NaN, and then fill NaN values with 0
         for column in results.columns:
-            if column.startswith("resource_") or column.startswith("undiscovered_amount_resource_") or column.startswith("discovered_amount_resource_"):
-                results[column] = pd.to_numeric(results[column], errors="coerce").fillna(0).astype(int)
+            if (
+                column.startswith("resource_")
+                or column.startswith("undiscovered_amount_resource_")
+                or column.startswith("discovered_amount_resource_")
+            ):
+                results[column] = (
+                    pd.to_numeric(results[column], errors="coerce")
+                    .fillna(0)
+                    .astype(int)
+                )
         return results

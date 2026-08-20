@@ -4,13 +4,14 @@ Parser for Victoria 3 tradeable-goods definitions.
 Reads all ``.txt`` files under ``common/goods`` and returns their data as a
 ``pandas.DataFrame``.
 """
+
 from vic3_analysis import get_vic3_directory, parse_merge
-import os
+from pathlib import Path
 import pandas as pd
 from pyradox import Tree
 
 
-def goods(file_dir: str | None = None) -> pd.DataFrame:
+def goods(file_dir: str | Path | None = None) -> pd.DataFrame:
     """Parse Victoria 3 goods definitions and return them as a DataFrame.
 
     Args:
@@ -29,7 +30,7 @@ def goods(file_dir: str | None = None) -> pd.DataFrame:
     if file_dir is None:
         file_dir = get_vic3_directory()
 
-    parse_dir = os.path.join(file_dir, "common", "goods")
+    parse_dir = Path(file_dir) / "common" / "goods"
     parse_tree = parse_merge(parse_dir)
     result = []
     for key, value in parse_tree.to_python().items():

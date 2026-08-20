@@ -1,5 +1,6 @@
 from vic3_analysis import production_table, ProductionAnalyzer
 
+
 def test_production_analysis():
     df_production_table = production_table()
 
@@ -18,7 +19,9 @@ def test_production_analysis():
     constraints.append(
         optimizer.constraint_limit_building("building_sugar_plantation", 0.1)
     )
-    constraints.append(optimizer.constraint_limit_building("building_tea_plantation", 0.1))
+    constraints.append(
+        optimizer.constraint_limit_building("building_tea_plantation", 0.1)
+    )
     constraints.append(
         optimizer.constraint_limit_building("building_banana_plantation", 0.1)
     )
@@ -28,7 +31,9 @@ def test_production_analysis():
     constraints.append(
         optimizer.constraint_limit_building("building_tobacco_plantation", 0.1)
     )
-    constraints.append(optimizer.constraint_limit_building("building_dye_plantation", 0.1))
+    constraints.append(
+        optimizer.constraint_limit_building("building_dye_plantation", 0.1)
+    )
     constraints.append(
         optimizer.constraint_limit_building("building_coffee_plantation", 0.1)
     )
