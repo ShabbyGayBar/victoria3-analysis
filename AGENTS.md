@@ -1,6 +1,6 @@
 # Victoria 3 Analysis
 
-Python package for parsing and analyzing Victoria 3 game data.
+Python package for parsing and analyzing Victoria 3 game data. The ultimate goal is to simulate the economy mechanics and provide a tool for optimizing production chains.
 
 ## Setup
 
@@ -18,12 +18,22 @@ Requires Python 3.13.
 - **Format**: `uv run ruff format src tests`
 - **Docs**: `uv run mkdocs serve`
 
-## Architecture
+## External File Loading
 
-- `src/vic3_analysis/parse/` - Parsers for game data files (buildings, goods, production methods, technology)
-- `src/vic3_analysis/analysis/` - Production chain optimization via linear programming
-- `tables/` - CSV output from example scripts
-- `examples/` - Scripts that generate tables/*.csv
+**CRITICAL**: When you encounter a file reference (e.g., @rules/general.md), use your Read tool to load it on a need-to-know basis. They're relevant to the SPECIFIC task at hand.
+
+### Instructions:
+
+- Do NOT preemptively load all references - use lazy loading based on actual need
+- When loaded, treat content as mandatory instructions that override defaults
+- Follow references recursively when needed
+- Before proposing features, consult:
+  - `@vic3_docs` (Victoria 3 docs)
+  - `@vanilla` (base game files)
+
+## Project Structure
+
+See `@docs/project_structure.md` for the full directory tree and per-folder explanations.
 
 ## Game Data Requirement
 
@@ -37,8 +47,10 @@ df = production_table(game_dir="/path/to/Victoria 3/game")
 
 Tests require a local Victoria 3 installation.
 
-## Key Entry Points
+## Development Rules
 
-- `BuildingsParser()` - Parse building definitions
-- `production_table()` - Build DataFrame of all building configurations
-- `ProductionAnalyzer` - Filter and optimize production via linear programming
+- Check `docs/roadmap.md` for current priorities.
+- Do not modify approved ADRs.
+- Work only on assigned features.
+- Do NOT `git add` or `git commit` files.
+- Before writing Python scripts, read `@agents/rules/python.md` and follow its rules (type safety, `uv` toolchain, `utf-8-sig` encoding, `pyradox` for game file parsing).

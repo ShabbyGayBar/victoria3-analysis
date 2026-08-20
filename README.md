@@ -35,14 +35,6 @@ uv sync
 uv pip install -e .
 ```
 
-## Repo Structure
-
-- `.vscode/`: Contains Visual Studio Code configuration files for the project.
-- `examples/`: Contains example scripts demonstrating how to use the parsing code and analyze the data.
-- `src/vic3_analysis/`: Contains the source code for the `vic3_analysis` package, which includes functions for parsing game data and performing analysis.
-- `tables/`: Contains the output tables generated from the parsed game data, which can be used for further analysis or visualization.
-- `tests/`: Contains unit tests for the code in the `src/vic3_analysis/` directory.
-
 ## License
 
 This project is licensed under the MIT License.
