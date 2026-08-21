@@ -20,6 +20,7 @@
   - [x] `common/production_method_groups`
   - [x] `common/technology`
   - [x] `common/buy_packages`
+  - [x] `common/pop_needs`
   - [x] `map_data/state_regions`.
 - [x] `parse_merge` utility: UTF-8-SIG read, `?=`/`!=` neutralisation, multi-file
   merge into a `pyradox.Tree`.
@@ -53,9 +54,10 @@
 
 ## Pop consumption & wealth loop
 
-- [ ] Integrate `buy_packages` (per-wealth pop-need baskets) and `pop_types`
-  (per-profession wealth) into the economy model so demand reflects population
-  composition and wealth levels rather than exogenous inputs.
+- [ ] Integrate `buy_packages` (per-wealth pop-need baskets), `pop_needs`
+  (per-need goods baskets), and `pop_types` (per-profession wealth) into the
+  economy model so demand reflects population composition and wealth levels
+  rather than exogenous inputs.
 
 ## State-region resource constraints
 
