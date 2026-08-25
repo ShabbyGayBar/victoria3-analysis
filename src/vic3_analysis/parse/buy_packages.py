@@ -87,8 +87,9 @@ def buy_packages(file_path: str | Path | None = None) -> pd.DataFrame:
 
     Returns:
         A ``DataFrame`` with one row per wealth level and columns for
-        ``"wealth"``, ``"political_strength"``, and one column per
-        ``popneed_*`` good.  Missing consumption values are filled with ``0``.
+        ``"wealth"``, ``"political_strength"``, ``"total_popneeds"``, and one
+        column per ``popneed_*`` good.  Missing consumption values are filled
+        with ``0``.
 
     Raises:
         FileNotFoundError: If *file_path* does not point to an existing file.
@@ -107,15 +108,19 @@ def buy_packages(file_path: str | Path | None = None) -> pd.DataFrame:
     tree = parse_file(file_path, game="HoI4", path_relative_to_game=False)
     rows, popneed_columns = _parse_rows(tree)
 
-    fieldnames = ["wealth", "political_strength", *popneed_columns]
+    fieldnames = ["wealth", "political_strength", "total_popneeds", *popneed_columns]
     normalized_rows = []
     for row in rows:
         normalized_row = {
             "wealth": row["wealth"],
             "political_strength": row["political_strength"],
         }
+        total_popneeds = 0
         for column in popneed_columns:
-            normalized_row[column] = row.get(column, 0)
+            value = row.get(column, 0)
+            normalized_row[column] = value
+            total_popneeds += value
+        normalized_row["total_popneeds"] = total_popneeds
         normalized_rows.append(normalized_row)
 
     return pd.DataFrame(normalized_rows, columns=fieldnames)
