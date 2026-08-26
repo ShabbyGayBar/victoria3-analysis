@@ -124,6 +124,11 @@ The script name maps 1:1 to the output table:
 Run any script with `uv run python -m examples.<name>` or directly. They are
 the canonical "how do I use this package" reference for non-developers.
 
+- `cangshulun_1.py`, `cangshulun_2.py` — optimisation scenario scripts
+  ("仓鼠轮" experiments) exploring minimum-population and throughput-bonus
+  production strategies. Runnable as `__main__` scripts; not collected by
+  pytest's `test_*` pattern.
+
 ## `tables/` — Generated CSV Output
 
 Committed CSV exports produced by the `examples/` scripts. Consumed by the
@@ -144,10 +149,6 @@ game directory.
   smoke tests that instantiate each parser and call its primary method.
 - `test_production_analysis.py` — exercises `ProductionAnalyzer` end-to-end
   (vectors, finders, constraints, and `linprog`).
-- `cangshulun_1.py`, `cangshulun_2.py` — optimisation scenario scripts
-  ("仓鼠轮" experiments) exploring minimum-population and throughput-bonus
-  production strategies. Runnable as `__main__` scripts; not collected by
-  pytest's `test_*` pattern.
 
 ## `docs/` — MkDocs Documentation
 
