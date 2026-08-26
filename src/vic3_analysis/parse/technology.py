@@ -6,11 +6,15 @@ each technology's key attributes (including its numeric era) as a
 ``pandas.DataFrame``.
 """
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from pathlib import Path
+from typing import Any
+
 import re
+
 import pandas as pd
 from pyradox import Tree
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 
 def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
@@ -28,7 +32,7 @@ def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
 
     Returns:
         A ``DataFrame`` with one row per technology.  Always contains a
-        ``"tech_key"`` column and an ``"era"`` column (integer), plus any
+        ``"key"`` column and an ``"era"`` column (integer), plus any
         additional scalar attributes defined in the game files.
 
     Raises:
@@ -40,9 +44,9 @@ def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
 
     parse_dir = Path(game_dir) / "common" / "technology" / "technologies"
     parse_tree = parse_merge(parse_dir)
-    result = []
+    results: list[dict[str, Any]] = []
     for tech_key, subtree in parse_tree.items():
-        tech_item = {"tech_key": tech_key}
+        tech_item: dict[str, Any] = {"key": tech_key}
         for key, value in subtree.items():
             if isinstance(value, list):
                 value = "+".join(str(v) for v in value)
@@ -59,6 +63,6 @@ def technology(game_dir: str | Path | None = None) -> pd.DataFrame:
                     )
             else:
                 tech_item[key] = value
-        result.append(tech_item)
+        results.append(tech_item)
 
-    return pd.DataFrame(result)
+    return pd.DataFrame(results)

@@ -6,10 +6,13 @@ it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and state region look-ups.
 """
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from pathlib import Path
+from typing import Any
+
 import pandas as pd
 from pyradox import Tree
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 _skip_keys = [
     "provinces",
@@ -57,9 +60,9 @@ class StateRegionsParser(Tree):
             A ``DataFrame`` with one row per state region and one column per scalar
             attribute.
         """
-        results = []
+        results: list[dict[str, Any]] = []
         for state_region_key, state_region_values in self.items():
-            state_region = {"key": state_region_key}
+            state_region: dict[str, Any] = {"key": state_region_key}
             state_region["province_count"] = len(
                 list(state_region_values.find_all("provinces"))
             )
@@ -67,7 +70,8 @@ class StateRegionsParser(Tree):
                 if attribute_key == "capped_resources":
                     for resource_key, resource_value in attribute_value.items():
                         state_region[f"resource_{resource_key}"] = resource_value
-                elif attribute_key == "resource":
+                    continue
+                if attribute_key == "resource":
                     if not isinstance(attribute_value, Tree):
                         raise ValueError(
                             f"Expected 'resource' attribute to be a Tree, got {type(attribute_value)}"
@@ -92,24 +96,23 @@ class StateRegionsParser(Tree):
                     state_region[f"discovered_amount_resource_{resource_key}"] = (
                         discovered_amount
                     )
+                    continue
                 if attribute_key in _skip_keys or isinstance(
                     attribute_value, (list, dict, Tree)
                 ):
                     continue
                 state_region[attribute_key] = attribute_value
             results.append(state_region)
-        results = pd.DataFrame(results)
+        df = pd.DataFrame(results)
         # For every column whose name starts with "resource_" or "undiscovered_amount_resource_" or "discovered_amount_resource_",
         # convert the column to numeric, coercing errors to NaN, and then fill NaN values with 0
-        for column in results.columns:
+        for column in df.columns:
             if (
                 column.startswith("resource_")
                 or column.startswith("undiscovered_amount_resource_")
                 or column.startswith("discovered_amount_resource_")
             ):
-                results[column] = (
-                    pd.to_numeric(results[column], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
+                df[column] = (
+                    pd.to_numeric(df[column], errors="coerce").fillna(0).astype(int)
                 )
-        return results
+        return df

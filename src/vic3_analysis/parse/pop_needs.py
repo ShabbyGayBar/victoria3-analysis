@@ -29,22 +29,17 @@ class PopNeedsParser(Tree):
         self.update(parse_tree)
 
     def to_dataframe(self) -> pd.DataFrame:
-        """
-        Return one row per pop need entry.
+        """Convert the pop-needs tree to a flat ``pandas.DataFrame``.
 
-        Columns:
-            pop_need_type
-            goods
-            weight
-            max_supply_share
-            min_supply_share
-            is_default
+        Returns:
+            A ``DataFrame`` with one row per pop need entry.  Columns include
+            ``"key"`` (the pop need type), ``"goods"``, ``"weight"``,
+            ``"max_supply_share"``, ``"min_supply_share"``, and ``"is_default"``.
         """
 
-        rows: list[dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for pop_need_type, pop_need_values in self.items():
-
             if isinstance(pop_need_values, Tree):
                 py = pop_need_values.to_python()
             elif isinstance(pop_need_values, dict):
@@ -69,21 +64,21 @@ class PopNeedsParser(Tree):
 
                 goods = entry.get("goods")
 
-                rows.append(
+                results.append(
                     {
-                        "pop_need_type": pop_need_type,
+                        "key": pop_need_type,
                         "goods": goods,
-                        "weight": entry.get("weight",1),
-                        "max_supply_share": entry.get("max_supply_share",1),
-                        "min_supply_share": entry.get("min_supply_share",0),
+                        "weight": entry.get("weight", 1),
+                        "max_supply_share": entry.get("max_supply_share", 1),
+                        "min_supply_share": entry.get("min_supply_share", 0),
                         "is_default": goods == default_good,
                     }
                 )
 
         return pd.DataFrame(
-            rows,
+            results,
             columns=[
-                "pop_need_type",
+                "key",
                 "goods",
                 "weight",
                 "max_supply_share",

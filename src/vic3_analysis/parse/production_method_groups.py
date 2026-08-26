@@ -5,9 +5,11 @@ Reads all ``.txt`` files under ``common/production_method_groups`` and returns
 a mapping of group keys to their ordered list of production-method keys.
 """
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from pathlib import Path
+
 from pyradox import Tree
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 
 def production_method_groups(
@@ -29,14 +31,16 @@ def production_method_groups(
 
     parse_dir = Path(game_dir) / "common" / "production_method_groups"
     parse_tree = parse_merge(parse_dir)
-    result = {}
+    results: dict[str, list[str]] = {}
     for key, subtree in parse_tree.items():
         if not isinstance(subtree, Tree):
             continue  # Skip non-tree entries
         production_methods = subtree.to_python().get("production_methods")
+        if production_methods is None:
+            continue
         if isinstance(production_methods, list):
-            result[key] = production_methods
+            results[key] = production_methods
         else:
-            result[key] = [production_methods]
+            results[key] = [production_methods]
 
-    return result
+    return results

@@ -1,4 +1,4 @@
-pop_need_type,goods,weight,max_supply_share,min_supply_share,is_default
+key,goods,weight,max_supply_share,min_supply_share,is_default
 popneed_simple_clothing,fabric,1.0,0.5,0.0,True
 popneed_simple_clothing,clothes,2.0,1.0,0.0,False
 popneed_crude_items,wood,1.0,0.5,0.0,True

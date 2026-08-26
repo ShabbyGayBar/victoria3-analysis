@@ -6,12 +6,14 @@ it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and production-method-group look-ups.
 """
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from pathlib import Path
+from typing import Any, cast
 import warnings
+
 import pandas as pd
 from pyradox import Tree
-from typing import Any, cast
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 
 class BuildingsParser(Tree):
@@ -95,15 +97,15 @@ class BuildingsParser(Tree):
         results: list[dict[str, Any]] = []
         for building_key, building_values in self.items():
             py: dict[str, Any] = self._building_to_python(building_key, building_values)
-            building: dict[str, Any] = {"building": building_key}
+            row: dict[str, Any] = {"key": building_key}
             for attribute_key, attribute_value in py.items():
                 if isinstance(attribute_value, list):
-                    building[attribute_key] = "+".join(str(v) for v in attribute_value)
+                    row[attribute_key] = "+".join(str(v) for v in attribute_value)
                 elif isinstance(attribute_value, (dict, Tree)):
                     continue  # Skip nested containers
                 else:
-                    building[attribute_key] = attribute_value
-            results.append(building)
+                    row[attribute_key] = attribute_value
+            results.append(row)
         return pd.DataFrame(results)
 
     def _building_to_python(

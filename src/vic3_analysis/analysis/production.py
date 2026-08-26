@@ -164,7 +164,7 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
 
     # Get technology to era mapping
     df_tech = technology(game_dir)
-    tech_era_dict = dict(zip(df_tech["tech_key"], df_tech["era"]))
+    tech_era_dict = dict(zip(df_tech["key"], df_tech["era"]))
 
     # Get production method groups to production methods mapping
     pmg_pm_dict = production_method_groups(game_dir)

@@ -1,19 +1,23 @@
 """
 Parser for Victoria 3 pop buy-package definitions.
 
-Reads ``common/buy_packages/00_buy_packages.txt`` and exposes each wealth
+Reads all ``.txt`` files under ``common/buy_packages`` and exposes each wealth
 level's political strength and good-consumption values as a
 ``pandas.DataFrame``.
 """
 
-from vic3_analysis import get_vic3_directory
 from pathlib import Path
+from typing import Any
+
 import re
+
 import pandas as pd
-from pyradox import parse_file
+from pyradox import Tree
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 
-def _wealth_number(key: str):
+def _wealth_number(key: str) -> int | None:
     """Extract the numeric wealth level from a ``wealth_N`` key string.
 
     Args:
@@ -27,7 +31,7 @@ def _wealth_number(key: str):
     return int(match.group(1)) if match else None
 
 
-def _parse_rows(tree):
+def _parse_rows(tree: Tree) -> tuple[list[dict[str, Any]], list[str]]:
     """Parse a buy-packages ``pyradox.Tree`` into row dicts and column names.
 
     Iterates over all ``wealth_N`` entries in *tree*, extracting political
@@ -44,9 +48,9 @@ def _parse_rows(tree):
         - ``popneed_columns``: An ordered list of the ``popneed_*`` column
           names encountered while parsing, in first-seen order.
     """
-    rows = []
-    popneed_columns = []
-    popneed_seen = set()
+    rows: list[dict[str, Any]] = []
+    popneed_columns: list[str] = []
+    popneed_seen: set[str] = set()
 
     for wealth_key, wealth_tree in tree.items():
         if not isinstance(wealth_key, str):
@@ -58,8 +62,10 @@ def _parse_rows(tree):
 
         political_strength = wealth_tree.find("political_strength")
         goods = wealth_tree.find("goods")
+        if not isinstance(goods, Tree):
+            raise ValueError(f"Expected Tree for goods, got {type(goods).__name__}")
 
-        row = {
+        row: dict[str, Any] = {
             "wealth": wealth_number,
             "political_strength": political_strength,
         }
@@ -77,41 +83,31 @@ def _parse_rows(tree):
     return rows, popneed_columns
 
 
-def buy_packages(file_path: str | Path | None = None) -> pd.DataFrame:
-    """Parse a Victoria 3 buy-packages file into a ``pandas.DataFrame``.
+def buy_packages(game_dir: str | Path | None = None) -> pd.DataFrame:
+    """Parse Victoria 3 buy-packages files into a ``pandas.DataFrame``.
 
     Args:
-        file_path: Path to the buy-packages ``.txt`` file.  Defaults to the
-            standard location inside the auto-detected Victoria 3 game
-            directory.
+        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
+            directory is located automatically via
+            :func:`~vic3_analysis.utils.get_vic3_directory`.
 
     Returns:
         A ``DataFrame`` with one row per wealth level and columns for
         ``"wealth"``, ``"political_strength"``, ``"total_popneeds"``, and one
         column per ``popneed_*`` good.  Missing consumption values are filled
         with ``0``.
-
-    Raises:
-        FileNotFoundError: If *file_path* does not point to an existing file.
     """
-    if file_path is None:
-        file_path = (
-            get_vic3_directory() / "common" / "buy_packages" / "00_buy_packages.txt"
-        )
-    file_path = Path(file_path)
+    if game_dir is None:
+        game_dir = get_vic3_directory()
 
-    if not file_path.is_file():
-        raise FileNotFoundError(
-            f"Could not find the file at {file_path}. Please check the path and try again."
-        )
-
-    tree = parse_file(file_path, game="HoI4", path_relative_to_game=False)
+    parse_dir = Path(game_dir) / "common" / "buy_packages"
+    tree = parse_merge(parse_dir)
     rows, popneed_columns = _parse_rows(tree)
 
     fieldnames = ["wealth", "political_strength", "total_popneeds", *popneed_columns]
-    normalized_rows = []
+    results: list[dict[str, Any]] = []
     for row in rows:
-        normalized_row = {
+        normalized_row: dict[str, Any] = {
             "wealth": row["wealth"],
             "political_strength": row["political_strength"],
         }
@@ -121,6 +117,6 @@ def buy_packages(file_path: str | Path | None = None) -> pd.DataFrame:
             normalized_row[column] = value
             total_popneeds += value
         normalized_row["total_popneeds"] = total_popneeds
-        normalized_rows.append(normalized_row)
+        results.append(normalized_row)
 
-    return pd.DataFrame(normalized_rows, columns=fieldnames)
+    return pd.DataFrame(results, columns=fieldnames)

@@ -9,6 +9,13 @@ production-method-group data with per-method attributes and appended
 employment and goods-flow columns.
 """
 
+from pathlib import Path
+from typing import Any, Iterator
+import re
+
+import pandas as pd
+from pyradox import Tree
+
 from vic3_analysis import (
     get_vic3_directory,
     parse_merge,
@@ -16,11 +23,6 @@ from vic3_analysis import (
     goods,
     production_method_groups,
 )
-from pathlib import Path
-import re
-import pandas as pd
-from pyradox import Tree
-from typing import Any, Iterator
 
 
 class ProductionMethodParser(Tree):
@@ -47,7 +49,7 @@ class ProductionMethodParser(Tree):
         self._python_cache: dict[str, dict[str, Any]] = {}
         if game_dir is None:
             game_dir = get_vic3_directory()
-        self._game_dir = game_dir
+        self._game_dir = Path(game_dir)
 
         parse_dir = Path(game_dir) / "common" / "production_methods"
         parse_tree = parse_merge(parse_dir)
@@ -113,7 +115,7 @@ class ProductionMethodParser(Tree):
             result[key] = pm_entry
         return result
 
-    def _goods_io(self, goods_dict: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    def _goods_io(self, goods_keys: set[str]) -> dict[str, dict[str, Any]]:
         """Return per-method net goods flows from ``workforce_scaled`` modifiers.
 
         Iterates every production method in the tree and, for each one that
@@ -123,8 +125,7 @@ class ProductionMethodParser(Tree):
         flows dict.
 
         Args:
-            goods_dict: Mapping of good keys to their base costs, used to
-                identify which modifier strings correspond to known goods.
+            goods_keys: Set of known good keys used for validation.
 
         Returns:
             A dict mapping each production-method key to a dict that maps good
@@ -147,7 +148,7 @@ class ProductionMethodParser(Tree):
                 if not match:
                     continue
                 good = match.group(2)
-                if good not in goods_dict:
+                if good not in goods_keys:
                     raise ValueError(
                         f"Could not determine goods type from string: {goods_str}"
                     )
@@ -187,7 +188,7 @@ class ProductionMethodParser(Tree):
         game_dir = self._game_dir
 
         df_goods = goods(game_dir)
-        goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
+        goods_keys = set(df_goods["key"].tolist())
 
         buildings_tree = BuildingsParser(game_dir)
         buildings_pmg_dict = buildings_tree.production_method_groups()
@@ -195,7 +196,7 @@ class ProductionMethodParser(Tree):
         pmg_dict = production_method_groups(game_dir)
 
         employment_dict = self.employment()
-        goods_flows = self._goods_io(goods_dict)
+        goods_flows = self._goods_io(goods_keys)
 
         # Collect every per-profession employment key (e.g. "employment_laborers")
         employment_profession_keys: set[str] = {
@@ -236,7 +237,7 @@ class ProductionMethodParser(Tree):
                         **pm_attrs.get(pm, {}),
                         "employment": emp.get("employment", 0),
                         **{k: emp.get(k, 0) for k in employment_profession_keys},
-                        **{f"goods_{gk}": flows.get(gk, 0) for gk in goods_dict.keys()},
+                        **{f"goods_{gk}": flows.get(gk, 0) for gk in goods_keys},
                     }
                     data.append(row)
 

@@ -5,17 +5,19 @@ Reads all ``.txt`` files under ``common/goods`` and returns their data as a
 ``pandas.DataFrame``.
 """
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from pathlib import Path
+from typing import Any
+
 import pandas as pd
-from pyradox import Tree
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 
-def goods(file_dir: str | Path | None = None) -> pd.DataFrame:
+def goods(game_dir: str | Path | None = None) -> pd.DataFrame:
     """Parse Victoria 3 goods definitions and return them as a DataFrame.
 
     Args:
-        file_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
+        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
             directory is located automatically via
             :func:`~vic3_analysis.utils.get_vic3_directory`.
 
@@ -27,19 +29,19 @@ def goods(file_dir: str | Path | None = None) -> pd.DataFrame:
     Raises:
         ValueError: If any entry in the goods tree is not a ``dict``.
     """
-    if file_dir is None:
-        file_dir = get_vic3_directory()
+    if game_dir is None:
+        game_dir = get_vic3_directory()
 
-    parse_dir = Path(file_dir) / "common" / "goods"
+    parse_dir = Path(game_dir) / "common" / "goods"
     parse_tree = parse_merge(parse_dir)
-    result = []
+    results: list[dict[str, Any]] = []
     for key, value in parse_tree.to_python().items():
         if not isinstance(value, dict):
             raise ValueError(f"Expected dict for {key}, got {type(value)}")
-        result.append(
+        results.append(
             {
                 "key": key,
                 **value,
             }
         )
-    return pd.DataFrame(result)
+    return pd.DataFrame(results)

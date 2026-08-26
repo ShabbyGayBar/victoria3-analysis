@@ -6,11 +6,13 @@ it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and boolean-flag look-ups.
 """
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from pathlib import Path
+from typing import Any
+
 import pandas as pd
 from pyradox import Tree
-from typing import Any
+
+from vic3_analysis import get_vic3_directory, parse_merge
 
 
 class PopTypesParser(Tree):
@@ -51,15 +53,15 @@ class PopTypesParser(Tree):
         results: list[dict[str, Any]] = []
         for pop_type_key, pop_type_values in self.items():
             py: dict[str, Any] = self._pop_type_to_python(pop_type_key, pop_type_values)
-            pop_type: dict[str, Any] = {"pop_type": pop_type_key}
+            row: dict[str, Any] = {"key": pop_type_key}
             for attribute_key, attribute_value in py.items():
                 if isinstance(attribute_value, list):
-                    pop_type[attribute_key] = "+".join(str(v) for v in attribute_value)
+                    row[attribute_key] = "+".join(str(v) for v in attribute_value)
                 elif isinstance(attribute_value, (dict, Tree)):
                     continue  # Skip nested containers
                 else:
-                    pop_type[attribute_key] = attribute_value
-            results.append(pop_type)
+                    row[attribute_key] = attribute_value
+            results.append(row)
         return pd.DataFrame(results)
 
     def _pop_type_to_python(
