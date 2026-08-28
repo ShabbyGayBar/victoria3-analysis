@@ -35,6 +35,11 @@
 
 - **Use `uv` exclusively.** Always use `uv pip` instead of `pip` and `uv run` instead of `python3` for package management and script execution.
 
+## Code Style
+
+- **Import ordering.** Group imports as stdlib → third-party → first-party (`vic3_analysis`), separated by blank lines. This matches the `parse/` scripts and is enforced by `ruff check` (isort, rule `I`). Run `uv run ruff check --select I --fix` to auto-organise.
+- **Use `warnings.warn()` for non-fatal issues.** Never `print()` warnings (e.g. missing columns, unresolved references). `warnings.warn()` integrates with Python's warning filters, can be captured by `pytest`, and is the pattern used in `parse/buildings.py`. Reserve `print()` for user-facing CLI output only.
+
 ## Game File Parsing
 
 - **Use `pyradox` for parsing Paradox `.txt` files.** Always parse vanilla or mod game files (states, countries, cultures, history, defines) through the `pyradox` library — never hand-roll a parser. PyPI package name is `pyradox-txt-parser` (`uv pip install pyradox-txt-parser`).
