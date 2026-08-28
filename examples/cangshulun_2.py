@@ -100,7 +100,7 @@ def test_cangshulun2():
     print(f"Optimal Construction Cost: {construction_cost}")
 
     print("\nOptimal Building Levels:")
-    df = economy.buildings_to_df(state)
+    df = economy.df_buildings(state)
     print(df)
 
     print("\nNet Goods Output:")

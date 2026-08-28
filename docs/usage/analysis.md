@@ -35,5 +35,5 @@ construction_cost = economy.construction_cost(state)
 print(f"GDP: {annual_gdp}")
 print(f"Employment: {employment}")
 print(f"Construction Cost: {construction_cost}")
-print(economy.buildings_to_df(state))
+print(economy.df_buildings(state))
 ```

@@ -282,12 +282,12 @@ def test_market_prices_variance(economy):
     np.testing.assert_allclose(var, expected)
 
 
-def test_buildings_to_df(economy):
+def test_df_buildings(economy):
     levels = np.zeros(len(economy.building_index()), dtype=np.float64)
     levels[0] = 3.0
     levels[1] = 1.0
     state = economy.solve(levels)
-    df = economy.buildings_to_df(state)
+    df = economy.df_buildings(state)
     assert list(df.columns) == ["key", "level", "construction_cost"]
     assert (df["level"] > 0).all()
     assert len(df) == 2
@@ -306,10 +306,10 @@ def test_buildings_to_df(economy):
     )
 
 
-def test_market_to_df(economy):
+def test_df_market(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
-    df = economy.market_to_df(state)
+    df = economy.df_market(state)
     expected_cols = [
         "goods",
         "market_prices",
@@ -327,20 +327,126 @@ def test_market_to_df(economy):
     assert df["sell_orders"].is_monotonic_decreasing
 
 
-def test_pop_to_df(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
-    state = economy.solve(levels)
-    df = economy.pop_to_df(state)
-    assert list(df.columns) == ["profession"]
-    assert df["profession"].tolist() == economy.pop_index()
-    assert len(df) == len(economy.df_pop_types)
+def test_employment_by_profession():
+    state = _make_state(
+        pops=np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]]),
+        pop_wealth=np.zeros((2, 3), dtype=np.float64),
+    )
+    np.testing.assert_array_equal(
+        state.employment_by_profession, np.array([10.0, 30.0, 0.0])
+    )
 
 
-def test_to_dataframe(economy):
+def test_total_wealth():
+    pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
+    wealth = np.array([[20.0, 40.0, 100.0], [20.0, 40.0, 100.0]])
+    state = _make_state(pops=pops, pop_wealth=wealth)
+    assert state.total_wealth == pytest.approx(1400.0)
+
+
+def test_total_wealth_zero_population():
+    state = _make_state()
+    assert state.total_wealth == 0.0
+
+
+def test_wealth_per_capita():
+    pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
+    wealth = np.array([[20.0, 40.0, 100.0], [20.0, 40.0, 100.0]])
+    state = _make_state(pops=pops, pop_wealth=wealth)
+    assert state.wealth_per_capita() == pytest.approx(35.0)
+
+
+def test_wealth_per_capita_zero_population():
+    state = _make_state()
+    assert state.wealth_per_capita() == 0.0
+
+
+def test_wealth_by_profession():
+    pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
+    wealth = np.array([[20.0, 40.0, 100.0], [20.0, 40.0, 100.0]])
+    state = _make_state(pops=pops, pop_wealth=wealth)
+    np.testing.assert_allclose(state.wealth_by_profession, np.array([20.0, 40.0, 0.0]))
+
+
+def test_profession_shares():
+    pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
+    state = _make_state(pops=pops, pop_wealth=np.zeros((2, 3), dtype=np.float64))
+    np.testing.assert_allclose(state.profession_shares, np.array([0.25, 0.75, 0.0]))
+
+
+def test_profession_shares_zero_population():
+    state = _make_state()
+    np.testing.assert_array_equal(state.profession_shares, np.zeros(3))
+
+
+def test_wealth_distribution():
+    pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
+    wealth = np.array([[20.0, 40.0, 100.0], [20.0, 40.0, 100.0]])
+    state = _make_state(pops=pops, pop_wealth=wealth)
+    dist = state.wealth_distribution
+    assert dist["min"] == pytest.approx(20.0)
+    assert dist["max"] == pytest.approx(40.0)
+    assert dist["mean"] == pytest.approx(35.0)
+    assert dist["median"] == pytest.approx(40.0)
+    assert dist["std"] == pytest.approx(np.sqrt(75.0))
+
+
+def test_wealth_distribution_zero_population():
+    state = _make_state()
+    assert state.wealth_distribution == {
+        "min": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "std": 0.0,
+        "max": 0.0,
+    }
+
+
+def test_gini_wealth_equal():
+    state = _make_state(
+        pops=np.array([[10.0, 10.0]]),
+        pop_wealth=np.array([[5.0, 5.0]]),
+    )
+    assert state.gini_wealth == pytest.approx(0.0)
+
+
+def test_gini_wealth_max_two_units():
+    state = _make_state(
+        pops=np.array([[1.0, 1.0]]),
+        pop_wealth=np.array([[0.0, 100.0]]),
+    )
+    assert state.gini_wealth == pytest.approx(0.5)
+
+
+def test_gini_wealth_zero_population():
+    state = _make_state()
+    assert state.gini_wealth == 0.0
+
+
+def test_gini_wealth_zero_wealth():
+    state = _make_state(
+        pops=np.array([[10.0, 10.0]]),
+        pop_wealth=np.array([[0.0, 0.0]]),
+    )
+    assert state.gini_wealth == 0.0
+
+
+def test_df_pop(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
-    result = economy.to_dataframe(state)
-    assert set(result.keys()) == {"buildings", "market", "pops"}
-    assert result["buildings"].equals(economy.buildings_to_df(state))
-    assert result["market"].equals(economy.market_to_df(state))
-    assert result["pops"].equals(economy.pop_to_df(state))
+    df = economy.df_pop(state)
+    expected_cols = [
+        "profession",
+        "employment",
+        "employment_share",
+        "avg_wealth",
+        "total_wealth",
+        "pop_balance",
+    ]
+    assert list(df.columns) == expected_cols
+    assert (df["employment"] > 0).all()
+    assert df["employment"].is_monotonic_decreasing
+    assert len(df) <= len(economy.df_pop_types)
+    assert df["employment_share"].sum() == pytest.approx(1.0)
+    assert set(df["profession"]) <= set(economy.pop_index())
+    assert np.allclose(df["avg_wealth"], df["total_wealth"] / df["employment"])

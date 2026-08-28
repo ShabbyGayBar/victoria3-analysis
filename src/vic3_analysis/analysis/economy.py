@@ -23,6 +23,46 @@ def _warning_missing_columns(missing: set[str], table_name: str) -> None:
         warnings.warn(f"Missing {table_name} columns: {sorted(missing)}")
 
 
+def _weighted_percentile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
+    """Return the weighted percentile *q* (in ``[0, 1]``) of *values*.
+
+    Args:
+        values: 1-D array of observations.
+        weights: 1-D array of non-negative weights, aligned to *values*.
+        q: Percentile in ``[0, 1]`` (e.g. ``0.5`` for the weighted median).
+
+    Returns:
+        The smallest value whose cumulative weight reaches ``q * total_weight``.
+    """
+    order = np.argsort(values, kind="stable")
+    v = values[order]
+    w = weights[order]
+    cum_w = np.cumsum(w)
+    target = q * cum_w[-1]
+    idx = int(np.searchsorted(cum_w, target, side="left"))
+    idx = min(idx, len(v) - 1)
+    return float(v[idx])
+
+
+def _weighted_std(values: np.ndarray, weights: np.ndarray) -> float:
+    """Return the population weighted standard deviation of *values*.
+
+    Args:
+        values: 1-D array of observations.
+        weights: 1-D array of non-negative weights, aligned to *values*.
+
+    Returns:
+        ``sqrt(sum(w * (x - weighted_mean)^2) / sum(w))``, or ``0.0`` when the
+        total weight is zero.
+    """
+    total = float(np.sum(weights))
+    if total == 0:
+        return 0.0
+    mean = float(np.sum(values * weights) / total)
+    variance = float(np.sum(weights * (values - mean) ** 2) / total)
+    return float(np.sqrt(variance))
+
+
 @dataclass(frozen=True)
 class EconomyState:
     """Snapshot state of a Victoria 3 economy.
@@ -140,6 +180,113 @@ class EconomyState:
         if self.total_population == 0:
             return 0.0
         return float(np.sum(self.pop_wealth * self.pops) / self.total_population)
+
+    @cached_property
+    def employment_by_profession(self) -> np.ndarray:
+        """Calculate total employment per profession.
+
+        Returns:
+            A 1-D array of shape ``(n_professions,)`` giving the column sums of
+            ``pops``.
+        """
+        return self.pops.sum(axis=0)
+
+    @cached_property
+    def total_wealth(self) -> float:
+        """Calculate the total employment-weighted wealth.
+
+        Returns:
+            The sum of ``pop_wealth * pops`` (the wealth counterpart of GDP).
+        """
+        return float(np.sum(self.pop_wealth * self.pops))
+
+    def wealth_per_capita(self) -> float:
+        """Calculate the wealth per capita.
+
+        Returns:
+            ``total_wealth / total_population``, or ``0.0`` when total
+            population is zero.
+        """
+        if self.total_population == 0:
+            return 0.0
+        return self.total_wealth / self.total_population
+
+    @cached_property
+    def wealth_by_profession(self) -> np.ndarray:
+        """Calculate the employment-weighted average wealth per profession.
+
+        Returns:
+            A 1-D array of shape ``(n_professions,)``; entries are ``0.0``
+            where a profession has no employment.
+        """
+        emp = self.employment_by_profession
+        weighted = (self.pop_wealth * self.pops).sum(axis=0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return np.where(emp > 0, weighted / emp, 0.0)
+
+    @cached_property
+    def profession_shares(self) -> np.ndarray:
+        """Calculate each profession's share of total employment.
+
+        Returns:
+            A 1-D array of shape ``(n_professions,)`` summing to ``1.0``, or
+            all zeros when total population is zero.
+        """
+        if self.total_population == 0:
+            return np.zeros(self.pops.shape[1], dtype=np.float64)
+        return self.employment_by_profession / self.total_population
+
+    @cached_property
+    def wealth_distribution(self) -> dict[str, float]:
+        """Calculate weighted wealth-distribution statistics across pops.
+
+        Returns:
+            A dict with keys ``"min"``, ``"mean"``, ``"median"``, ``"std"`` and
+            ``"max"`` of wealth, weighted by employment. All values are ``0.0``
+            when there is no employment.
+        """
+        weights = self.pops.flatten()
+        values = self.pop_wealth.flatten()
+        mask = weights > 0
+        if not mask.any():
+            return {"min": 0.0, "mean": 0.0, "median": 0.0, "std": 0.0, "max": 0.0}
+        vw = values[mask]
+        ww = weights[mask]
+        return {
+            "min": float(vw.min()),
+            "max": float(vw.max()),
+            "mean": float(np.average(vw, weights=ww)),
+            "median": _weighted_percentile(vw, ww, 0.5),
+            "std": _weighted_std(vw, ww),
+        }
+
+    @cached_property
+    def gini_wealth(self) -> float:
+        """Calculate the Gini coefficient of the wealth distribution.
+
+        Returns:
+            A float in ``[0, 1]`` (``0`` = perfectly equal, ``1`` = maximally
+            unequal), weighted by employment. Returns ``0.0`` when there is no
+            employment or no total wealth.
+        """
+        weights = self.pops.flatten()
+        values = self.pop_wealth.flatten()
+        mask = weights > 0
+        if not mask.any():
+            return 0.0
+        vw = values[mask]
+        ww = weights[mask]
+        if float(np.sum(vw * ww)) == 0:
+            return 0.0
+        order = np.argsort(vw, kind="stable")
+        x = vw[order]
+        w = ww[order]
+        cum_w = np.cumsum(w)
+        cum_wv = np.cumsum(w * x)
+        f = np.concatenate(([0.0], cum_w / cum_w[-1]))
+        lorenz = np.concatenate(([0.0], cum_wv / cum_wv[-1]))
+        area = float(np.sum((f[1:] - f[:-1]) * (lorenz[1:] + lorenz[:-1]) / 2.0))
+        return float(1.0 - 2.0 * area)
 
 
 class Economy:
@@ -376,7 +523,7 @@ class Economy:
             pop_needs=np.zeros(len(self.goods_index()), dtype=np.float64),
         )
 
-    def buildings_to_df(self, eco: EconomyState) -> pd.DataFrame:
+    def df_buildings(self, eco: EconomyState) -> pd.DataFrame:
         """Export an :class:`EconomyState`'s building registry to a DataFrame.
 
         Args:
@@ -400,7 +547,7 @@ class Economy:
         df = df.sort_values(by="level", ascending=False)
         return df
 
-    def market_to_df(self, eco: EconomyState) -> pd.DataFrame:
+    def df_market(self, eco: EconomyState) -> pd.DataFrame:
         """Export an :class:`EconomyState`'s market stats to a DataFrame.
 
         Args:
@@ -433,41 +580,32 @@ class Economy:
         df = df.sort_values(by="sell_orders", ascending=False)
         return df
 
-    def pop_to_df(self, eco: EconomyState) -> pd.DataFrame:
+    def df_pop(self, eco: EconomyState) -> pd.DataFrame:
         """Export an :class:`EconomyState`'s pop employment and wealth to a DataFrame.
+
+        Each row describes one profession, aggregating the per-building arrays
+        in *eco*.
 
         Args:
             eco: The :class:`EconomyState` to export (as produced by
                 :meth:`solve`).
 
         Returns:
-            A ``DataFrame`` with a single column ``"profession"`` listing the
-            professions in ``df_pop_types`` row order.
+            A ``DataFrame`` with columns ``"profession"``, ``"employment"``,
+            ``"employment_share"``, ``"avg_wealth"``, ``"total_wealth"`` and
+            ``"pop_balance"``, filtered to professions with non-zero employment
+            and sorted by ``"employment"`` descending.
         """
         df = pd.DataFrame(
             {
                 "profession": self.pop_index(),
+                "employment": eco.employment_by_profession,
+                "employment_share": eco.profession_shares,
+                "avg_wealth": eco.wealth_by_profession,
+                "total_wealth": (eco.pop_wealth * eco.pops).sum(axis=0),
+                "pop_balance": eco.pop_balance.sum(axis=0),
             }
         )
+        df = df[df["employment"] > 0].copy()
+        df = df.sort_values(by="employment", ascending=False).reset_index(drop=True)
         return df
-
-    def to_dataframe(self, eco: EconomyState) -> dict[str, pd.DataFrame]:
-        """Export all data attributes of an :class:`EconomyState` to DataFrames.
-
-        A single entry point that returns the per-axis DataFrames produced by
-        :meth:`buildings_to_df`, :meth:`market_to_df` and
-        :meth:`pop_to_df`.
-
-        Args:
-            eco: The :class:`EconomyState` to export (as produced by
-                :meth:`solve`).
-
-        Returns:
-            A dict mapping ``"buildings"``, ``"market"`` and ``"pops"`` to
-            their respective DataFrames.
-        """
-        return {
-            "buildings": self.buildings_to_df(eco),
-            "market": self.market_to_df(eco),
-            "pops": self.pop_to_df(eco),
-        }

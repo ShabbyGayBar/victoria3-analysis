@@ -59,7 +59,7 @@ def test_cangshulun1():
     print("GDP per construction cost:", annual_gdp / construction_cost)
 
     print("\nOptimal Building Levels:")
-    df = economy.buildings_to_df(state)
+    df = economy.df_buildings(state)
     print(df)
 
     print("\nNet Goods Output:")
