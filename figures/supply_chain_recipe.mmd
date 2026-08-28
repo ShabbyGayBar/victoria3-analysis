@@ -1,0 +1,144 @@
+flowchart LR
+    %% Recipe: automobiles (all producers)
+    g_automobiles(("automobiles (14)"))
+    g_clippers(("clippers (2)"))
+    g_coal(("coal (48)"))
+    g_dye(("dye (14)"))
+    g_electricity(("electricity (3)"))
+    g_engines(("engines (12)"))
+    g_explosives(("explosives (4)"))
+    g_fabric(("fabric (120)"))
+    g_fertilizer(("fertilizer (75)"))
+    g_fish(("fish (12)"))
+    g_grain(("grain (265)"))
+    g_hardwood(("hardwood (54)"))
+    g_iron(("iron (48)"))
+    g_oil(("oil (18)"))
+    g_paper(("paper (9)"))
+    g_rubber(("rubber (12)"))
+    g_steamers(("steamers (2)"))
+    g_steel(("steel (12)"))
+    g_sulfur(("sulfur (48)"))
+    g_tools(("tools (16)"))
+    g_transportation(("transportation (21)"))
+    g_wood(("wood (72)"))
+    g_clippers --> g_fish
+    g_clippers --> g_oil
+    g_coal --> g_electricity
+    g_coal -.-> g_engines
+    g_coal --> g_fabric
+    g_coal --> g_fertilizer
+    g_coal --> g_fish
+    g_coal --> g_grain
+    g_coal --> g_hardwood
+    g_coal --> g_iron
+    g_coal -.-> g_oil
+    g_coal --> g_paper
+    g_coal --> g_steamers
+    g_coal --> g_steel
+    g_coal --> g_sulfur
+    g_coal -.-> g_tools
+    g_coal -.-> g_transportation
+    g_coal --> g_wood
+    g_dye --> g_paper
+    g_electricity --> g_automobiles
+    g_electricity -.-> g_engines
+    g_electricity --> g_explosives
+    g_electricity --> g_fabric
+    g_electricity --> g_fertilizer
+    g_electricity --> g_fish
+    g_electricity --> g_hardwood
+    g_electricity -.-> g_oil
+    g_electricity --> g_steamers
+    g_electricity --> g_steel
+    g_electricity --> g_tools
+    g_electricity --> g_transportation
+    g_electricity -.-> g_wood
+    g_engines --> g_automobiles
+    g_engines --> g_clippers
+    g_engines -.-> g_coal
+    g_engines --> g_dye
+    g_engines -.-> g_electricity
+    g_engines --> g_fabric
+    g_engines --> g_grain
+    g_engines --> g_hardwood
+    g_engines --> g_iron
+    g_engines -.-> g_oil
+    g_engines --> g_rubber
+    g_engines --> g_steamers
+    g_engines --> g_sulfur
+    g_engines --> g_transportation
+    g_engines --> g_wood
+    g_explosives --> g_coal
+    g_explosives --> g_iron
+    g_explosives -.-> g_sulfur
+    g_fabric --> g_automobiles
+    g_fabric --> g_clippers
+    g_fertilizer --> g_dye
+    g_fertilizer --> g_explosives
+    g_fertilizer -.-> g_grain
+    g_fish --> g_grain
+    g_grain --> g_fabric
+    g_grain -.-> g_fertilizer
+    g_hardwood --> g_automobiles
+    g_hardwood --> g_clippers
+    g_iron --> g_fabric
+    g_iron --> g_fertilizer
+    g_iron --> g_steel
+    g_iron -.-> g_tools
+    g_oil --> g_automobiles
+    g_oil -.-> g_coal
+    g_oil -.-> g_electricity
+    g_oil -.-> g_engines
+    g_oil --> g_fertilizer
+    g_oil --> g_grain
+    g_oil --> g_hardwood
+    g_oil --> g_iron
+    g_oil --> g_sulfur
+    g_oil --> g_tools
+    g_oil -.-> g_transportation
+    g_oil --> g_wood
+    g_paper --> g_explosives
+    g_rubber --> g_automobiles
+    g_rubber --> g_tools
+    g_steamers --> g_fish
+    g_steamers --> g_oil
+    g_steel --> g_automobiles
+    g_steel --> g_engines
+    g_steel --> g_steamers
+    g_steel -.-> g_tools
+    g_steel --> g_transportation
+    g_sulfur --> g_dye
+    g_sulfur -.-> g_explosives
+    g_sulfur --> g_fertilizer
+    g_sulfur --> g_paper
+    g_tools --> g_automobiles
+    g_tools -.-> g_coal
+    g_tools --> g_engines
+    g_tools --> g_fabric
+    g_tools --> g_fertilizer
+    g_tools --> g_grain
+    g_tools --> g_hardwood
+    g_tools -.-> g_iron
+    g_tools --> g_paper
+    g_tools -.-> g_steel
+    g_tools --> g_sulfur
+    g_tools -.-> g_wood
+    g_transportation -.-> g_coal
+    g_transportation --> g_dye
+    g_transportation --> g_fabric
+    g_transportation --> g_fertilizer
+    g_transportation --> g_fish
+    g_transportation --> g_hardwood
+    g_transportation --> g_iron
+    g_transportation -.-> g_oil
+    g_transportation --> g_rubber
+    g_transportation --> g_sulfur
+    g_transportation -.-> g_wood
+    g_wood --> g_clippers
+    g_wood --> g_dye
+    g_wood -.-> g_electricity
+    g_wood --> g_hardwood
+    g_wood --> g_paper
+    g_wood -.-> g_tools
+    g_wood -.-> g_transportation

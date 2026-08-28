@@ -7,6 +7,8 @@ Builds on :class:`~vic3_analysis.analysis.economy.Economy` and
 * :class:`Scenario` - a cangshulun-style optimisation recipe expressed as data.
 * :func:`upstream_tree` - the structured upstream dependency tree of a good
   (recipe or realised view).
+* :func:`to_mermaid` - serialise a supply-chain graph to a Mermaid flowchart
+  string (recipe or realised view) for rendering in GitHub/MkDocs.
 * :func:`build_optimizer` / :func:`optimize_chain` - turn a :class:`Scenario`
   into a configured :class:`NominalOptimizer` or a solved
   :class:`~vic3_analysis.analysis.economy.EconomyState`.
@@ -335,6 +337,118 @@ def _collect_producers(node: SupplyChainNode) -> dict[str, ProducerNode]:
         if producer.config not in result:
             result[producer.config] = producer
     return result
+
+
+def _collect_good_nodes(node: SupplyChainNode) -> dict[str, SupplyChainNode]:
+    """Return all unique good-nodes in a DAG, preferring non-raw expansions.
+
+    Cycle-broken raw leaves share the same good key as the fully-expanded
+    cached node; this helper keeps the non-raw version so producers are not
+    lost.  Visits each node object once (tracked by identity) to avoid
+    exponential re-traversal of shared DAG subtrees.
+    """
+    result: dict[str, SupplyChainNode] = {}
+    visited: set[int] = set()
+    stack: list[SupplyChainNode] = [node]
+    while stack:
+        current = stack.pop()
+        if id(current) in visited:
+            continue
+        visited.add(id(current))
+        existing = result.get(current.good)
+        if existing is None or (existing.is_raw and not current.is_raw):
+            result[current.good] = current
+        for producer in current.producers:
+            for child in producer.upstream:
+                stack.append(child)
+    return result
+
+
+def _mermaid_id(prefix: str, key: str) -> str:
+    """Sanitise *key* into a Mermaid-safe node ID with *prefix*."""
+    return prefix + "".join(c if c.isalnum() else "_" for c in key)
+
+
+def to_mermaid(
+    node: SupplyChainNode,
+    *,
+    realized: bool = False,
+    direction: str = "LR",
+    title: str | None = None,
+) -> str:
+    """Serialise a supply-chain graph to a Mermaid flowchart string.
+
+    Two rendering modes:
+
+    * **Recipe** (``realized=False``, default): aggregated good→good dependency
+      DAG.  Producer configurations are collapsed so each edge represents "to
+      produce *B*, input *A* is required".  The node label includes the producer
+      count (e.g. ``steel (5)``).  Mutual dependencies (e.g. ``steel ↔ tools``)
+      are rendered as dashed edges.
+    * **Realised** (``realized=True``): full bipartite graph with good nodes
+      (rounded) and producer nodes (box, labelled ``building | lvl=…``),
+      showing ``input → producer → output`` for every active configuration.
+
+    The returned string is a complete Mermaid ``flowchart`` block that renders
+    in GitHub, GitLab, and MkDocs (with ``pymdownx.superfences`` Mermaid
+    support).
+
+    Args:
+        node: The root :class:`SupplyChainNode` (from :func:`upstream_tree`).
+        realized: If ``True``, render the realised bipartite graph; if ``False``
+            (default), render the aggregated recipe DAG.
+        direction: Mermaid flowchart direction (``"LR"``, ``"TD"``, ``"RL"``,
+            ``"BT"``).  Defaults to ``"LR"`` (left-to-right).
+        title: Optional comment line prepended to the diagram.
+
+    Returns:
+        A Mermaid flowchart string.
+    """
+    good_nodes = _collect_good_nodes(node)
+
+    lines: list[str] = [f"flowchart {direction}"]
+    if title:
+        lines.append(f"    %% {title}")
+
+    if realized:
+        producers = _collect_producers(node)
+        all_goods: set[str] = set(good_nodes.keys())
+        for p in producers.values():
+            all_goods.update(p.inputs)
+            all_goods.update(p.outputs)
+        for g in sorted(all_goods):
+            lines.append(f'    {_mermaid_id("g_", g)}(("{g}"))')
+        for config, p in producers.items():
+            label = f"{p.building}<br/>lvl={p.level:.4g}"
+            lines.append(f'    {_mermaid_id("p_", config)}["{label}"]')
+        for config, p in producers.items():
+            pid = _mermaid_id("p_", config)
+            for input_good in sorted(p.inputs):
+                lines.append(f"    {_mermaid_id('g_', input_good)} --> {pid}")
+            for output_good in sorted(p.outputs):
+                lines.append(f"    {pid} --> {_mermaid_id('g_', output_good)}")
+    else:
+        edges: set[tuple[str, str]] = set()
+        for g, gnode in good_nodes.items():
+            for producer in gnode.producers:
+                for input_good in producer.inputs:
+                    edges.add((input_good, g))
+        all_goods = {g for edge in edges for g in edge} | set(good_nodes.keys())
+        for g in sorted(all_goods):
+            gn = good_nodes.get(g)
+            if gn is not None and not gn.is_raw:
+                label = f"{g} ({len(gn.producers)})"
+            else:
+                label = f"{g} [raw]"
+            lines.append(f'    {_mermaid_id("g_", g)}(("{label}"))')
+        mutual = {e for e in edges if (e[1], e[0]) in edges}
+        for src, dst in sorted(edges):
+            arrow = "-.->" if (src, dst) in mutual else "-->"
+            lines.append(
+                f"    {_mermaid_id('g_', src)} {arrow} {_mermaid_id('g_', dst)}"
+            )
+
+    return "\n".join(lines)
 
 
 def value_added_breakdown(

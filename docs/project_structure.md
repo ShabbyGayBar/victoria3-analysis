@@ -10,7 +10,7 @@ purpose of each directory, and the key modules/files within them.
   opencode as the entry point for agent behaviour.
 - `pyproject.toml` — Project metadata and tool configuration. Declares the
   `vic3-analysis` package, requires Python `>=3.13`, and pins runtime
-  dependencies (`numpy`, `pandas`, `pillow`, `pyradox-txt-parser`, `scipy`) and
+  dependencies (`numpy`, `pandas`,   `pillow`, `pyradox-txt-parser`, `scipy`, `matplotlib`) and
   dev dependencies (`mkdocs-material`, `mkdocstrings[python]`, `pytest`,
   `pytest-cov`, `ruff`). Configures pytest test paths and coverage.
 - `uv.lock` — Lockfile for the `uv` toolchain, pinning transitive dependencies.
@@ -101,9 +101,10 @@ or expose a `pyradox.Tree` subclass with helper methods.
   composable functions: `upstream_tree` (memoised recipe/realised trace),
   `build_optimizer` / `optimize_chain` (scenario → configured/solved
   optimiser), `value_added_breakdown` (per-config or per-good GDP/employment/
-  construction-cost attribution), `bottleneck` (input cost-share ranking plus
-  LP import-cap marginals), and `compare_scenarios` (multi-scenario metric
-  table).
+  construction-cost attribution),   `bottleneck` (input cost-share ranking plus
+  LP import-cap marginals), `compare_scenarios` (multi-scenario metric
+  table), and `to_mermaid` (Mermaid flowchart serialisation for
+  GitHub/MkDocs rendering of recipe and realised supply-chain graphs).
 
 ### `src/vic3_analysis/optimize/` — Optimisation
 
@@ -146,8 +147,9 @@ the canonical "how do I use this package" reference for non-developers.
   `supply_chain_compare.py` — supply-chain analysis demos built on the
   `vic3_analysis.analysis.supply_chain` module: scenario-based optimisation
   (reproduces the `cangshulun_1` recipe via `Scenario`), recipe/realised
-  upstream tracing, and multi-scenario metric comparison. Runnable as
-  `__main__` scripts; not collected by pytest.
+  upstream tracing (writes Mermaid `.mmd` files), and multi-scenario metric
+  comparison. The optimisation script also generates matplotlib bar charts
+  saved as PNGs. Runnable as `__main__` scripts; not collected by pytest.
 
 ## `tables/` — Generated CSV Output
 
@@ -155,6 +157,14 @@ Committed CSV exports produced by the `examples/` scripts. Consumed by the
 documentation (`docs/usage/parse.md` links to them on GitHub) and usable for
 downstream analysis without a local game install. The flagship
 `production_table.csv` feeds the optimisation workflow.
+
+## `figures/` — Generated Visualisation Output
+
+Committed visualisation artefacts produced by the `examples/` scripts.
+Includes Mermaid flowchart files (`.mmd`) from `supply_chain_trace.py` and
+matplotlib PNG charts from `supply_chain_optimize.py` (building levels, net
+goods, value-added by good, bottleneck). Tracked in git so the docs and
+readme can reference them without a local game install.
 
 ## `tests/` — Test Suite
 

@@ -91,6 +91,37 @@ recipe = upstream_tree(economy, "automobiles")          # all producers
 realised = upstream_tree(economy, "automobiles", state)  # actual chain
 ```
 
+## Mermaid visualisation
+
+[`to_mermaid`](../api.md) serialises a supply-chain graph to a Mermaid
+`flowchart` string that renders in GitHub, GitLab, and MkDocs. In **recipe
+mode** (default) it emits an aggregated good→good dependency DAG with producer
+counts and dashed edges for mutual dependencies (e.g. `steel ↔ tools`). In
+**realised mode** it emits a bipartite graph with good nodes (rounded) and
+producer nodes (box, labelled with building and level).
+
+```python
+from vic3_analysis import to_mermaid
+
+print(to_mermaid(recipe))                         # aggregated DAG
+print(to_mermaid(realised, realized=True))        # bipartite graph
+```
+
+The `examples/supply_chain_trace.py` script writes both views to
+`figures/supply_chain_recipe.mmd` and `figures/supply_chain_realised.mmd`.
+
+### Recipe: automobiles (all producers)
+
+```mermaid
+--8<-- "figures/supply_chain_recipe.mmd"
+```
+
+### Realised: automobiles (1/wk, autarky, max automation)
+
+```mermaid
+--8<-- "figures/supply_chain_realised.mmd"
+```
+
 ## Value-added breakdown
 
 [`value_added_breakdown`](../api.md) attributes GDP, employment, and
@@ -136,3 +167,5 @@ print(df.to_string(index=False))
 
 The `examples/supply_chain_optimize.py`, `examples/supply_chain_trace.py`, and
 `examples/supply_chain_compare.py` scripts demonstrate each facet end-to-end.
+The optimisation script also generates matplotlib bar charts (building levels,
+net goods, value-added by good, bottleneck) saved as PNGs to `figures/`.

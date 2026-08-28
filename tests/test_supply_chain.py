@@ -13,6 +13,7 @@ from vic3_analysis.analysis.supply_chain import (
     compare_scenarios,
     iter_producers,
     optimize_chain,
+    to_mermaid,
     upstream_tree,
     value_added_breakdown,
 )
@@ -295,6 +296,64 @@ def test_iter_producers_yields_producers(economy: Economy):
     assert len(collected) <= len(yielded)
     assert set(yielded) == set(collected)
     assert len(collected) == len(set(collected))
+
+
+def test_to_mermaid_recipe(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    m = to_mermaid(tree)
+    assert m.startswith("flowchart LR")
+    assert TERMINAL_GOOD in m
+    # recipe mode has aggregated good→good edges (no producer nodes)
+    assert "((" in m
+    assert "[[" not in m
+
+
+def test_to_mermaid_realized(economy: Economy, solved):
+    optimizer, state = solved
+    tree = upstream_tree(economy, TERMINAL_GOOD, state)
+    m = to_mermaid(tree, realized=True)
+    assert m.startswith("flowchart LR")
+    assert TERMINAL_GOOD in m
+    # realized mode has producer box nodes with level labels
+    assert '["' in m
+    assert "lvl=" in m
+
+
+def test_to_mermaid_direction(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    m = to_mermaid(tree, direction="TD")
+    assert m.startswith("flowchart TD")
+
+
+def test_to_mermaid_title(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    m = to_mermaid(tree, title="My Diagram")
+    assert "%% My Diagram" in m
+
+
+def test_to_mermaid_dashed_cycle_edges(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    m = to_mermaid(tree)
+    # Victoria 3 has mutual dependencies (e.g. steel ↔ tools); these render
+    # as dashed edges.
+    assert "-.->" in m
+
+
+def test_to_mermaid_recipe_vs_realized_differ(economy: Economy, solved):
+    optimizer, state = solved
+    recipe = upstream_tree(economy, TERMINAL_GOOD)
+    realised = upstream_tree(economy, TERMINAL_GOOD, state)
+    m_recipe = to_mermaid(recipe)
+    m_realised = to_mermaid(realised, realized=True)
+    assert m_recipe != m_realised
+
+
+def test_to_mermaid_raw_good(economy: Economy):
+    tree = upstream_tree(economy, RAW_GOOD)
+    m = to_mermaid(tree)
+    assert m.startswith("flowchart LR")
+    assert RAW_GOOD in m
+    assert "[raw]" in m
 
 
 def test_value_added_breakdown_invalid_by(economy: Economy, solved):
