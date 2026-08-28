@@ -2,29 +2,38 @@
 
 This is my main purpose for creating this project.
 
-The optimization is implemented in the `ProductionAnalyzer` class, using linear programming and other optimization functions provided by the `scipy` library.
+The optimization is implemented in the `NominalOptimizer` class, using linear programming and other optimization functions provided by the `scipy` library.
 
-The method responsible for performing the optimization is `linprog()`, which returns a result dataframe containing the optimal building levels and their corresponding production methods.
+The method responsible for performing the optimization is `linprog()`, which returns an `EconomyState` containing the optimal building levels and their corresponding economy state.
 
 To perform a production optimization, we must first acquire the following:
 
-+ A `production_table` containing all possible buildings with different settings of production methods, which is already provided when calling the `ProductionAnalyzer` constructor. Each row corresponds to one specific building configuration: the `building` column holds the building key (e.g. `building_steel_mill`) and the `production_method` column holds the concatenated production methods for that configuration (e.g. `pm_steamworks+pm_atmospheric_engine`); the remaining columns record the building group, era, construction cost, profit, employment, and the net flow of each tradeable good.
++ An `Economy` instance, which wraps the production table, goods table, and pop-types table parsed from the Victoria 3 game files. The `NominalOptimizer` is constructed with an `Economy` and derives per-building vectors (GDP, employment, construction cost, goods flows) from it.
 
-+ An objective vector, which serves as a function representing the objective value you want to minimize. For example, if you want to minimize the total construction cost, the objective vector should be `construction_cost_vector()` of the `ProductionAnalyzer` instance. All objective vector functions provided by the `ProductionAnalyzer` instance ends with `_vector()`, and the name before `_vector()` indicates the objective value it represents.
++ An objective, set via `set_objective()`. Named objectives include `"gdp"` (maximise gross GDP), `"employment"` (maximise total employment), and `"construction_cost"` (minimise total construction cost). For custom objectives, you can set `objective_vector` directly to any `*_vector()` result (e.g. `employment_vector()` to *minimise* employment).
 
-+ Constraints representing the constraints of the optimization problem. For example, if you want to ensure that your economy must be self-sufficient, i.e., does not import any goods, the constraint should be `constraint_limit_import(limit=0)` of the `ProductionAnalyzer` instance. Or if you want to ensure that your economy produces at least 100 units of steel, the constraint should be `constraint_produce(good='steel', min_production=100)` of the `ProductionAnalyzer` instance. All constraint functions provided by the `ProductionAnalyzer` instance starts with `constraint_`, and the name after `constraint_` indicates the type of constraint it represents.
++ Constraints, added incrementally via the fluent `constraint_*` methods. For example, if you want to ensure that your economy must be self-sufficient, i.e., does not import any goods, call `constraint_limit_import(limit=0)`. Or if you want to ensure that your economy produces at least 100 units of steel, call `constraint_produce('steel', 100)`. All constraint methods start with `constraint_`, append to the optimizer's constraint lists, and return `self` for chaining.
 
-When calling the `linprog()` method, the `production_table` is omitted since it is already in the `ProductionAnalyzer` instance. The objective vector is passed as the first argument. The constraints are passed as a list, since usually there are multiple constraints in a production optimization problem. The `linprog()` method will automatically combine the constraints into the format required by the `scipy` library.
+When calling the `linprog()` method, no arguments are needed — the objective vector and constraints are already stored on the `NominalOptimizer` instance. The `linprog()` method will automatically combine the constraints into the format required by the `scipy` library.
 
-Say you want to know what building combination can produce at least 100 units of steel with the least population. In this case, the objective vector is `employment_vector()`, since the population is represented by the employment in the production table. The constraint is `constraint_produce('steel',100)` and `constraint_limit_import(0)`. The code for this optimization is as follows:
+Say you want to know what building combination can produce at least 100 units of steel with the least population. In this case, the objective vector is `employment_vector()`, since the population is represented by the employment in the production table. The constraint is `constraint_produce('steel', 100)` and `constraint_limit_import(0)`. The code for this optimization is as follows:
 
 ```python
-from vic3_analysis import ProductionAnalyzer
-analyzer = ProductionAnalyzer()
-objective_vector = analyzer.employment_vector()
-constraints = []
-constraints.append(analyzer.constraint_produce('steel', 100))
-constraints.append(analyzer.constraint_limit_import(0))
-result = analyzer.linprog(objective_vector, constraints)
-print(result)
+from vic3_analysis import Economy, NominalOptimizer
+
+economy = Economy()
+optimizer = NominalOptimizer(economy)
+optimizer.objective_vector = optimizer.employment_vector()
+optimizer.constraint_produce("steel", 100)
+optimizer.constraint_limit_import(0)
+state = optimizer.linprog()
+
+import numpy as np
+annual_gdp = float(np.dot(state.building_levels, optimizer.gdp_vector())) * 52
+employment = float(np.sum(state.pops))
+construction_cost = economy.construction_cost(state)
+print(f"GDP: {annual_gdp}")
+print(f"Employment: {employment}")
+print(f"Construction Cost: {construction_cost}")
+print(economy.buildings_to_df(state))
 ```

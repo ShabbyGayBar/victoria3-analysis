@@ -107,6 +107,29 @@ class EconomyState:
         return self.gdp_weekly
 
     @cached_property
+    def total_population(self) -> float:
+        """Calculate the total population from employment.
+
+        Returns:
+            The sum of ``pops`` (total population).
+        """
+        return float(np.sum(self.pops))
+
+    def gdp_per_capita(self, annual: bool = False) -> float:
+        """Calculate the weekly or annual GDP per capita.
+
+        Args:
+            annual: If ``True``, multiply the weekly GDP by 52 to annualise it.
+
+        Returns:
+            The GDP per capita, computed as ``gdp(annual) / total_population``,
+            or ``0.0`` when total population is zero.
+        """
+        if self.total_population == 0:
+            return 0.0
+        return self.gdp(annual) / self.total_population
+
+    @cached_property
     def average_wealth(self) -> float:
         """Calculate the employment-weighted average wealth.
 
@@ -114,10 +137,9 @@ class EconomyState:
             The weighted average of ``wealth`` by ``employment``, or ``0.0``
             when total employment is zero.
         """
-        total_employment = np.sum(self.pops)
-        if total_employment == 0:
+        if self.total_population == 0:
             return 0.0
-        return float(np.sum(self.pop_wealth * self.pops) / total_employment)
+        return float(np.sum(self.pop_wealth * self.pops) / self.total_population)
 
 
 class Economy:
@@ -202,7 +224,10 @@ class Economy:
         _warning_missing_columns(missing, "goods input")
 
         return np.maximum(
-            -self.df_production.reindex(columns=goods_columns, fill_value=0), 0
+            -self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
+                dtype=np.float64
+            ),
+            0,
         )
 
     def goods_output_matrix(self) -> np.ndarray:
@@ -212,7 +237,10 @@ class Economy:
         _warning_missing_columns(missing, "goods output")
 
         return np.maximum(
-            self.df_production.reindex(columns=goods_columns, fill_value=0), 0
+            self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
+                dtype=np.float64
+            ),
+            0,
         )
 
     def employment_matrix(self) -> np.ndarray:

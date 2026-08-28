@@ -32,8 +32,9 @@ production_table, ...` directly.
 - `__init__.py` — Re-exports the public API: `get_vic3_directory`,
   `parse_merge` (from `utils`), the parsers (`buy_packages`,
   `BuildingsParser`, `goods`, `PopTypesParser`, `production_method_groups`,
-  `ProductionMethodParser`, `StateRegionsParser`, `technology`), and the
-  analysis helpers (`production_table`, `ProductionAnalyzer`).
+  `ProductionMethodParser`, `StateRegionsParser`, `technology`), the analysis
+  helpers (`production_table`, `Economy`), and the optimiser
+  (`NominalOptimizer`).
 - `utils.py` — Shared helpers:
   - `get_vic3_directory()` auto-detects the `Victoria 3/game` install across
     common Steam library paths on Windows/Linux/macOS.
@@ -80,8 +81,7 @@ or expose a `pyradox.Tree` subclass with helper methods.
 
 ### `src/vic3_analysis/analysis/` — Economic Analysis
 
-- `production.py` — Production-chain modelling and linear-programming
-  optimisation:
+- `production.py` — Production-chain modelling:
   - `ProductionUnit` — dict-like snapshot of one building level's goods flows,
     employment, and era; supports `+` aggregation, `profit()`, and
     `profit_per_employment()`.
@@ -90,19 +90,22 @@ or expose a `pyradox.Tree` subclass with helper methods.
     with `building`, `production_method`, `building_group`, `era`,
     `construction_cost`, `profit`, `employment`, per-profession employment,
     and `goods_<good>` columns.
-  - `ProductionAnalyzer` — wraps a production table and exposes
-    `*_vector()` accessors (profit, employment, construction cost, era),
-    filter methods (`filter_by_era`, `filter_by_building_group`,
-    `filter_by_production_method`, `restore`), throughput bonuses
-    (`add_throughput_bonus`), constraint builders (`constraint_limit_import`,
-    `constraint_limit_employment`, `constraint_limit_construction_cost`,
-    `constraint_limit_building`, `constraint_produce`), and `linprog()` for
-    solving the LP via `scipy.optimize.linprog`.
-  - `OptimizeResult` — structured optimisation result with `gdp`,
-    `gdp_per_capita()`, and `level_to_df()` / `net_goods_to_df()` exports.
-- `economy.py` — Work-in-progress general-equilibrium scaffold. Defines the
-  `Economy` dataclass and a placeholder `EconomyModel` with a `_solve_nominal`
-  stub returning random values. Not yet wired into the public API.
+- `economy.py` — General-equilibrium economy model. Defines `EconomyState`
+  (frozen dataclass with building levels, prices, supply, demand, employment,
+  and wealth) and `Economy` which derives a nominal `EconomyState` from a
+  building-level vector using base goods prices and per-profession wealth from
+  the pop-types table.
+
+### `src/vic3_analysis/optimize/` — Optimisation
+
+- `nominal.py` — `NominalOptimizer`, a linear-programming optimiser over an
+  `Economy`. Provides derived-vector methods (`gdp_vector`, `employment_vector`,
+  `construction_cost_vector`, etc.), `set_objective`, `add_throughput_bonus`,
+  fluent constraint builders (`constraint_limit_import`,
+  `constraint_limit_employment`, `constraint_limit_construction_cost`,
+  `constraint_limit_building`, `constraint_produce`, `constraint_ban_building`,
+  `constraint_ban_pm`), and `linprog()` for solving the LP via
+  `scipy.optimize.linprog`.
 
 ## `examples/` — Table-generation Scripts
 
@@ -126,8 +129,8 @@ the canonical "how do I use this package" reference for non-developers.
 
 - `cangshulun_1.py`, `cangshulun_2.py` — optimisation scenario scripts
   ("仓鼠轮" experiments) exploring minimum-population and throughput-bonus
-  production strategies. Runnable as `__main__` scripts; not collected by
-  pytest's `test_*` pattern.
+  production strategies using `NominalOptimizer`. Runnable as `__main__`
+  scripts; not collected by pytest's `test_*` pattern.
 
 ## `tables/` — Generated CSV Output
 
@@ -147,8 +150,11 @@ game directory.
   `test_production_method_groups.py`, `test_technology.py`,
   `test_buy_packages.py`, `test_pop_types.py`, `test_state_regions.py` —
   smoke tests that instantiate each parser and call its primary method.
-- `test_production_analysis.py` — exercises `ProductionAnalyzer` end-to-end
-  (vectors, finders, constraints, and `linprog`).
+- `test_economy.py` — exercises `Economy` and `EconomyState` end-to-end
+  (matrices, solve, DataFrames, GDP/wealth).
+- `test_nominal_optimizer.py` — exercises `NominalOptimizer` end-to-end
+  (vectors, `set_objective`, `reset`, `add_throughput_bonus`, constraint
+  builders, and `linprog`).
 
 ## `docs/` — MkDocs Documentation
 
@@ -164,7 +170,7 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
 - `usage/parse.md` — Guide to the pre-generated `tables/*.csv` and how to run
   the `examples/` scripts.
 - `usage/analysis.md` — Guide to production optimisation with
-  `ProductionAnalyzer`, including the objective-vector / constraint model and
+  `NominalOptimizer`, including the objective-vector / constraint model and
   a worked steel example.
 
 ## `agents/` — Agent Instructions

@@ -17,5 +17,7 @@ from vic3_analysis.parse.production_methods import ProductionMethodParser
 from vic3_analysis.parse.state_regions import StateRegionsParser
 from vic3_analysis.parse.technology import technology
 
-from vic3_analysis.analysis.production import production_table, ProductionAnalyzer
+from vic3_analysis.analysis.production import production_table
 from vic3_analysis.analysis.economy import Economy
+
+from vic3_analysis.optimize.nominal import NominalOptimizer

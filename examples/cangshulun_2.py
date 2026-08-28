@@ -1,11 +1,11 @@
-from vic3_analysis import production_table, ProductionAnalyzer, BuildingsParser
+import numpy as np
+
+from vic3_analysis import BuildingsParser, Economy, NominalOptimizer
 
 
 def test_cangshulun2():
-    df_production_table = production_table()
-
-    # 初始化
-    optimizer = ProductionAnalyzer(df=df_production_table)
+    economy = Economy()
+    optimizer = NominalOptimizer(economy)
 
     # 读取建筑类型数据
     bg_dict = BuildingsParser().building_groups()
@@ -75,28 +75,40 @@ def test_cangshulun2():
         "pm_leaded_glass",
         "pm_crystal_glass",
     ]
-    for pm in banned_pms:
-        optimizer.filter_by_production_method(pm)
 
     # 自动化全开，即最小化人数
-    objective_vector = optimizer.employment_vector()
-
-    # 约束条件
-    constraints = []
+    optimizer.objective_vector = optimizer.employment_vector()
     # 禁止进口
-    constraints.append(optimizer.constraint_limit_import())
+    optimizer.constraint_limit_import()
     # 终端商品
-    constraints.append(optimizer.constraint_produce("oil", 100))
+    optimizer.constraint_produce("oil", 100)
+
     # 尾盘全科技，相当于无限制
-    # 染料采用合成厂制备，即禁止使用种植园制备染料
-    constraints.append(
-        optimizer.constraint_limit_building("building_dye_plantation", 0)
-    )
+    # 染料采用合成厂制备，即禁止使用种植园制备染料    optimizer.constraint_limit_building("building_dye_plantation", 0)
+    optimizer.constraint_ban_pm(banned_pms)
 
     # 求解
-    res = optimizer.linprog(objective_vector, constraints)
+    state = optimizer.linprog()
+    annual_gdp = float(np.dot(state.building_levels, optimizer.gdp_vector())) * 52
+    employment = float(np.sum(state.pops))
+    construction_cost = economy.construction_cost(state)
+    gdp_per_capita = annual_gdp / employment if employment else float("inf")
 
-    print(res)
+    print(f"Optimal GDP: {annual_gdp}")
+    print(f"Optimal Employment: {employment}")
+    print(f"Optimal GDP per Capita: {gdp_per_capita}")
+    print(f"Optimal Construction Cost: {construction_cost}")
+
+    print("\nOptimal Building Levels:")
+    df = economy.buildings_to_df(state)
+    print(df)
+
+    print("\nNet Goods Output:")
+    net_goods = state.building_levels @ optimizer.goods_matrix
+    goods_idx = optimizer.goods_index()
+    for g, v in zip(goods_idx, net_goods):
+        if abs(v) > 1e-10:
+            print(f"  {g}: {v}")
 
 
 if __name__ == "__main__":

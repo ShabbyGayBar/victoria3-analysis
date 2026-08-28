@@ -29,9 +29,11 @@
 
 ## Production optimisation (LP-based)
 
-- [x] `ProductionUnit`, `production_table()`, `ProductionAnalyzer`,
-  `OptimizeResult` for production-chain modelling and
-  `scipy.optimize.linprog` optimisation.
+- [x] `ProductionUnit`, `production_table()` for production-chain modelling.
+- [x] `Economy`, `EconomyState` for general-equilibrium economy modelling.
+- [x] `NominalOptimizer` for `scipy.optimize.linprog` optimisation over
+  building levels with named objectives, throughput bonuses, and fluent
+  constraint builders.
 
 ## Documentation & agent infrastructure
 
@@ -63,4 +65,4 @@
 
 - [ ] Use `StateRegionsParser` resource columns (`resource_*`,
   `discovered_amount_resource_*`) to cap building levels for resource-limited
-  buildings (gold, oil, iron, ...) in `ProductionAnalyzer`.
+  buildings (gold, oil, iron, ...) in `NominalOptimizer`.
