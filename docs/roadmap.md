@@ -54,6 +54,39 @@
 
 - [x] Implement the `Economy` class as a solver state for iterative equilibrium computation.
 
+## Supply chain analysis (nominal)
+
+Extend the LP optimiser into a full supply-chain analysis toolkit. Delivery:
+a reusable `src/vic3_analysis/analysis/supply_chain.py` module (composable
+functions + small dataclasses) paired with `examples/` scripts and tests,
+mirroring the `production_table()` + `examples/production_analysis.py` pattern.
+
+- [x] `Scenario` dataclass: a cangshulun-style recipe as data (terminal good,
+  target amount, objective, autarky, banned PMs/buildings, throughput bonuses,
+  era cap).
+- [x] `SupplyChainNode` / `ProducerNode` dataclasses: recursive upstream
+  dependency tree (goods → producer configs → input goods → raw resources).
+- [x] Upstream trace: `upstream_tree(economy, good, state=None)` using the
+  separate input/output matrices (not the net matrix) to separate producers
+  from consumers; *recipe* mode (all producers) when `state is None`, *realised*
+  mode (non-zero configs scaled by level) when a solved `EconomyState` is given.
+- [x] LP scenario runner: `optimize_chain(economy, scenario) -> EconomyState`,
+  a thin convenience over `NominalOptimizer` applying the `Scenario` recipe.
+- [x] Value-added breakdown: `value_added_breakdown(economy, state, good=None)`
+  attributing GDP, employment, and construction cost to each good/stage (chain
+  vs. whole-economy) using the upstream tree.
+- [x] Bottleneck identification via `scipy.linprog` constraint marginals (shadow
+  prices), with cost-share ranking as a fallback.
+- [x] Comparative what-if: `compare_scenarios(economy, scenarios) -> DataFrame`
+  running multiple `Scenario`s and tabulating GDP, employment, construction
+  cost, GDP/capita, GDP-per-construction-cost.
+- [x] `examples/supply_chain_trace.py`, `examples/supply_chain_optimize.py`,
+  `examples/supply_chain_compare.py`.
+- [x] `tests/test_supply_chain.py` (end-to-end, following
+  `test_nominal_optimizer.py` style; requires local game install).
+- [x] Re-export public symbols from `src/vic3_analysis/__init__.py`; update
+  `docs/usage/analysis.md` and `docs/project_structure.md`.
+
 ## Pop consumption & wealth loop
 
 - [ ] Integrate `buy_packages` (per-wealth pop-need baskets), `pop_needs`

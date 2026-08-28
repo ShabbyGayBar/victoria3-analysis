@@ -83,6 +83,13 @@ def test_set_objective_employment(optimizer: NominalOptimizer):
     )
 
 
+def test_set_objective_automation(optimizer: NominalOptimizer):
+    optimizer.set_objective("automation")
+    np.testing.assert_array_equal(
+        optimizer.objective_vector, optimizer.employment_vector()
+    )
+
+
 def test_set_objective_construction_cost(optimizer: NominalOptimizer):
     optimizer.set_objective("construction_cost")
     np.testing.assert_array_equal(

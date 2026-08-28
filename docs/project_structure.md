@@ -95,6 +95,15 @@ or expose a `pyradox.Tree` subclass with helper methods.
   and wealth) and `Economy` which derives a nominal `EconomyState` from a
   building-level vector using base goods prices and per-profession wealth from
   the pop-types table.
+- `supply_chain.py` — Supply-chain analysis on the nominal economy. Provides
+  the `Scenario` dataclass (a cangshulun-style optimisation recipe as data),
+  the `SupplyChainNode` / `ProducerNode` dependency-graph dataclasses, and
+  composable functions: `upstream_tree` (memoised recipe/realised trace),
+  `build_optimizer` / `optimize_chain` (scenario → configured/solved
+  optimiser), `value_added_breakdown` (per-config or per-good GDP/employment/
+  construction-cost attribution), `bottleneck` (input cost-share ranking plus
+  LP import-cap marginals), and `compare_scenarios` (multi-scenario metric
+  table).
 
 ### `src/vic3_analysis/optimize/` — Optimisation
 
@@ -105,7 +114,9 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `constraint_limit_employment`, `constraint_limit_construction_cost`,
   `constraint_limit_building`, `constraint_produce`, `constraint_ban_building`,
   `constraint_ban_pm`), and `linprog()` for solving the LP via
-  `scipy.optimize.linprog`.
+  `scipy.optimize.linprog`. The underlying `OptimizeResult` is retained on the
+  `result` attribute so downstream tooling (e.g. `supply_chain.bottleneck`) can
+  read constraint marginals (shadow prices).
 
 ## `examples/` — Table-generation Scripts
 
@@ -131,6 +142,12 @@ the canonical "how do I use this package" reference for non-developers.
   ("仓鼠轮" experiments) exploring minimum-population and throughput-bonus
   production strategies using `NominalOptimizer`. Runnable as `__main__`
   scripts; not collected by pytest's `test_*` pattern.
+- `supply_chain_optimize.py`, `supply_chain_trace.py`,
+  `supply_chain_compare.py` — supply-chain analysis demos built on the
+  `vic3_analysis.analysis.supply_chain` module: scenario-based optimisation
+  (reproduces the `cangshulun_1` recipe via `Scenario`), recipe/realised
+  upstream tracing, and multi-scenario metric comparison. Runnable as
+  `__main__` scripts; not collected by pytest.
 
 ## `tables/` — Generated CSV Output
 

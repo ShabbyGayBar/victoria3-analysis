@@ -37,3 +37,102 @@ print(f"Employment: {employment}")
 print(f"Construction Cost: {construction_cost}")
 print(economy.df_buildings(state))
 ```
+
+# Supply Chain Analysis
+
+On top of the `NominalOptimizer`, the `vic3_analysis.analysis.supply_chain`
+module turns the "cangshulun" experiment pattern into a reusable toolkit for
+trace, optimisation, value-added attribution, bottleneck ranking, and
+scenario comparison. All public symbols are re-exported from `vic3_analysis`.
+
+## Scenario-based optimisation
+
+A [`Scenario`](../api.md#vic3_analysis.analysis.supply_chain.Scenario)
+captures the recipe (terminal good, target, objective, autarky, banned
+production methods / buildings, throughput bonuses, era cap, construction-cost
+and employment caps) as data. [`build_optimizer`](../api.md) configures a
+`NominalOptimizer` from it, and [`optimize_chain`](../api.md) solves it:
+
+```python
+from vic3_analysis import Economy, Scenario, optimize_chain
+
+economy = Economy()
+state = optimize_chain(
+    economy,
+    Scenario(
+        terminal_good="automobiles",
+        target_amount=10e6 / 5200.0,
+        objective="automation",   # minimise employment (max automation)
+        autarky=True,
+        banned_pms=("pm_diesel_engines",),
+        banned_buildings=("building_dye_plantation",),
+        throughput_bonuses=(("building_automotive_industry", 2.45),),
+    ),
+)
+```
+
+`objective` accepts `"gdp"` (maximise), `"employment"` (maximise),
+`"automation"` (minimise employment), and `"construction_cost"` (minimise).
+
+## Upstream trace
+
+[`upstream_tree`](../api.md) returns a rooted dependency graph for a good. In
+**recipe mode** (`state=None`) every configuration that can produce the good
+appears with per-level flows; in **realised mode** (pass a solved
+`EconomyState`) only active configurations appear, scaled by their solved
+level. Victoria 3 has genuine good-level cycles (e.g. `steel` ↔ `tools`), so
+the graph is memoised per good and cyclic back-edges are rendered as raw
+leaves.
+
+```python
+from vic3_analysis import upstream_tree
+
+recipe = upstream_tree(economy, "automobiles")          # all producers
+realised = upstream_tree(economy, "automobiles", state)  # actual chain
+```
+
+## Value-added breakdown
+
+[`value_added_breakdown`](../api.md) attributes GDP, employment, and
+construction cost either per configuration (`by="config"`) or per good
+(`by="good"`, allocated by output-value share). Pass `good=` to restrict to a
+chain.
+
+```python
+from vic3_analysis import value_added_breakdown
+
+per_config = value_added_breakdown(economy, state, good="automobiles")
+per_good = value_added_breakdown(economy, state, by="good")
+```
+
+## Bottleneck
+
+[`bottleneck`](../api.md) ranks input goods by cost share and reports net
+supply. When passed the solved optimizer, it also reads the LP shadow prices
+(marginals) of the autarky import caps — the most negative marginal flags the
+input whose relaxation would most reduce the objective.
+
+```python
+from vic3_analysis import build_optimizer, bottleneck
+
+optimizer = build_optimizer(economy, scenario)
+state = optimizer.linprog()
+bottlenecks = bottleneck(economy, state, good="automobiles", optimizer=optimizer)
+```
+
+## Scenario comparison
+
+[`compare_scenarios`](../api.md) runs several `Scenario` objects and tabulates
+annual GDP, employment, construction cost, GDP per capita, and GDP per
+construction cost. Infeasible or unbounded scenarios are reported with `NaN`
+metrics and an `error` message rather than aborting the table.
+
+```python
+from vic3_analysis import compare_scenarios
+
+df = compare_scenarios(economy, [scenario_a, scenario_b, scenario_c])
+print(df.to_string(index=False))
+```
+
+The `examples/supply_chain_optimize.py`, `examples/supply_chain_trace.py`, and
+`examples/supply_chain_compare.py` scripts demonstrate each facet end-to-end.

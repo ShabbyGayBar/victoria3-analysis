@@ -12,6 +12,7 @@ from typing import List, Self, Tuple
 
 import numpy as np
 import scipy.optimize as opt
+from scipy.optimize import OptimizeResult
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
 
@@ -43,6 +44,10 @@ class NominalOptimizer:
             ``A @ x <= b`` constraints.
         equality_constraints: List of ``(A, b)`` pairs representing
             ``A @ x == b`` constraints.
+        result: The :class:`scipy.optimize.OptimizeResult` from the most
+            recent :meth:`linprog` call (``None`` until solved).  Exposed so
+            downstream tooling can read constraint marginals (shadow prices);
+            callers should not mutate it.
     """
 
     model: Economy
@@ -50,6 +55,7 @@ class NominalOptimizer:
     inequality_constraints: List[Tuple[np.ndarray, np.ndarray]]
     equality_constraints: List[Tuple[np.ndarray, np.ndarray]]
     goods_matrix: np.ndarray
+    result: OptimizeResult | None
 
     def __init__(
         self,
@@ -64,7 +70,7 @@ class NominalOptimizer:
             model: The :class:`Economy` to optimise over.
             objective: Named objective used to seed :attr:`objective_vector`
                 via :meth:`set_objective`.  One of ``"gdp"``,
-                ``"employment"`` or ``"construction_cost"``.
+                ``"employment"``, ``"automation"`` or ``"construction_cost"``.
             inequality_constraints: Optional initial list of ``(A, b)``
                 inequality pairs.  Copied defensively.
             equality_constraints: Optional initial list of ``(A, b)``
@@ -84,7 +90,7 @@ class NominalOptimizer:
         Args:
             objective: Named objective used to seed :attr:`objective_vector`
                 via :meth:`set_objective`.  One of ``"gdp"``,
-                ``"employment"`` or ``"construction_cost"``.
+                ``"employment"``, ``"automation"`` or ``"construction_cost"``.
             inequality_constraints: Optional initial list of ``(A, b)``
                 inequality pairs.  Copied defensively.
             equality_constraints: Optional initial list of ``(A, b)``
@@ -103,6 +109,7 @@ class NominalOptimizer:
         self.equality_constraints = (
             list(equality_constraints) if equality_constraints else []
         )
+        self.result = None
         return self
 
     def base_prices(self) -> np.ndarray:
@@ -139,7 +146,8 @@ class NominalOptimizer:
 
         Args:
             objective: One of ``"gdp"`` (maximise gross GDP),
-                ``"employment"`` (maximise total employment) or
+                ``"employment"`` (maximise total employment), ``"automation"``
+                (minimise total employment, i.e. maximise automation) or
                 ``"construction_cost"`` (minimise total construction cost).
 
         Returns:
@@ -152,6 +160,8 @@ class NominalOptimizer:
             self.objective_vector = -self.gdp_vector()
         elif objective == "employment":
             self.objective_vector = -self.employment_vector()
+        elif objective == "automation":
+            self.objective_vector = self.employment_vector()
         elif objective == "construction_cost":
             self.objective_vector = self.construction_cost_vector()
         else:
@@ -369,7 +379,9 @@ class NominalOptimizer:
 
         Returns:
             An :class:`EconomyState` (via :meth:`Economy.solve`) built from the
-            optimal building-level vector.
+            optimal building-level vector.  The underlying
+            :class:`scipy.optimize.OptimizeResult` is also stored on
+            :attr:`result` for marginal inspection.
 
         Raises:
             ValueError: If :func:`scipy.optimize.linprog` reports that the
@@ -404,4 +416,5 @@ class NominalOptimizer:
         )
         if not res.success:
             raise ValueError(f"Optimization failed: {res.message}")
+        self.result = res
         return self.model.solve(res.x)
