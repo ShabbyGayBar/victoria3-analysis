@@ -4,20 +4,21 @@ Supply-chain analysis for the nominal Victoria 3 economy.
 Builds on :class:`~vic3_analysis.analysis.economy.Economy` and
 :class:`~vic3_analysis.optimize.nominal.NominalOptimizer` to provide:
 
-* :class:`Scenario` - a cangshulun-style optimisation recipe expressed as data.
+* :class:`Scenario` - a cangshulun-style optimisation recipe expressed as data,
+  with :meth:`Scenario.build_optimizer` / :meth:`Scenario.optimize` methods.
 * :func:`upstream_tree` - the structured upstream dependency tree of a good
   (recipe or realised view).
-* :func:`to_mermaid` - serialise a supply-chain graph to a Mermaid flowchart
-  string (recipe or realised view) for rendering in GitHub/MkDocs.
-* :func:`build_optimizer` / :func:`optimize_chain` - turn a :class:`Scenario`
-  into a configured :class:`NominalOptimizer` or a solved
-  :class:`~vic3_analysis.analysis.economy.EconomyState`.
+* :meth:`SupplyChainNode.to_mermaid` - serialise a supply-chain graph to a
+  Mermaid flowchart string (recipe or realised view) for rendering in
+  GitHub/MkDocs.
 * :func:`value_added_breakdown` - per-config or per-good attribution of GDP,
   employment, and construction cost (chain-scoped or whole-economy).
 * :func:`bottleneck` - rank input goods by cost share and, when available,
   report LP shadow prices for the import caps.
 * :func:`compare_scenarios` - run multiple scenarios and tabulate metrics.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable, Iterator
@@ -80,6 +81,61 @@ class Scenario:
         """Return the scenario name, falling back to the terminal good."""
         return self.name if self.name is not None else self.terminal_good
 
+    def build_optimizer(self, economy: Economy) -> NominalOptimizer:
+        """Configure a :class:`NominalOptimizer` from this scenario.
+
+        Applies throughput bonuses (before setting the objective so the GDP
+        vector reflects them), then the objective via
+        :meth:`NominalOptimizer.set_objective` (which accepts ``"automation"``
+        to minimise employment), then the constraints in a fixed order: autarky
+        (first, so its import-cap marginals lead the inequality block), era cap,
+        construction-cost cap, employment cap, banned PMs, banned buildings, and
+        finally the terminal-good production constraint.  Does not call
+        :meth:`NominalOptimizer.linprog`; call it (or :meth:`optimize`) to
+        solve.
+
+        Args:
+            economy: The :class:`Economy` to optimise over.
+
+        Returns:
+            A configured :class:`NominalOptimizer` ready for :meth:`linprog`.
+
+        Raises:
+            ValueError: If the scenario objective is unknown or
+                *terminal_good* is not present in the goods index.
+        """
+        optimizer = NominalOptimizer(economy, objective="gdp")
+        for building_key, multiplier in self.throughput_bonuses:
+            optimizer.add_throughput_bonus(building_key, multiplier)
+        optimizer.set_objective(self.objective)
+        if self.autarky:
+            optimizer.constraint_limit_import(0.0)
+        if self.era_cap is not None:
+            optimizer.constraint_limit_era(self.era_cap)
+        if self.construction_cost_cap is not None:
+            optimizer.constraint_limit_construction_cost(self.construction_cost_cap)
+        if self.employment_cap is not None:
+            optimizer.constraint_limit_employment(self.employment_cap)
+        if self.banned_pms:
+            optimizer.constraint_ban_pm(list(self.banned_pms))
+        if self.banned_buildings:
+            optimizer.constraint_ban_building(list(self.banned_buildings))
+        optimizer.constraint_produce(self.terminal_good, self.target_amount)
+        return optimizer
+
+    def optimize(self, economy: Economy) -> EconomyState:
+        """Solve this scenario and return the resulting :class:`EconomyState`.
+
+        Equivalent to ``self.build_optimizer(economy).linprog()``.
+
+        Args:
+            economy: The :class:`Economy` to optimise over.
+
+        Returns:
+            The optimal :class:`EconomyState`.
+        """
+        return self.build_optimizer(economy).linprog()
+
 
 @dataclass(frozen=True)
 class ProducerNode:
@@ -117,6 +173,9 @@ class ProducerNode:
 class SupplyChainNode:
     """A good and the producer configurations that supply it in a chain.
 
+    Provides traversal, analysis, and visualisation methods that operate on
+    the memoised DAG rooted at this node.
+
     Attributes:
         good: The good key this node describes.
         producers: Producer configurations that output *good* (empty for raw
@@ -128,63 +187,202 @@ class SupplyChainNode:
     producers: tuple[ProducerNode, ...]
     is_raw: bool
 
+    def iter_producers(self) -> Iterator[ProducerNode]:
+        """Yield every :class:`ProducerNode` reachable from this node, depth-first.
 
-def build_optimizer(economy: Economy, scenario: Scenario) -> NominalOptimizer:
-    """Configure a :class:`NominalOptimizer` from a :class:`Scenario`.
+        Each :class:`SupplyChainNode` is visited once (tracked by identity), so
+        traversal is linear in the number of distinct good-nodes rather than
+        exponential in the chain depth.  Victoria 3 has genuine good-level
+        cycles (e.g. ``steel`` <-> ``tools``), so a visited guard is required
+        to avoid re-traversing shared or cyclic intermediates.  Callers
+        aggregating metrics should still de-duplicate by
+        :attr:`ProducerNode.config` if a configuration appears under several
+        goods.
 
-    Applies throughput bonuses (before setting the objective so the GDP vector
-    reflects them), then the objective via :meth:`NominalOptimizer.set_objective`
-    (which accepts ``"automation"`` to minimise employment), then the constraints
-    in a fixed order: autarky (first, so its import-cap marginals lead the
-    inequality block), era cap, construction-cost cap, employment cap, banned
-    PMs, banned buildings, and finally the terminal-good production constraint.
-    Does not call :meth:`NominalOptimizer.linprog`; call it (or
-    :func:`optimize_chain`) to solve.
+        Yields:
+            Each :class:`ProducerNode` reachable from this node.
+        """
+        visited: set[int] = set()
+        stack: list[SupplyChainNode] = [self]
+        while stack:
+            current = stack.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            for producer in current.producers:
+                yield producer
+                for child in reversed(producer.upstream):
+                    stack.append(child)
 
-    Args:
-        economy: The :class:`Economy` to optimise over.
-        scenario: The recipe to apply.
+    def collect_producers(self) -> dict[str, ProducerNode]:
+        """Return unique producer configs reachable from this node, keyed by config.
 
-    Returns:
-        A configured :class:`NominalOptimizer` ready for :meth:`linprog`.
+        Returns:
+            A dict mapping each distinct ``"building+production_method"``
+            configuration key to its :class:`ProducerNode`.
+        """
+        result: dict[str, ProducerNode] = {}
+        for producer in self.iter_producers():
+            if producer.config not in result:
+                result[producer.config] = producer
+        return result
 
-    Raises:
-        ValueError: If the scenario objective is unknown or *terminal_good*
-            is not present in the goods index.
-    """
-    optimizer = NominalOptimizer(economy, objective="gdp")
-    for building_key, multiplier in scenario.throughput_bonuses:
-        optimizer.add_throughput_bonus(building_key, multiplier)
-    optimizer.set_objective(scenario.objective)
-    if scenario.autarky:
-        optimizer.constraint_limit_import(0.0)
-    if scenario.era_cap is not None:
-        optimizer.constraint_limit_era(scenario.era_cap)
-    if scenario.construction_cost_cap is not None:
-        optimizer.constraint_limit_construction_cost(scenario.construction_cost_cap)
-    if scenario.employment_cap is not None:
-        optimizer.constraint_limit_employment(scenario.employment_cap)
-    if scenario.banned_pms:
-        optimizer.constraint_ban_pm(list(scenario.banned_pms))
-    if scenario.banned_buildings:
-        optimizer.constraint_ban_building(list(scenario.banned_buildings))
-    optimizer.constraint_produce(scenario.terminal_good, scenario.target_amount)
-    return optimizer
+    def collect_good_nodes(self) -> dict[str, SupplyChainNode]:
+        """Return all unique good-nodes in the DAG, preferring non-raw expansions.
 
+        Cycle-broken raw leaves share the same good key as the fully-expanded
+        cached node; this method keeps the non-raw version so producers are
+        not lost.  Visits each node object once (tracked by identity) to avoid
+        exponential re-traversal of shared DAG subtrees.
 
-def optimize_chain(economy: Economy, scenario: Scenario) -> EconomyState:
-    """Solve a :class:`Scenario` and return the resulting :class:`EconomyState`.
+        Returns:
+            A dict mapping each good key to its :class:`SupplyChainNode`.
+        """
+        result: dict[str, SupplyChainNode] = {}
+        visited: set[int] = set()
+        stack: list[SupplyChainNode] = [self]
+        while stack:
+            current = stack.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            existing = result.get(current.good)
+            if existing is None or (existing.is_raw and not current.is_raw):
+                result[current.good] = current
+            for producer in current.producers:
+                for child in producer.upstream:
+                    stack.append(child)
+        return result
 
-    Equivalent to ``build_optimizer(economy, scenario).linprog()``.
+    def chain_depth(self) -> int:
+        """Return the maximum depth of the supply chain (0 for raw leaves).
 
-    Args:
-        economy: The :class:`Economy` to optimise over.
-        scenario: The recipe to solve.
+        Computed as the longest path from this node to any raw-resource leaf,
+        memoised by node identity to handle the shared DAG efficiently.
 
-    Returns:
-        The optimal :class:`EconomyState`.
-    """
-    return build_optimizer(economy, scenario).linprog()
+        Returns:
+            The maximum number of production stages between this good and its
+            deepest raw input.
+        """
+        memo: dict[int, int] = {}
+
+        def _depth(node: SupplyChainNode) -> int:
+            if id(node) in memo:
+                return memo[id(node)]
+            if node.is_raw or not node.producers:
+                memo[id(node)] = 0
+                return 0
+            result = 1 + max(
+                (_depth(child) for p in node.producers for child in p.upstream),
+                default=0,
+            )
+            memo[id(node)] = result
+            return result
+
+        return _depth(self)
+
+    def count_raw_inputs(self) -> int:
+        """Count distinct raw-resource leaves in the supply chain.
+
+        Returns:
+            The number of unique goods that appear as raw-resource leaves
+            (goods with no producer configurations) reachable from this node.
+        """
+        raw_goods: set[str] = set()
+        visited: set[int] = set()
+        stack: list[SupplyChainNode] = [self]
+        while stack:
+            current = stack.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            if current.is_raw:
+                raw_goods.add(current.good)
+            for producer in current.producers:
+                for child in producer.upstream:
+                    stack.append(child)
+        return len(raw_goods)
+
+    def to_mermaid(
+        self,
+        *,
+        realized: bool = False,
+        direction: str = "LR",
+        title: str | None = None,
+    ) -> str:
+        """Serialise this supply-chain graph to a Mermaid flowchart string.
+
+        Two rendering modes:
+
+        * **Recipe** (``realized=False``, default): aggregated good→good
+          dependency DAG.  Producer configurations are collapsed so each edge
+          represents "to produce *B*, input *A* is required".  The node label
+          includes the producer count (e.g. ``steel (5)``).  Mutual
+          dependencies (e.g. ``steel ↔ tools``) are rendered as dashed edges.
+        * **Realised** (``realized=True``): full bipartite graph with good
+          nodes (rounded) and producer nodes (box, labelled
+          ``building | lvl=…``), showing ``input → producer → output`` for
+          every active configuration.
+
+        The returned string is a complete Mermaid ``flowchart`` block that
+        renders in GitHub, GitLab, and MkDocs (with ``pymdownx.superfences``
+        Mermaid support).
+
+        Args:
+            realized: If ``True``, render the realised bipartite graph; if
+                ``False`` (default), render the aggregated recipe DAG.
+            direction: Mermaid flowchart direction (``"LR"``, ``"TD"``,
+                ``"RL"``, ``"BT"``).  Defaults to ``"LR"`` (left-to-right).
+            title: Optional comment line prepended to the diagram.
+
+        Returns:
+            A Mermaid flowchart string.
+        """
+        good_nodes = self.collect_good_nodes()
+
+        lines: list[str] = [f"flowchart {direction}"]
+        if title:
+            lines.append(f"    %% {title}")
+
+        if realized:
+            producers = self.collect_producers()
+            all_goods: set[str] = set(good_nodes.keys())
+            for p in producers.values():
+                all_goods.update(p.inputs)
+                all_goods.update(p.outputs)
+            for g in sorted(all_goods):
+                lines.append(f'    {_mermaid_id("g_", g)}(("{g}"))')
+            for config, p in producers.items():
+                label = f"{p.building}<br/>lvl={p.level:.4g}"
+                lines.append(f'    {_mermaid_id("p_", config)}["{label}"]')
+            for config, p in producers.items():
+                pid = _mermaid_id("p_", config)
+                for input_good in sorted(p.inputs):
+                    lines.append(f"    {_mermaid_id('g_', input_good)} --> {pid}")
+                for output_good in sorted(p.outputs):
+                    lines.append(f"    {pid} --> {_mermaid_id('g_', output_good)}")
+        else:
+            edges: set[tuple[str, str]] = set()
+            for g, gnode in good_nodes.items():
+                for producer in gnode.producers:
+                    for input_good in producer.inputs:
+                        edges.add((input_good, g))
+            all_goods = {g for edge in edges for g in edge} | set(good_nodes.keys())
+            for g in sorted(all_goods):
+                gn = good_nodes.get(g)
+                if gn is not None and not gn.is_raw:
+                    label = f"{g} ({len(gn.producers)})"
+                else:
+                    label = f"{g} [raw]"
+                lines.append(f'    {_mermaid_id("g_", g)}(("{label}"))')
+            mutual = {e for e in edges if (e[1], e[0]) in edges}
+            for src, dst in sorted(edges):
+                arrow = "-.->" if (src, dst) in mutual else "-->"
+                lines.append(
+                    f"    {_mermaid_id('g_', src)} {arrow} {_mermaid_id('g_', dst)}"
+                )
+
+        return "\n".join(lines)
 
 
 def upstream_tree(
@@ -300,155 +498,9 @@ def upstream_tree(
     return _node(good, 0)
 
 
-def iter_producers(node: SupplyChainNode) -> Iterator[ProducerNode]:
-    """Yield every :class:`ProducerNode` reachable from *node*, depth-first.
-
-    Each :class:`SupplyChainNode` is visited once (tracked by identity), so
-    traversal is linear in the number of distinct good-nodes rather than
-    exponential in the chain depth.  Victoria 3 has genuine good-level cycles
-    (e.g. ``steel`` <-> ``tools``), so a visited guard is required to avoid
-    re-traversing shared or cyclic intermediates.  Callers aggregating metrics
-    should still de-duplicate by :attr:`ProducerNode.config` if a configuration
-    appears under several goods.
-
-    Args:
-        node: The root :class:`SupplyChainNode`.
-
-    Yields:
-        Each :class:`ProducerNode` reachable from *node*.
-    """
-    visited: set[int] = set()
-    stack: list[SupplyChainNode] = [node]
-    while stack:
-        current = stack.pop()
-        if id(current) in visited:
-            continue
-        visited.add(id(current))
-        for producer in current.producers:
-            yield producer
-            for child in reversed(producer.upstream):
-                stack.append(child)
-
-
-def _collect_producers(node: SupplyChainNode) -> dict[str, ProducerNode]:
-    """Return unique producer configs in a tree keyed by config string."""
-    result: dict[str, ProducerNode] = {}
-    for producer in iter_producers(node):
-        if producer.config not in result:
-            result[producer.config] = producer
-    return result
-
-
-def _collect_good_nodes(node: SupplyChainNode) -> dict[str, SupplyChainNode]:
-    """Return all unique good-nodes in a DAG, preferring non-raw expansions.
-
-    Cycle-broken raw leaves share the same good key as the fully-expanded
-    cached node; this helper keeps the non-raw version so producers are not
-    lost.  Visits each node object once (tracked by identity) to avoid
-    exponential re-traversal of shared DAG subtrees.
-    """
-    result: dict[str, SupplyChainNode] = {}
-    visited: set[int] = set()
-    stack: list[SupplyChainNode] = [node]
-    while stack:
-        current = stack.pop()
-        if id(current) in visited:
-            continue
-        visited.add(id(current))
-        existing = result.get(current.good)
-        if existing is None or (existing.is_raw and not current.is_raw):
-            result[current.good] = current
-        for producer in current.producers:
-            for child in producer.upstream:
-                stack.append(child)
-    return result
-
-
 def _mermaid_id(prefix: str, key: str) -> str:
     """Sanitise *key* into a Mermaid-safe node ID with *prefix*."""
     return prefix + "".join(c if c.isalnum() else "_" for c in key)
-
-
-def to_mermaid(
-    node: SupplyChainNode,
-    *,
-    realized: bool = False,
-    direction: str = "LR",
-    title: str | None = None,
-) -> str:
-    """Serialise a supply-chain graph to a Mermaid flowchart string.
-
-    Two rendering modes:
-
-    * **Recipe** (``realized=False``, default): aggregated good→good dependency
-      DAG.  Producer configurations are collapsed so each edge represents "to
-      produce *B*, input *A* is required".  The node label includes the producer
-      count (e.g. ``steel (5)``).  Mutual dependencies (e.g. ``steel ↔ tools``)
-      are rendered as dashed edges.
-    * **Realised** (``realized=True``): full bipartite graph with good nodes
-      (rounded) and producer nodes (box, labelled ``building | lvl=…``),
-      showing ``input → producer → output`` for every active configuration.
-
-    The returned string is a complete Mermaid ``flowchart`` block that renders
-    in GitHub, GitLab, and MkDocs (with ``pymdownx.superfences`` Mermaid
-    support).
-
-    Args:
-        node: The root :class:`SupplyChainNode` (from :func:`upstream_tree`).
-        realized: If ``True``, render the realised bipartite graph; if ``False``
-            (default), render the aggregated recipe DAG.
-        direction: Mermaid flowchart direction (``"LR"``, ``"TD"``, ``"RL"``,
-            ``"BT"``).  Defaults to ``"LR"`` (left-to-right).
-        title: Optional comment line prepended to the diagram.
-
-    Returns:
-        A Mermaid flowchart string.
-    """
-    good_nodes = _collect_good_nodes(node)
-
-    lines: list[str] = [f"flowchart {direction}"]
-    if title:
-        lines.append(f"    %% {title}")
-
-    if realized:
-        producers = _collect_producers(node)
-        all_goods: set[str] = set(good_nodes.keys())
-        for p in producers.values():
-            all_goods.update(p.inputs)
-            all_goods.update(p.outputs)
-        for g in sorted(all_goods):
-            lines.append(f'    {_mermaid_id("g_", g)}(("{g}"))')
-        for config, p in producers.items():
-            label = f"{p.building}<br/>lvl={p.level:.4g}"
-            lines.append(f'    {_mermaid_id("p_", config)}["{label}"]')
-        for config, p in producers.items():
-            pid = _mermaid_id("p_", config)
-            for input_good in sorted(p.inputs):
-                lines.append(f"    {_mermaid_id('g_', input_good)} --> {pid}")
-            for output_good in sorted(p.outputs):
-                lines.append(f"    {pid} --> {_mermaid_id('g_', output_good)}")
-    else:
-        edges: set[tuple[str, str]] = set()
-        for g, gnode in good_nodes.items():
-            for producer in gnode.producers:
-                for input_good in producer.inputs:
-                    edges.add((input_good, g))
-        all_goods = {g for edge in edges for g in edge} | set(good_nodes.keys())
-        for g in sorted(all_goods):
-            gn = good_nodes.get(g)
-            if gn is not None and not gn.is_raw:
-                label = f"{g} ({len(gn.producers)})"
-            else:
-                label = f"{g} [raw]"
-            lines.append(f'    {_mermaid_id("g_", g)}(("{label}"))')
-        mutual = {e for e in edges if (e[1], e[0]) in edges}
-        for src, dst in sorted(edges):
-            arrow = "-.->" if (src, dst) in mutual else "-->"
-            lines.append(
-                f"    {_mermaid_id('g_', src)} {arrow} {_mermaid_id('g_', dst)}"
-            )
-
-    return "\n".join(lines)
 
 
 def value_added_breakdown(
@@ -496,7 +548,7 @@ def value_added_breakdown(
         if good not in goods_index:
             raise ValueError(f"Good '{good}' not found in goods index.")
         tree = upstream_tree(economy, good, state)
-        selected = _collect_producers(tree)
+        selected = tree.collect_producers()
         idxs = [key_to_i[k] for k in selected]
     else:
         idxs = [i for i in range(len(config_keys)) if levels[i] > _TOL]
@@ -576,49 +628,6 @@ def value_added_breakdown(
     return df
 
 
-def _import_marginals(
-    optimizer: NominalOptimizer | None, n_goods: int
-) -> np.ndarray | None:
-    """Return import-cap shadow prices from a solved optimizer, if available.
-
-    Locates the autarky constraint block by matching its matrix to
-    ``-optimizer.goods_matrix.T`` (shape ``(n_goods, n_buildings)``) and slices
-    the corresponding marginals from the inequality block.
-
-    Args:
-        optimizer: A solved :class:`NominalOptimizer`, or ``None``.
-        n_goods: Expected number of goods (length of the import block).
-
-    Returns:
-        The import-cap marginal values of length *n_goods*, or ``None`` when no
-        solved result or matching block is available.
-    """
-    if optimizer is None:
-        return None
-    result = getattr(optimizer, "result", None)
-    if result is None:
-        return None
-    ineqlin = getattr(result, "ineqlin", None)
-    if ineqlin is None:
-        return None
-    marginals = getattr(ineqlin, "marginals", None)
-    if marginals is None:
-        return None
-    marginals_arr = np.asarray(marginals, dtype=np.float64)
-    goods_matrix = optimizer.goods_matrix
-    target = -goods_matrix.T
-    offset = 0
-    for A, _b in optimizer.inequality_constraints:
-        if (
-            A.shape[0] == n_goods
-            and A.shape[1] == goods_matrix.shape[0]
-            and np.allclose(A, target)
-        ):
-            return marginals_arr[offset : offset + n_goods]
-        offset += A.shape[0]
-    return None
-
-
 def bottleneck(
     economy: Economy,
     state: EconomyState,
@@ -662,7 +671,7 @@ def bottleneck(
         if good not in goods_index:
             raise ValueError(f"Good '{good}' not found in goods index.")
         tree = upstream_tree(economy, good, state)
-        selected = _collect_producers(tree)
+        selected = tree.collect_producers()
         idxs = [key_to_i[k] for k in selected]
     else:
         idxs = [i for i in range(len(config_keys)) if levels[i] > _TOL]
@@ -675,7 +684,7 @@ def bottleneck(
         net_supply += (out_mat[i] - in_mat[i]) * level
     total_input = float(input_cost.sum())
 
-    marginals = _import_marginals(optimizer, len(goods_index))
+    marginals = optimizer.import_marginals() if optimizer is not None else None
     rows: list[dict[str, object]] = []
     for j, g in enumerate(goods_index):
         if input_cost[j] <= _TOL:
@@ -727,7 +736,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
             "target_amount": scenario.target_amount,
         }
         try:
-            optimizer = build_optimizer(economy, scenario)
+            optimizer = scenario.build_optimizer(economy)
             state = optimizer.linprog()
             annual_gdp = (
                 float(np.dot(state.building_levels, optimizer.gdp_vector())) * 52

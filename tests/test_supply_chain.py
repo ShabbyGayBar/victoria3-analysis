@@ -7,13 +7,8 @@ from vic3_analysis.analysis.supply_chain import (
     ProducerNode,
     Scenario,
     SupplyChainNode,
-    _collect_producers,
     bottleneck,
-    build_optimizer,
     compare_scenarios,
-    iter_producers,
-    optimize_chain,
-    to_mermaid,
     upstream_tree,
     value_added_breakdown,
 )
@@ -39,7 +34,7 @@ def automation_scenario() -> Scenario:
 
 @pytest.fixture(scope="module")
 def solved(economy: Economy, automation_scenario: Scenario):
-    optimizer = build_optimizer(economy, automation_scenario)
+    optimizer = automation_scenario.build_optimizer(economy)
     state = optimizer.linprog()
     return optimizer, state
 
@@ -76,10 +71,9 @@ def test_scenario_frozen():
 def test_build_optimizer_objective_sign(economy: Economy):
     good = TERMINAL_GOOD
     for objective in ("gdp", "employment", "automation", "construction_cost"):
-        optimizer = build_optimizer(
-            economy,
-            Scenario(terminal_good=good, target_amount=1.0, objective=objective),
-        )
+        optimizer = Scenario(
+            terminal_good=good, target_amount=1.0, objective=objective
+        ).build_optimizer(economy)
         emp = optimizer.employment_vector()
         gdp = optimizer.gdp_vector()
         if objective == "gdp":
@@ -96,31 +90,26 @@ def test_build_optimizer_objective_sign(economy: Economy):
 
 def test_build_optimizer_invalid_objective(economy: Economy):
     with pytest.raises(ValueError, match="Unknown objective"):
-        build_optimizer(
-            economy,
-            Scenario(terminal_good=TERMINAL_GOOD, target_amount=1.0, objective="bogus"),
-        )
+        Scenario(
+            terminal_good=TERMINAL_GOOD, target_amount=1.0, objective="bogus"
+        ).build_optimizer(economy)
 
 
 def test_build_optimizer_unknown_good(economy: Economy):
     with pytest.raises(ValueError, match="not found in goods index"):
-        build_optimizer(
-            economy,
-            Scenario(terminal_good="not_a_real_good", target_amount=1.0),
+        Scenario(terminal_good="not_a_real_good", target_amount=1.0).build_optimizer(
+            economy
         )
 
 
 def test_build_optimizer_constraints(economy: Economy):
     n_goods = len(economy.goods_index())
-    optimizer = build_optimizer(
-        economy,
-        Scenario(
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
-            banned_pms=("pm_diesel_engines",),
-            banned_buildings=("building_dye_plantation",),
-        ),
-    )
+    optimizer = Scenario(
+        terminal_good=TERMINAL_GOOD,
+        target_amount=1.0,
+        banned_pms=("pm_diesel_engines",),
+        banned_buildings=("building_dye_plantation",),
+    ).build_optimizer(economy)
     # autarky -> one (A, b) pair with n_goods rows; produce -> one 1-row pair.
     assert len(optimizer.inequality_constraints) == 2
     a_import, _ = optimizer.inequality_constraints[0]
@@ -133,29 +122,23 @@ def test_build_optimizer_constraints(economy: Economy):
 
 
 def test_build_optimizer_no_autarky(economy: Economy):
-    optimizer = build_optimizer(
-        economy,
-        Scenario(
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
-            autarky=False,
-        ),
-    )
+    optimizer = Scenario(
+        terminal_good=TERMINAL_GOOD,
+        target_amount=1.0,
+        autarky=False,
+    ).build_optimizer(economy)
     # only the produce constraint, no import caps.
     assert len(optimizer.inequality_constraints) == 1
 
 
 def test_build_optimizer_era_and_caps(economy: Economy):
-    optimizer = build_optimizer(
-        economy,
-        Scenario(
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
-            era_cap=1,
-            construction_cost_cap=5000.0,
-            employment_cap=1000.0,
-        ),
-    )
+    optimizer = Scenario(
+        terminal_good=TERMINAL_GOOD,
+        target_amount=1.0,
+        era_cap=1,
+        construction_cost_cap=5000.0,
+        employment_cap=1000.0,
+    ).build_optimizer(economy)
     # autarky + construction cap + employment cap + produce = 4 inequality pairs.
     assert len(optimizer.inequality_constraints) == 4
     assert len(optimizer.equality_constraints) == 1
@@ -163,21 +146,18 @@ def test_build_optimizer_era_and_caps(economy: Economy):
 
 def test_build_optimizer_throughput_bonus(economy: Economy):
     bk = "building_automotive_industry"
-    optimizer = build_optimizer(
-        economy,
-        Scenario(
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
-            throughput_bonuses=((bk, 2.0),),
-        ),
-    )
+    optimizer = Scenario(
+        terminal_good=TERMINAL_GOOD,
+        target_amount=1.0,
+        throughput_bonuses=((bk, 2.0),),
+    ).build_optimizer(economy)
     mask = (economy.df_production["building"] == bk).to_numpy()
     base = (economy.goods_output_matrix() - economy.goods_input_matrix())[mask]
     np.testing.assert_allclose(optimizer.goods_matrix[mask], base * 2.0)
 
 
 def test_optimize_chain_returns_state(economy: Economy, automation_scenario: Scenario):
-    state = optimize_chain(economy, automation_scenario)
+    state = automation_scenario.optimize(economy)
     assert isinstance(state, EconomyState)
     assert state.building_levels.shape == (len(economy.building_index()),)
 
@@ -185,7 +165,7 @@ def test_optimize_chain_returns_state(economy: Economy, automation_scenario: Sce
 def test_optimize_chain_satisfies_produce(
     economy: Economy, automation_scenario: Scenario
 ):
-    optimizer = build_optimizer(economy, automation_scenario)
+    optimizer = automation_scenario.build_optimizer(economy)
     state = optimizer.linprog()
     idx = optimizer.goods_index().index(TERMINAL_GOOD)
     net = float(state.building_levels @ optimizer.goods_matrix[:, idx])
@@ -195,14 +175,11 @@ def test_optimize_chain_satisfies_produce(
 def test_optimize_chain_unbounded(economy: Economy):
     # maximising GDP with no construction cap is unbounded.
     with pytest.raises(ValueError, match="Optimization failed"):
-        optimize_chain(
-            economy,
-            Scenario(
-                terminal_good=TERMINAL_GOOD,
-                target_amount=1.0,
-                objective="gdp",
-            ),
-        )
+        Scenario(
+            terminal_good=TERMINAL_GOOD,
+            target_amount=1.0,
+            objective="gdp",
+        ).optimize(economy)
 
 
 def test_nominal_optimizer_result_attribute(solved):
@@ -212,9 +189,9 @@ def test_nominal_optimizer_result_attribute(solved):
 
 
 def test_nominal_optimizer_result_cleared_on_reset(economy: Economy):
-    optimizer = build_optimizer(
-        economy, Scenario(terminal_good=TERMINAL_GOOD, target_amount=1.0)
-    )
+    optimizer = Scenario(
+        terminal_good=TERMINAL_GOOD, target_amount=1.0
+    ).build_optimizer(economy)
     optimizer.linprog()
     assert optimizer.result is not None
     optimizer.reset()
@@ -232,7 +209,7 @@ def test_upstream_tree_recipe(economy: Economy):
     assert tree.good == TERMINAL_GOOD
     assert not tree.is_raw
     assert len(tree.producers) > 0
-    for producer in iter_producers(tree):
+    for producer in tree.iter_producers():
         assert isinstance(producer, ProducerNode)
         assert producer.building
         assert producer.level == 1.0
@@ -250,7 +227,7 @@ def test_upstream_tree_realized_filters_inactive(economy: Economy, solved):
     tree = upstream_tree(economy, TERMINAL_GOOD, state)
     assert not tree.is_raw
     levels = state.building_levels
-    for producer in iter_producers(tree):
+    for producer in tree.iter_producers():
         row = economy.building_index().index(producer.config)
         assert levels[row] > 1e-10
 
@@ -261,7 +238,7 @@ def test_upstream_tree_realized_scales_flows(economy: Economy, solved):
     out_mat = economy.goods_output_matrix()
     goods_index = economy.goods_index()
     key_to_i = {k: i for i, k in enumerate(economy.building_index())}
-    for producer in iter_producers(tree):
+    for producer in tree.iter_producers():
         i = key_to_i[producer.config]
         level = float(state.building_levels[i])
         for good, amount in producer.outputs.items():
@@ -275,7 +252,7 @@ def test_upstream_tree_realized_employment_matches(economy: Economy, solved):
     emp_vec = economy.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
     key_to_i = {k: i for i, k in enumerate(economy.building_index())}
     collected = {}
-    for producer in iter_producers(tree):
+    for producer in tree.iter_producers():
         if producer.config not in collected:
             collected[producer.config] = producer
     total = sum(
@@ -287,12 +264,12 @@ def test_upstream_tree_realized_employment_matches(economy: Economy, solved):
 
 def test_iter_producers_yields_producers(economy: Economy):
     tree = upstream_tree(economy, TERMINAL_GOOD)
-    producers = list(iter_producers(tree))
+    producers = list(tree.iter_producers())
     assert len(producers) > 0
     # A configuration producing several goods appears once per good-node, so
-    # iter_producers may repeat configs; _collect_producers de-duplicates them.
+    # iter_producers may repeat configs; collect_producers de-duplicates them.
     yielded = [p.config for p in producers]
-    collected = _collect_producers(tree)
+    collected = tree.collect_producers()
     assert len(collected) <= len(yielded)
     assert set(yielded) == set(collected)
     assert len(collected) == len(set(collected))
@@ -300,18 +277,18 @@ def test_iter_producers_yields_producers(economy: Economy):
 
 def test_to_mermaid_recipe(economy: Economy):
     tree = upstream_tree(economy, TERMINAL_GOOD)
-    m = to_mermaid(tree)
+    m = tree.to_mermaid()
     assert m.startswith("flowchart LR")
     assert TERMINAL_GOOD in m
     # recipe mode has aggregated good→good edges (no producer nodes)
     assert "((" in m
-    assert "[[" not in m
+    assert '["' not in m
 
 
 def test_to_mermaid_realized(economy: Economy, solved):
     optimizer, state = solved
     tree = upstream_tree(economy, TERMINAL_GOOD, state)
-    m = to_mermaid(tree, realized=True)
+    m = tree.to_mermaid(realized=True)
     assert m.startswith("flowchart LR")
     assert TERMINAL_GOOD in m
     # realized mode has producer box nodes with level labels
@@ -321,19 +298,19 @@ def test_to_mermaid_realized(economy: Economy, solved):
 
 def test_to_mermaid_direction(economy: Economy):
     tree = upstream_tree(economy, TERMINAL_GOOD)
-    m = to_mermaid(tree, direction="TD")
+    m = tree.to_mermaid(direction="TD")
     assert m.startswith("flowchart TD")
 
 
 def test_to_mermaid_title(economy: Economy):
     tree = upstream_tree(economy, TERMINAL_GOOD)
-    m = to_mermaid(tree, title="My Diagram")
+    m = tree.to_mermaid(title="My Diagram")
     assert "%% My Diagram" in m
 
 
 def test_to_mermaid_dashed_cycle_edges(economy: Economy):
     tree = upstream_tree(economy, TERMINAL_GOOD)
-    m = to_mermaid(tree)
+    m = tree.to_mermaid()
     # Victoria 3 has mutual dependencies (e.g. steel ↔ tools); these render
     # as dashed edges.
     assert "-.->" in m
@@ -343,17 +320,63 @@ def test_to_mermaid_recipe_vs_realized_differ(economy: Economy, solved):
     optimizer, state = solved
     recipe = upstream_tree(economy, TERMINAL_GOOD)
     realised = upstream_tree(economy, TERMINAL_GOOD, state)
-    m_recipe = to_mermaid(recipe)
-    m_realised = to_mermaid(realised, realized=True)
+    m_recipe = recipe.to_mermaid()
+    m_realised = realised.to_mermaid(realized=True)
     assert m_recipe != m_realised
 
 
 def test_to_mermaid_raw_good(economy: Economy):
     tree = upstream_tree(economy, RAW_GOOD)
-    m = to_mermaid(tree)
+    m = tree.to_mermaid()
     assert m.startswith("flowchart LR")
     assert RAW_GOOD in m
     assert "[raw]" in m
+
+
+def test_chain_depth_raw(economy: Economy):
+    tree = upstream_tree(economy, RAW_GOOD)
+    assert tree.chain_depth() == 0
+
+
+def test_chain_depth_recipe(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    assert tree.chain_depth() > 0
+
+
+def test_chain_depth_realized(economy: Economy, solved):
+    _optimizer, state = solved
+    tree = upstream_tree(economy, TERMINAL_GOOD, state)
+    assert tree.chain_depth() > 0
+
+
+def test_count_raw_inputs_raw(economy: Economy):
+    tree = upstream_tree(economy, RAW_GOOD)
+    assert tree.count_raw_inputs() == 1
+
+
+def test_count_raw_inputs_recipe(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    assert tree.count_raw_inputs() > 0
+
+
+def test_count_raw_inputs_realized(economy: Economy, solved):
+    _optimizer, state = solved
+    tree = upstream_tree(economy, TERMINAL_GOOD, state)
+    assert tree.count_raw_inputs() > 0
+
+
+def test_collect_good_nodes(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    nodes = tree.collect_good_nodes()
+    assert TERMINAL_GOOD in nodes
+    assert len(nodes) > 1
+
+
+def test_collect_producers(economy: Economy):
+    tree = upstream_tree(economy, TERMINAL_GOOD)
+    producers = tree.collect_producers()
+    assert len(producers) > 0
+    assert all(isinstance(p, ProducerNode) for p in producers.values())
 
 
 def test_value_added_breakdown_invalid_by(economy: Economy, solved):

@@ -50,25 +50,22 @@ scenario comparison. All public symbols are re-exported from `vic3_analysis`.
 A [`Scenario`](../api.md#vic3_analysis.analysis.supply_chain.Scenario)
 captures the recipe (terminal good, target, objective, autarky, banned
 production methods / buildings, throughput bonuses, era cap, construction-cost
-and employment caps) as data. [`build_optimizer`](../api.md) configures a
-`NominalOptimizer` from it, and [`optimize_chain`](../api.md) solves it:
+and employment caps) as data. `Scenario.build_optimizer()` configures a
+`NominalOptimizer` from it, and `Scenario.optimize()` solves it:
 
 ```python
-from vic3_analysis import Economy, Scenario, optimize_chain
+from vic3_analysis import Economy, Scenario
 
 economy = Economy()
-state = optimize_chain(
-    economy,
-    Scenario(
-        terminal_good="automobiles",
-        target_amount=10e6 / 5200.0,
-        objective="automation",   # minimise employment (max automation)
-        autarky=True,
-        banned_pms=("pm_diesel_engines",),
-        banned_buildings=("building_dye_plantation",),
-        throughput_bonuses=(("building_automotive_industry", 2.45),),
-    ),
-)
+state = Scenario(
+    terminal_good="automobiles",
+    target_amount=10e6 / 5200.0,
+    objective="automation",   # minimise employment (max automation)
+    autarky=True,
+    banned_pms=("pm_diesel_engines",),
+    banned_buildings=("building_dye_plantation",),
+    throughput_bonuses=(("building_automotive_industry", 2.45),),
+).optimize(economy)
 ```
 
 `objective` accepts `"gdp"` (maximise), `"employment"` (maximise),
@@ -93,7 +90,7 @@ realised = upstream_tree(economy, "automobiles", state)  # actual chain
 
 ## Mermaid visualisation
 
-[`to_mermaid`](../api.md) serialises a supply-chain graph to a Mermaid
+`SupplyChainNode.to_mermaid()` serialises a supply-chain graph to a Mermaid
 `flowchart` string that renders in GitHub, GitLab, and MkDocs. In **recipe
 mode** (default) it emits an aggregated good→good dependency DAG with producer
 counts and dashed edges for mutual dependencies (e.g. `steel ↔ tools`). In
@@ -101,10 +98,11 @@ counts and dashed edges for mutual dependencies (e.g. `steel ↔ tools`). In
 producer nodes (box, labelled with building and level).
 
 ```python
-from vic3_analysis import to_mermaid
+from vic3_analysis import upstream_tree
 
-print(to_mermaid(recipe))                         # aggregated DAG
-print(to_mermaid(realised, realized=True))        # bipartite graph
+recipe = upstream_tree(economy, "automobiles")
+print(recipe.to_mermaid())                         # aggregated DAG
+print(recipe.to_mermaid(realized=True))            # bipartite graph
 ```
 
 The `examples/supply_chain_trace.py` script writes both views to
@@ -144,9 +142,9 @@ supply. When passed the solved optimizer, it also reads the LP shadow prices
 input whose relaxation would most reduce the objective.
 
 ```python
-from vic3_analysis import build_optimizer, bottleneck
+from vic3_analysis import bottleneck
 
-optimizer = build_optimizer(economy, scenario)
+optimizer = scenario.build_optimizer(economy)
 state = optimizer.linprog()
 bottlenecks = bottleneck(economy, state, good="automobiles", optimizer=optimizer)
 ```

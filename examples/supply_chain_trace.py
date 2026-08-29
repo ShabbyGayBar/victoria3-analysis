@@ -1,6 +1,6 @@
 import pandas as pd
 
-from vic3_analysis import Economy, Scenario, optimize_chain, to_mermaid, upstream_tree
+from vic3_analysis import Economy, Scenario, upstream_tree
 from __init__ import THIS_DIR
 
 df_production_table = pd.read_csv(THIS_DIR / ".." / "tables" / "production_table.csv")
@@ -17,7 +17,7 @@ def run_supply_chain_trace():
 
     print("=== Recipe trace: automobiles supply-chain map (all producers) ===")
     recipe = upstream_tree(economy, "automobiles")
-    recipe_mermaid = to_mermaid(recipe, title="Recipe: automobiles (all producers)")
+    recipe_mermaid = recipe.to_mermaid(title="Recipe: automobiles (all producers)")
     print(f"\n```mermaid\n{recipe_mermaid}\n```")
     (FIGURES_DIR / "supply_chain_recipe.mmd").write_text(
         recipe_mermaid, encoding="utf-8"
@@ -25,17 +25,14 @@ def run_supply_chain_trace():
     print("\nWritten to figures/supply_chain_recipe.mmd")
 
     print("\n=== Realised trace (1 automobile/wk, autarky, max automation) ===")
-    state = optimize_chain(
-        economy,
-        Scenario(
-            terminal_good="automobiles",
-            target_amount=1.0,
-            objective="automation",
-        ),
-    )
+    state = Scenario(
+        terminal_good="automobiles",
+        target_amount=1.0,
+        objective="automation",
+    ).optimize(economy)
     realised = upstream_tree(economy, "automobiles", state)
-    realised_mermaid = to_mermaid(
-        realised, realized=True, title="Realised: automobiles (1/wk, autarky)"
+    realised_mermaid = realised.to_mermaid(
+        realized=True, title="Realised: automobiles (1/wk, autarky)"
     )
     print(f"\n```mermaid\n{realised_mermaid}\n```")
     (FIGURES_DIR / "supply_chain_realised.mmd").write_text(

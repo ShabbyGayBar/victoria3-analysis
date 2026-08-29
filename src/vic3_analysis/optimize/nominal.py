@@ -418,3 +418,39 @@ class NominalOptimizer:
             raise ValueError(f"Optimization failed: {res.message}")
         self.result = res
         return self.model.solve(res.x)
+
+    def import_marginals(self) -> np.ndarray | None:
+        """Return import-cap shadow prices from the most recent solve, if any.
+
+        Locates the autarky constraint block by matching its matrix to
+        ``-self.goods_matrix.T`` and slices the corresponding marginals from
+        the inequality block of :attr:`result`.
+
+        Returns:
+            An array of import-cap marginal values of length
+            ``self.goods_matrix.shape[1]``, or ``None`` when the optimiser has
+            not been solved, the solve result lacks marginals, or no autarky
+            constraint block is present.
+        """
+        if self.result is None:
+            return None
+        ineqlin = getattr(self.result, "ineqlin", None)
+        if ineqlin is None:
+            return None
+        marginals = getattr(ineqlin, "marginals", None)
+        if marginals is None:
+            return None
+        marginals_arr = np.asarray(marginals, dtype=np.float64)
+        n_goods = self.goods_matrix.shape[1]
+        target = -self.goods_matrix.T
+        offset = 0
+        for A, _b in self.inequality_constraints:
+            n_rows = A.shape[0] if A.ndim == 2 else 1
+            if (
+                n_rows == n_goods
+                and A.shape[-1] == self.goods_matrix.shape[0]
+                and np.allclose(A, target)
+            ):
+                return marginals_arr[offset : offset + n_goods]
+            offset += n_rows
+        return None

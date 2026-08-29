@@ -9,7 +9,6 @@ from vic3_analysis import (
     Economy,
     Scenario,
     bottleneck,
-    build_optimizer,
     value_added_breakdown,
 )
 from __init__ import THIS_DIR
@@ -114,7 +113,7 @@ def run_supply_chain_optimize():
         banned_buildings=("building_dye_plantation",),
     )
 
-    optimizer = build_optimizer(economy, scenario)
+    optimizer = scenario.build_optimizer(economy)
     state = optimizer.linprog()
 
     annual_gdp = float(np.dot(state.building_levels, optimizer.gdp_vector())) * 52
