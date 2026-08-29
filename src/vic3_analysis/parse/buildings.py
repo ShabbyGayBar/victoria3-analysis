@@ -14,6 +14,7 @@ import pandas as pd
 from pyradox import Tree
 
 from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.parse.building_groups import BuildingGroupParser, _join_group_attrs
 
 
 class BuildingsParser(Tree):
@@ -42,8 +43,10 @@ class BuildingsParser(Tree):
         """
         super().__init__()
         self._python_cache: dict[str, dict[str, Any]] = {}
+        self._group_attrs_cache: dict[str, dict[str, Any]] | None = None
         if game_dir is None:
             game_dir = get_vic3_directory()
+        self._game_dir = Path(game_dir)
 
         parse_dir = Path(game_dir) / "common" / "buildings"
         parse_tree = parse_merge(parse_dir)
@@ -83,6 +86,20 @@ class BuildingsParser(Tree):
                 "required_construction_points", self.cost_modifiers[cost_modifier]
             )
 
+    def _resolved_group_attrs(self) -> dict[str, dict[str, Any]]:
+        """Return resolved building-group attributes, building them lazily.
+
+        Constructs a :class:`BuildingGroupParser` from the same game directory
+        and caches its :meth:`~BuildingGroupParser.resolved_attributes` result
+        so repeated :meth:`to_dataframe` calls do not re-parse the
+        ``common/building_groups`` directory.
+        """
+        if self._group_attrs_cache is None:
+            self._group_attrs_cache = BuildingGroupParser(
+                self._game_dir
+            ).resolved_attributes()
+        return self._group_attrs_cache
+
     def to_dataframe(self) -> pd.DataFrame:
         """Convert the buildings tree to a flat ``pandas.DataFrame``.
 
@@ -90,9 +107,17 @@ class BuildingsParser(Tree):
         ``Tree`` and ``dict`` values are omitted, and ``list`` values are
         concatenated into a ``+``-joined string.
 
+        In addition, the resolved attributes of each building's
+        ``building_group`` (parsed from ``common/building_groups``) are joined
+        onto the row.  ``land_usage`` and ``cash_reserves_max`` are resolved
+        along the ``parent_group`` chain; other group attributes are taken
+        verbatim.  Group-attribute columns share the group attribute's name
+        unless that name collides with an existing building-level column, in
+        which case the ``building_group_`` prefix is applied.
+
         Returns:
             A ``DataFrame`` with one row per building and one column per scalar
-            attribute.
+            attribute, augmented with the building's resolved group attributes.
         """
         results: list[dict[str, Any]] = []
         for building_key, building_values in self.items():
@@ -106,6 +131,7 @@ class BuildingsParser(Tree):
                 else:
                     row[attribute_key] = attribute_value
             results.append(row)
+        _join_group_attrs(results, self._resolved_group_attrs())
         return pd.DataFrame(results)
 
     def _building_to_python(

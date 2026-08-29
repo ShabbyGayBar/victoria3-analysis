@@ -15,6 +15,7 @@
   - [x] `tests/` suite
 - Core parsers:
   - [x] `common/buildings`
+  - [x] `common/building_groups`
   - [x] `common/goods`
   - [x] `common/production_methods`
   - [x] `common/production_method_groups`

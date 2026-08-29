@@ -32,10 +32,10 @@ production_table, ...` directly.
 
 - `__init__.py` — Re-exports the public API: `get_vic3_directory`,
   `parse_merge` (from `utils`), the parsers (`buy_packages`,
-  `BuildingsParser`, `goods`, `PopTypesParser`, `production_method_groups`,
-  `ProductionMethodParser`, `StateRegionsParser`, `technology`), the analysis
-  helpers (`production_table`, `Economy`), and the optimiser
-  (`NominalOptimizer`).
+  `BuildingsParser`, `BuildingGroupParser`, `goods`, `PopNeedsParser`,
+  `PopTypesParser`, `production_method_groups`, `ProductionMethodParser`,
+  `StateRegionsParser`, `technology`), the analysis helpers
+  (`production_table`, `Economy`), and the optimiser (`NominalOptimizer`).
 - `utils.py` — Shared helpers:
   - `get_vic3_directory()` auto-detects the `Victoria 3/game` install across
     common Steam library paths on Windows/Linux/macOS.
@@ -53,7 +53,14 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `common/buildings`, resolves `required_construction` script values from
   `common/script_values` into numeric `required_construction_points`, and
   provides `to_dataframe()`, `production_method_groups()`, and
-  `building_groups()`.
+  `building_groups()`. `to_dataframe()` also joins resolved building-group
+  attributes (from :mod:`building_groups`) onto each building row.
+- `building_groups.py` — `BuildingGroupParser` (`Tree` subclass). Loads
+  `common/building_groups`. `to_dataframe()` flattens each group's scalar
+  attributes; `resolved_attributes()` returns per-group attribute dicts with
+  `land_usage` and `cash_reserves_max` resolved along the `parent_group`
+  chain. The module-level `_join_group_attrs()` helper merges resolved group
+  attributes onto building row dicts (collision-prefixed as needed).
 - `goods.py` — `goods()` function. Loads `common/goods` into a DataFrame with
   one row per tradeable good (`key`, `cost`, etc.).
 - `production_methods.py` — `ProductionMethodParser` (`Tree` subclass). Loads
@@ -181,7 +188,7 @@ Requires a local Victoria 3 installation because the parsers auto-detect the
 game directory.
 
 - `__init__.py` — empty package marker.
-- `test_buildings.py`, `test_goods.py`, `test_production_method.py`,
+- `test_buildings.py`, `test_building_groups.py`, `test_goods.py`, `test_production_method.py`,
   `test_production_method_groups.py`, `test_technology.py`,
   `test_buy_packages.py`, `test_pop_types.py`, `test_state_regions.py` —
   smoke tests that instantiate each parser and call its primary method.

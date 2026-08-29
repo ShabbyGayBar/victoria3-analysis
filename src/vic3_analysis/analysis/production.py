@@ -148,7 +148,9 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
         methods (``"<pm1>+<pm2>+..."``); other columns include
         ``"building_group"``, ``"era"``, ``"construction_cost"``,
         ``"profit_nominal"``, ``"employment"``, ``"employment_<profession>"`` (one
-        per profession), and one ``"goods_<good>"`` column per tradeable good.
+        per profession), ``"urbanization"``,
+        ``"infrastructure_usage_per_level"``, and one ``"goods_<good>"`` column
+        per tradeable good.
     """
     if game_dir is None:
         game_dir = get_vic3_directory()
@@ -179,6 +181,20 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
     for building_key, building_values in buildings_tree.items():
         if "building_group" in building_values.keys():
             building_group_dict[building_key] = building_values["building_group"]
+
+    # Get building-level urbanization and infrastructure usage per level from
+    # the building-group attributes joined by BuildingsParser.to_dataframe,
+    # defaulting missing values to 0
+    df_buildings = buildings_tree.to_dataframe()
+    urbanization_dict = dict(
+        zip(df_buildings["key"], df_buildings["urbanization"].fillna(0))
+    )
+    infrastructure_dict = dict(
+        zip(
+            df_buildings["key"],
+            df_buildings["infrastructure_usage_per_level"].fillna(0),
+        )
+    )
 
     # Get production method employment and production output
     df_pm = ProductionMethodParser(game_dir).to_dataframe()
@@ -219,6 +235,10 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
                 "production_method": "+".join(combo),
             }
             row_dict["building_group"] = building_group_dict[building_key]
+            row_dict["urbanization"] = urbanization_dict[building_key]
+            row_dict["infrastructure_usage_per_level"] = infrastructure_dict[
+                building_key
+            ]
             row_dict["era"] = building["era"]
             row_dict["employment"] = building["employment"]
             row_dict["construction_cost"] = building_cost_dict[building_key]
