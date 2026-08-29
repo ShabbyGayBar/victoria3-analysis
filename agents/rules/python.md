@@ -2,27 +2,28 @@
 
 ## Type Safety
 
-- **Never suppress type errors.** Do not use `# type: ignore`, or `typing.cast()` to silence Pylance diagnostics.
-  - The Python equivalents of `as any` and `@ts-ignore` are `Any`, `cast()`, and `# type: ignore` — all are forbidden.
+- **Enforcement runs via `uv run pyright`** (configured in `[tool.pyright]`, `basic` mode, covering `src` and `tests`). The `if not isinstance(...): raise TypeError(...)` pattern below is what keeps this command clean.
+- **Targeted `# pyright: ignore[reportXxx]` is permitted ONLY for pandas-stub false positives.** Pyright uses Pylance's bundled pandas stubs, which pessimistically type `df["col"]` as `Series | DataFrame` (guarding duplicate-column DataFrames). This cascades into false positives on runtime-scalar operations: `df[mask].sort_values(...)`, `int(df["col"].median())`, `df[cols]` returns, `.fillna` on the widened union, and `assert series.any()`. When adding such an ignore, pin the specific rule (e.g. `# pyright: ignore[reportCallIssue]`) and do not broaden it. Never use a bare `# type: ignore` and never use ignores for `pyradox` — pyradox stays narrowed via `if not isinstance(...): raise TypeError(...)` (see below).
 
 ## Type Narrowing for Untyped Libraries
 
-- **Use assert-based narrowing.** When a library has no type stubs (e.g. `pyradox`), narrow with `assert isinstance(x, ExpectedType)` so Pylance infers the correct type and runtime still fails fast on wrong types.
-
-- **Create narrow-and-return helpers.** For repeated access patterns, extract small helpers that assert and return the narrowed type:
+- **Use `if not isinstance(...): raise TypeError(...)`.** When a library has no type stubs (e.g. `pyradox`), narrow with an explicit branch that raises `TypeError` so Pylance infers the correct type and runtime fails fast with a clear error:
 
   ```python
   def _tree(value) -> Tree:
-      """Assert a value is a Tree and return it (type narrowing for untyped pyradox)."""
-      assert isinstance(value, Tree), f"Expected Tree, got {type(value).__name__}"
+      """Narrow a value to Tree, raising TypeError on mismatch."""
+      if not isinstance(value, Tree):
+          raise TypeError(f"Expected Tree, got {type(value).__name__}")
       return value
 
 
   def _tree_iter(values):
-      """Yield only Tree items from an iterator, asserting each one."""
+      """Yield only Tree items from an iterator, raising TypeError on mismatch."""
       for v in values:
           yield _tree(v)
   ```
+
+  Unlike `assert isinstance(...)`, this survives `python -O` (asserts are stripped under optimisation, which would silently re-widen the type and re-surface the runtime risk).
 
   Call sites stay clean:
 
@@ -30,6 +31,8 @@
   v_st = _tree(vanilla_tree["STATES"][f"s:{state_name}"])
   v_hl = set(v_st.find_all("add_homeland"))
   ```
+
+  For inline narrowing of scalar values returned by untyped APIs, use the same pattern directly (see `parse/state_regions.py` for the canonical example).
 
 ## Toolchain
 
@@ -56,7 +59,7 @@ from pyradox.datatype.tree import Tree
 
 ### Tree — Reading
 
-`Tree` is an ordered dict-like container; keys are matched case-insensitively but preserve original casing. Because pyradox ships no type stubs, wrap every access with the `_tree()` helper to narrow from `tuple[Unknown, ...] | None` to `Tree` (see "Type Narrowing" section above).
+`Tree` is an ordered dict-like container; keys are matched case-insensitively but preserve original casing. Because pyradox ships no type stubs, wrap every access with the `_tree()` helper to narrow from `tuple[Unknown, ...] | None` to `Tree` (see "Type Narrowing for Untyped Libraries" section above).
 
 | Operation | Behavior |
 |---|---|

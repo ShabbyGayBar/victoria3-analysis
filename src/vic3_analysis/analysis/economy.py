@@ -555,7 +555,7 @@ class Economy:
             }
         )
         df = df[df["level"] > 0].copy()
-        df = df.sort_values(by="level", ascending=False)
+        df = df.sort_values(by="level", ascending=False)  # pyright: ignore[reportCallIssue]
         return df
 
     def df_market(self, eco: EconomyState) -> pd.DataFrame:
@@ -588,7 +588,7 @@ class Economy:
             }
         )
         df = df[(df["sell_orders"] > 0) | (df["buy_orders"] > 0)].copy()
-        df = df.sort_values(by="sell_orders", ascending=False)
+        df = df.sort_values(by="sell_orders", ascending=False)  # pyright: ignore[reportCallIssue]
         return df
 
     def df_pop(self, eco: EconomyState) -> pd.DataFrame:
@@ -618,5 +618,5 @@ class Economy:
             }
         )
         df = df[df["employment"] > 0].copy()
-        df = df.sort_values(by="employment", ascending=False).reset_index(drop=True)
+        df = df.sort_values(by="employment", ascending=False).reset_index(drop=True)  # pyright: ignore[reportCallIssue]
         return df

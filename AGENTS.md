@@ -15,6 +15,7 @@ Requires Python 3.13.
 
 - **Test**: `uv run pytest` (runs with coverage via pyproject.toml config)
 - **Lint**: `uv run ruff check src tests`
+- **Typecheck**: `uv run pyright` (covers `src`, `tests`, and `examples`, `basic` mode — see `@agents/rules/python.md`)
 - **Format**: `uv run ruff format src tests`
 - **Docs**: `uv run mkdocs serve`
 

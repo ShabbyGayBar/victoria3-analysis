@@ -73,16 +73,22 @@ class StateRegionsParser(Tree):
                     continue
                 if attribute_key == "resource":
                     if not isinstance(attribute_value, Tree):
-                        raise ValueError(
-                            f"Expected 'resource' attribute to be a Tree, got {type(attribute_value)}"
+                        raise TypeError(
+                            f"Expected 'resource' attribute to be a Tree, got {type(attribute_value).__name__}"
                         )
                     resource_key = attribute_value["type"]
-                    undiscovered_amount = int(
-                        attribute_value.find("undiscovered_amount", 0)  # pyright: ignore[reportArgumentType]
-                    )
-                    discovered_amount = int(
-                        attribute_value.find("discovered_amount", 0)  # pyright: ignore[reportArgumentType]
-                    )
+                    undiscovered_raw = attribute_value.find("undiscovered_amount", 0)
+                    if not isinstance(undiscovered_raw, (int, float)):
+                        raise TypeError(
+                            f"Expected numeric undiscovered_amount, got {type(undiscovered_raw).__name__}"
+                        )
+                    undiscovered_amount = int(undiscovered_raw)
+                    discovered_raw = attribute_value.find("discovered_amount", 0)
+                    if not isinstance(discovered_raw, (int, float)):
+                        raise TypeError(
+                            f"Expected numeric discovered_amount, got {type(discovered_raw).__name__}"
+                        )
+                    discovered_amount = int(discovered_raw)
                     state_region[f"resource_{resource_key}"] = (
                         undiscovered_amount + discovered_amount
                     )
@@ -109,6 +115,6 @@ class StateRegionsParser(Tree):
                 or column.startswith("discovered_amount_resource_")
             ):
                 df[column] = (
-                    pd.to_numeric(df[column], errors="coerce").fillna(0).astype(int)
+                    pd.to_numeric(df[column], errors="coerce").fillna(0).astype(int)  # pyright: ignore[reportAttributeAccessIssue]
                 )
         return df

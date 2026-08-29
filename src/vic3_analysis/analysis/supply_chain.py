@@ -815,4 +815,4 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
         "bottleneck_marginal",
         "error",
     ]
-    return df[cols]
+    return df[cols]  # pyright: ignore[reportReturnType]

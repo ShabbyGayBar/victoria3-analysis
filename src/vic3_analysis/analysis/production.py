@@ -191,13 +191,13 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
             continue  # Skip if building is not in building_cost_dict
         pm_dict[row["production_method"]] = ProductionUnit(
             era=tech_era_dict.get(row["unlocking_technologies"], 0),
-            employment=row["employment"],
-            production={
+            employment=row["employment"],  # pyright: ignore[reportArgumentType]
+            production={  # pyright: ignore[reportArgumentType]
                 good: row[f"goods_{good}"]
                 for good in goods_dict.keys()
                 if f"goods_{good}" in row
             },
-            employment_by_profession={
+            employment_by_profession={  # pyright: ignore[reportArgumentType]
                 col[len("employment_") :]: row[col]
                 for col in employment_profession_keys
             },

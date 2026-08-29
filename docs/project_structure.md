@@ -12,7 +12,8 @@ purpose of each directory, and the key modules/files within them.
   `vic3-analysis` package, requires Python `>=3.13`, and pins runtime
   dependencies (`numpy`, `pandas`,   `pillow`, `pyradox-txt-parser`, `scipy`, `matplotlib`) and
   dev dependencies (`mkdocs-material`, `mkdocstrings[python]`, `pytest`,
-  `pytest-cov`, `ruff`). Configures pytest test paths and coverage.
+  `pytest-cov`, `ruff`, `pyright`). Configures pytest test paths and coverage,
+  and `[tool.pyright]` (basic mode, covering `src` and `tests`).
 - `uv.lock` — Lockfile for the `uv` toolchain, pinning transitive dependencies.
 - `.python-version` — Pins the project Python version (3.13) for `uv`/`pyenv`.
 - `mkdocs.yml` — MkDocs Material configuration. Builds the API reference from
@@ -213,6 +214,10 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
   `# type: ignore`, `cast()`, or `Any`), `assert`-based narrowing for untyped
   `pyradox`, exclusive use of `uv`, pyradox usage and `Tree` API reference,
   and serialisation conventions. Loaded on demand per `AGENTS.md`.
+- `rules/tests.md` — Mandatory test conventions for agents: location/naming,
+  toolchain (`uv run pytest`, `ruff`, `pyright`), imports, game-data fixtures,
+  function-based style, and the 100% coverage target. Loaded on demand per
+  `AGENTS.md`.
 
 ## `.vscode/` — Editor Configuration
 

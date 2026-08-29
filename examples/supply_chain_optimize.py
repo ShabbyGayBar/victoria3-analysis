@@ -51,7 +51,7 @@ def _save_building_levels(state, economy):
     ax.set_xlabel("Building Level")
     ax.set_title("Optimal Building Levels")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "building_levels.png", dpi=150)
+    fig.savefig(str(FIGURES_DIR / "building_levels.png"), dpi=150)
     plt.close(fig)
 
 
@@ -69,7 +69,7 @@ def _save_net_goods(state, optimizer):
     ax.set_title("Net Goods Output")
     ax.axvline(0, color="black", linewidth=0.5)
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "net_goods.png", dpi=150)
+    fig.savefig(str(FIGURES_DIR / "net_goods.png"), dpi=150)
     plt.close(fig)
 
 
@@ -81,7 +81,7 @@ def _save_value_added(state, economy):
     ax.set_xlabel("GDP (per week)")
     ax.set_title("Value-Added by Good")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "value_added.png", dpi=150)
+    fig.savefig(str(FIGURES_DIR / "value_added.png"), dpi=150)
     plt.close(fig)
 
 
@@ -96,7 +96,7 @@ def _save_bottleneck(state, economy, optimizer):
     ax.set_xlabel("Input Cost (per week)")
     ax.set_title("Bottleneck: Input Cost by Good (red = binding import cap)")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "bottleneck.png", dpi=150)
+    fig.savefig(str(FIGURES_DIR / "bottleneck.png"), dpi=150)
     plt.close(fig)
 
 

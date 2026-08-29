@@ -60,7 +60,7 @@ def _save_sweep_charts(df: pd.DataFrame) -> None:
     ok = df[df["error"] == ""].copy()
 
     fig, ax = plt.subplots(figsize=(12, max(8, len(ok) * 0.3)))
-    ok_sorted = ok.sort_values("construction_cost", ascending=True)
+    ok_sorted = ok.sort_values("construction_cost", ascending=True)  # pyright: ignore[reportCallIssue]
     colors = [
         "#d62728" if c < 0 else "#1f77b4" for c in ok_sorted["bottleneck_marginal"]
     ]
@@ -71,11 +71,11 @@ def _save_sweep_charts(df: pd.DataFrame) -> None:
         f"(normalised value = {NORMALIZED_VALUE})"
     )
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "supply_chain_sweep_cost.png", dpi=150)
+    fig.savefig(str(FIGURES_DIR / "supply_chain_sweep_cost.png"), dpi=150)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(12, max(8, len(ok) * 0.3)))
-    ok_sorted = ok.sort_values("gdp_per_construction", ascending=True)
+    ok_sorted = ok.sort_values("gdp_per_construction", ascending=True)  # pyright: ignore[reportCallIssue]
     ax.barh(
         ok_sorted["terminal_good"],
         ok_sorted["gdp_per_construction"],
@@ -84,7 +84,7 @@ def _save_sweep_charts(df: pd.DataFrame) -> None:
     ax.set_xlabel("GDP per Construction Cost")
     ax.set_title("Supply Chain Sweep: GDP Efficiency by Terminal Good")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "supply_chain_sweep_efficiency.png", dpi=150)
+    fig.savefig(str(FIGURES_DIR / "supply_chain_sweep_efficiency.png"), dpi=150)
     plt.close(fig)
 
 

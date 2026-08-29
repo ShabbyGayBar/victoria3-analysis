@@ -10,6 +10,7 @@
 
 - Run with `uv run pytest` (coverage is auto-enabled via `addopts`: `--cov=src --cov-report=term-missing`).
 - Lint tests with `uv run ruff check tests` and format with `uv run ruff format tests` — same config as `src`.
+- Type-check tests with `uv run pyright` — `[tool.pyright]` in `pyproject.toml` includes both `src` and `tests`, so one command covers them.
 - `--strict-markers` and `--strict-config` are on: never use unregistered markers or unknown config keys.
 
 ## Imports

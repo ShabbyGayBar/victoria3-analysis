@@ -302,7 +302,7 @@ def test_df_buildings(economy):
     expected = expected[expected["level"] > 0]
     pd.testing.assert_frame_equal(
         df.sort_values("key").reset_index(drop=True),
-        expected.sort_values("key").reset_index(drop=True),
+        expected.sort_values("key").reset_index(drop=True),  # pyright: ignore[reportCallIssue]
     )
 
 

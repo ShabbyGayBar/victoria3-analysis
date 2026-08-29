@@ -65,7 +65,7 @@ def test_scenario_display_name():
 def test_scenario_frozen():
     scenario = Scenario(terminal_good="steel", target_amount=1.0)
     with pytest.raises(Exception):
-        scenario.terminal_good = "iron"
+        setattr(scenario, "terminal_good", "iron")
 
 
 def test_build_optimizer_objective_sign(economy: Economy):
@@ -449,14 +449,14 @@ def test_bottleneck_columns(economy: Economy, solved):
 def test_bottleneck_with_optimizer(economy: Economy, solved):
     optimizer, state = solved
     df = bottleneck(economy, state, good=TERMINAL_GOOD, optimizer=optimizer)
-    assert df["import_marginal"].notna().any()
+    assert df["import_marginal"].notna().any()  # pyright: ignore[reportGeneralTypeIssues]
     assert (df["cost_share"] >= 0).all()
 
 
 def test_bottleneck_without_optimizer(economy: Economy, solved):
     _optimizer, state = solved
     df = bottleneck(economy, state, good=TERMINAL_GOOD)
-    assert df["import_marginal"].isna().all()
+    assert df["import_marginal"].isna().all()  # pyright: ignore[reportGeneralTypeIssues]
 
 
 def test_bottleneck_invalid_good(economy: Economy, solved):

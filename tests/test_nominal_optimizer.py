@@ -103,7 +103,7 @@ def test_set_objective_invalid(optimizer: NominalOptimizer):
 
 
 def test_reset(optimizer: NominalOptimizer, economy: Economy):
-    optimizer.inequality_constraints.append(("junk", None))
+    optimizer.inequality_constraints.append((np.array([0.0]), np.array([0.0])))
     optimizer.goods_matrix = np.zeros_like(optimizer.goods_matrix)
     r = optimizer.reset("employment")
     assert r is optimizer
@@ -244,7 +244,7 @@ def test_constraint_ban_pm_empty(optimizer: NominalOptimizer):
 def test_constraint_limit_era(optimizer: NominalOptimizer, economy: Economy):
     n_b = len(economy.building_index())
     optimizer.reset("gdp")
-    era_threshold = int(economy.df_production["era"].median())
+    era_threshold = int(economy.df_production["era"].median())  # pyright: ignore[reportArgumentType]
     r = optimizer.constraint_limit_era(era_threshold)
     assert r is optimizer
     A, b = optimizer.equality_constraints[-1]
@@ -257,7 +257,7 @@ def test_constraint_limit_era(optimizer: NominalOptimizer, economy: Economy):
 def test_constraint_limit_era_all(optimizer: NominalOptimizer, economy: Economy):
     n_b = len(economy.building_index())
     optimizer.reset("gdp")
-    min_era = int(economy.df_production["era"].min())
+    min_era = int(economy.df_production["era"].min())  # pyright: ignore[reportArgumentType]
     optimizer.constraint_limit_era(min_era - 1)
     A, b = optimizer.equality_constraints[-1]
     assert A.sum() == n_b
@@ -265,7 +265,7 @@ def test_constraint_limit_era_all(optimizer: NominalOptimizer, economy: Economy)
 
 def test_constraint_limit_era_none(optimizer: NominalOptimizer, economy: Economy):
     optimizer.reset("gdp")
-    max_era = int(economy.df_production["era"].max())
+    max_era = int(economy.df_production["era"].max())  # pyright: ignore[reportArgumentType]
     optimizer.constraint_limit_era(max_era)
     A, b = optimizer.equality_constraints[-1]
     assert A.sum() == 0

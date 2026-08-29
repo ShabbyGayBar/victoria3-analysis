@@ -22,6 +22,7 @@ dev = [
     "markdown-callouts>=0.4.0",
     "mkdocs-material>=9.7.4",
     "mkdocstrings[python]>=1.0.3",
+    "pyright>=1.1.411",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "ruff>=0.15.5",
@@ -37,3 +38,10 @@ addopts = [
     "--cov=src",
     "--cov-report=term-missing",
 ]
+
+[tool.pyright]
+include = ["src", "tests", "examples"]
+exclude = ["**/__pycache__", "**/node_modules", "**/.*", ".venv"]
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
