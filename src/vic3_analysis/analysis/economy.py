@@ -356,6 +356,17 @@ class Economy:
         # Good keys in df_goods row order.
         return self.df_goods["key"].tolist()
 
+    def producible_goods(self) -> list[str]:
+        """Return goods that have at least one producer configuration.
+
+        Returns:
+            A list of good keys that can be produced by at least one building
+            configuration in the production table.
+        """
+        out_mat = self.goods_output_matrix()
+        goods_index = self.goods_index()
+        return [g for j, g in enumerate(goods_index) if (out_mat[:, j] > 0).any()]
+
     def pop_index(self) -> list[str]:
         # Profession keys in df_pop_types row order.
         return self.df_pop_types["key"].tolist()

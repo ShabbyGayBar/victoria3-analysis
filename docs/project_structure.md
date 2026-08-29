@@ -96,15 +96,17 @@ or expose a `pyradox.Tree` subclass with helper methods.
   building-level vector using base goods prices and per-profession wealth from
   the pop-types table.
 - `supply_chain.py` — Supply-chain analysis on the nominal economy. Provides
-  the `Scenario` dataclass (a cangshulun-style optimisation recipe as data),
-  the `SupplyChainNode` / `ProducerNode` dependency-graph dataclasses, and
-  composable functions: `upstream_tree` (memoised recipe/realised trace),
-  `build_optimizer` / `optimize_chain` (scenario → configured/solved
-  optimiser), `value_added_breakdown` (per-config or per-good GDP/employment/
-  construction-cost attribution),   `bottleneck` (input cost-share ranking plus
-  LP import-cap marginals), `compare_scenarios` (multi-scenario metric
-  table), and `to_mermaid` (Mermaid flowchart serialisation for
-  GitHub/MkDocs rendering of recipe and realised supply-chain graphs).
+  the `Scenario` dataclass (a cangshulun-style optimisation recipe as data,
+  with `build_optimizer()` / `optimize()` methods), the `SupplyChainNode` /
+  `ProducerNode` dependency-graph dataclasses (with `iter_producers()`,
+  `collect_producers()`, `collect_good_nodes()`, `chain_depth()`,
+  `count_raw_inputs()`, and `to_mermaid()` methods), and composable functions:
+  `upstream_tree` (memoised recipe/realised trace), `value_added_breakdown`
+  (per-config or per-good GDP/employment/construction-cost attribution),
+  `bottleneck` (input cost-share ranking plus LP import-cap marginals), and
+  `compare_scenarios` (multi-scenario metric table with chain characteristics).
+  `Economy.producible_goods()` lists goods with at least one producer
+  configuration.
 
 ### `src/vic3_analysis/optimize/` — Optimisation
 
@@ -147,9 +149,12 @@ the canonical "how do I use this package" reference for non-developers.
   `supply_chain_compare.py` — supply-chain analysis demos built on the
   `vic3_analysis.analysis.supply_chain` module: scenario-based optimisation
   (reproduces the `cangshulun_1` recipe via `Scenario`), recipe/realised
-  upstream tracing (writes Mermaid `.mmd` files), and multi-scenario metric
-  comparison. The optimisation script also generates matplotlib bar charts
-  saved as PNGs. Runnable as `__main__` scripts; not collected by pytest.
+  upstream tracing (writes Mermaid `.mmd` files), and a full sweep of all
+  producible terminal goods with normalised target value and
+  `construction_cost` objective (writes `tables/supply_chain_sweep.csv` and
+  summary charts). The optimisation and comparison scripts also generate
+  matplotlib bar charts saved as PNGs. Runnable as `__main__` scripts; not
+  collected by pytest.
 
 ## `tables/` — Generated CSV Output
 
@@ -157,14 +162,16 @@ Committed CSV exports produced by the `examples/` scripts. Consumed by the
 documentation (`docs/usage/parse.md` links to them on GitHub) and usable for
 downstream analysis without a local game install. The flagship
 `production_table.csv` feeds the optimisation workflow.
+`supply_chain_sweep.csv` contains the full terminal-good sweep results.
 
 ## `figures/` — Generated Visualisation Output
 
 Committed visualisation artefacts produced by the `examples/` scripts.
 Includes Mermaid flowchart files (`.mmd`) from `supply_chain_trace.py` and
 matplotlib PNG charts from `supply_chain_optimize.py` (building levels, net
-goods, value-added by good, bottleneck). Tracked in git so the docs and
-readme can reference them without a local game install.
+goods, value-added by good, bottleneck) and `supply_chain_sweep.py`
+(construction cost and GDP efficiency by terminal good). Tracked in git so
+the docs and readme can reference them without a local game install.
 
 ## `tests/` — Test Suite
 

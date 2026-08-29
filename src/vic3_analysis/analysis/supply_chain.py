@@ -709,11 +709,13 @@ def bottleneck(
 
 
 def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.DataFrame:
-    """Run multiple scenarios and tabulate headline metrics.
+    """Run multiple scenarios and tabulate headline and chain metrics.
 
     For each scenario solves the LP, then computes annual GDP, total
-    employment, construction cost, GDP per capita, and GDP per construction
-    cost.  Scenarios that fail to solve are reported with ``NaN`` metrics and an
+    employment, construction cost, GDP per capita, GDP per construction cost,
+    base price, and supply-chain characteristics (active building count, chain
+    depth, raw-input count, bottleneck good / cost share / marginal).
+    Scenarios that fail to solve are reported with ``NaN``/zero metrics and an
     ``error`` message so a comparison is not aborted by a single infeasible
     recipe.
 
@@ -723,17 +725,25 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
 
     Returns:
         A ``DataFrame`` with one row per scenario and columns ``name``,
-        ``terminal_good``, ``objective``, ``target_amount``, ``annual_gdp``,
-        ``employment``, ``construction_cost``, ``gdp_per_capita``,
-        ``gdp_per_construction`` and ``error``.
+        ``terminal_good``, ``objective``, ``target_amount``, ``base_price``,
+        ``annual_gdp``, ``employment``, ``construction_cost``,
+        ``gdp_per_capita``, ``gdp_per_construction``, ``n_active_buildings``,
+        ``chain_depth``, ``n_raw_inputs``, ``bottleneck_good``,
+        ``bottleneck_cost_share``, ``bottleneck_marginal``, and ``error``.
     """
+    goods_index = economy.goods_index()
+    prices = economy.base_prices()
+    price_map = dict(zip(goods_index, prices))
+
     rows: list[dict[str, object]] = []
     for scenario in scenarios:
+        good = scenario.terminal_good
         row: dict[str, object] = {
             "name": scenario.display_name(),
-            "terminal_good": scenario.terminal_good,
+            "terminal_good": good,
             "objective": scenario.objective,
             "target_amount": scenario.target_amount,
+            "base_price": price_map.get(good, float("nan")),
         }
         try:
             optimizer = scenario.build_optimizer(economy)
@@ -752,6 +762,22 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
             row["gdp_per_construction"] = (
                 annual_gdp / construction_cost if construction_cost > 0 else 0.0
             )
+
+            tree = upstream_tree(economy, good, state)
+            row["n_active_buildings"] = len(tree.collect_producers())
+            row["chain_depth"] = tree.chain_depth()
+            row["n_raw_inputs"] = tree.count_raw_inputs()
+
+            bn = bottleneck(economy, state, good=good, optimizer=optimizer)
+            if not bn.empty:
+                row["bottleneck_good"] = bn.iloc[0]["good"]
+                row["bottleneck_cost_share"] = bn.iloc[0]["cost_share"]
+                row["bottleneck_marginal"] = bn.iloc[0]["import_marginal"]
+            else:
+                row["bottleneck_good"] = ""
+                row["bottleneck_cost_share"] = 0.0
+                row["bottleneck_marginal"] = float("nan")
+
             row["error"] = ""
         except ValueError as exc:
             row["annual_gdp"] = float("nan")
@@ -759,6 +785,12 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
             row["construction_cost"] = float("nan")
             row["gdp_per_capita"] = float("nan")
             row["gdp_per_construction"] = float("nan")
+            row["n_active_buildings"] = 0
+            row["chain_depth"] = 0
+            row["n_raw_inputs"] = 0
+            row["bottleneck_good"] = ""
+            row["bottleneck_cost_share"] = 0.0
+            row["bottleneck_marginal"] = float("nan")
             row["error"] = str(exc)
         rows.append(row)
     df = pd.DataFrame(rows)
@@ -769,11 +801,18 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
         "terminal_good",
         "objective",
         "target_amount",
+        "base_price",
         "annual_gdp",
         "employment",
         "construction_cost",
         "gdp_per_capita",
         "gdp_per_construction",
+        "n_active_buildings",
+        "chain_depth",
+        "n_raw_inputs",
+        "bottleneck_good",
+        "bottleneck_cost_share",
+        "bottleneck_marginal",
         "error",
     ]
     return df[cols]

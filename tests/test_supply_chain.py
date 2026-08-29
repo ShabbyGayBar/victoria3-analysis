@@ -493,11 +493,18 @@ def test_compare_scenarios(economy: Economy):
         "terminal_good",
         "objective",
         "target_amount",
+        "base_price",
         "annual_gdp",
         "employment",
         "construction_cost",
         "gdp_per_capita",
         "gdp_per_construction",
+        "n_active_buildings",
+        "chain_depth",
+        "n_raw_inputs",
+        "bottleneck_good",
+        "bottleneck_cost_share",
+        "bottleneck_marginal",
         "error",
     ]
     assert list(df.columns) == expected
@@ -509,8 +516,31 @@ def test_compare_scenarios(economy: Economy):
     assert pd.isna(df.iloc[3]["annual_gdp"])
     # throughput bonus lowers employment for the same output.
     assert df.iloc[1]["employment"] < df.iloc[0]["employment"]
+    # chain columns populated for solved scenarios.
+    assert df.iloc[0]["n_active_buildings"] > 0
+    assert df.iloc[0]["chain_depth"] > 0
+    assert df.iloc[0]["n_raw_inputs"] > 0
+    assert df.iloc[0]["base_price"] == 100.0
+    # chain columns zeroed for failed scenarios.
+    assert df.iloc[3]["n_active_buildings"] == 0
+    assert df.iloc[3]["chain_depth"] == 0
 
 
 def test_compare_scenarios_empty(economy: Economy):
     df = compare_scenarios(economy, [])
     assert df.empty
+
+
+def test_producible_goods(economy: Economy):
+    goods = economy.producible_goods()
+    assert len(goods) > 0
+    assert TERMINAL_GOOD in goods
+    # raw goods (no producers) are excluded.
+    assert RAW_GOOD not in goods
+
+
+def test_producible_goods_matches_output_matrix(economy: Economy):
+    out_mat = economy.goods_output_matrix()
+    goods_index = economy.goods_index()
+    expected = [g for j, g in enumerate(goods_index) if (out_mat[:, j] > 0).any()]
+    assert economy.producible_goods() == expected

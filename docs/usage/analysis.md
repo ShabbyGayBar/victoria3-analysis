@@ -152,9 +152,11 @@ bottlenecks = bottleneck(economy, state, good="automobiles", optimizer=optimizer
 ## Scenario comparison
 
 [`compare_scenarios`](../api.md) runs several `Scenario` objects and tabulates
-annual GDP, employment, construction cost, GDP per capita, and GDP per
-construction cost. Infeasible or unbounded scenarios are reported with `NaN`
-metrics and an `error` message rather than aborting the table.
+annual GDP, employment, construction cost, GDP per capita, GDP per construction
+cost, base price, and supply-chain characteristics (active building count, chain
+depth, raw-input count, bottleneck good / cost share / marginal). Infeasible or
+unbounded scenarios are reported with `NaN`/zero metrics and an `error` message
+rather than aborting the table.
 
 ```python
 from vic3_analysis import compare_scenarios
@@ -163,7 +165,24 @@ df = compare_scenarios(economy, [scenario_a, scenario_b, scenario_c])
 print(df.to_string(index=False))
 ```
 
+`Economy.producible_goods()` returns all goods that have at least one
+producer configuration, useful for generating a sweep over every terminal good:
+
+```python
+from vic3_analysis import Scenario, compare_scenarios
+
+scenarios = [
+    Scenario(name=g, terminal_good=g, target_amount=100.0 / price_map[g],
+             objective="construction_cost")
+    for g in economy.producible_goods()
+]
+df = compare_scenarios(economy, scenarios)
+```
+
 The `examples/supply_chain_optimize.py`, `examples/supply_chain_trace.py`, and
 `examples/supply_chain_compare.py` scripts demonstrate each facet end-to-end.
-The optimisation script also generates matplotlib bar charts (building levels,
-net goods, value-added by good, bottleneck) saved as PNGs to `figures/`.
+The optimisation script generates matplotlib bar charts (building levels, net
+goods, value-added by good, bottleneck) saved as PNGs to `figures/`. The
+comparison script sweeps all producible terminal goods (normalised target value,
+`construction_cost` objective) and writes `tables/supply_chain_sweep.csv` plus
+summary charts to `figures/`.
