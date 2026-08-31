@@ -105,14 +105,48 @@ class ProductionUnit(dict):
             The net monetary value of all goods flows (revenues from outputs
             minus costs of inputs).
         """
-        profit = 0
+        value = 0
         for good, amount in self.items():
-            if good == "era" or good.startswith("employment"):
+            if not good.startswith("goods_"):
                 continue
-            profit += goods_cost[good] * amount
-        return profit
+            value += goods_cost[good] * amount
+        return value
 
-    def profit_per_employment(self, goods_cost: dict[str, int]) -> float:
+    def value_goods_inputs_nominal(self, goods_cost: dict[str, int]) -> int:
+        """Calculate the net nominal value of goods inputs per building level.
+
+        Args:
+            goods_cost: Mapping of good keys to their base market prices.
+
+        Returns:
+            The net monetary value of all goods inputs (costs of inputs).
+        """
+        value = 0
+        for good, amount in self.items():
+            if not good.startswith("goods_"):
+                continue
+            if amount < 0:  # Only consider inputs (negative amounts)
+                value += goods_cost[good] * amount
+        return -value
+
+    def value_goods_outputs_nominal(self, goods_cost: dict[str, int]) -> int:
+        """Calculate the net nominal value of goods outputs per building level.
+
+        Args:
+            goods_cost: Mapping of good keys to their base market prices.
+
+        Returns:
+            The net monetary value of all goods outputs (revenues from outputs).
+        """
+        value = 0
+        for good, amount in self.items():
+            if not good.startswith("goods_"):
+                continue
+            if amount > 0:  # Only consider outputs (positive amounts)
+                value += goods_cost[good] * amount
+        return value
+
+    def profit_per_capita_nominal(self, goods_cost: dict[str, int]) -> float:
         """Calculate profit divided by employment per building level.
 
         Args:
@@ -122,9 +156,55 @@ class ProductionUnit(dict):
             Net profit divided by total employment, or ``float("inf")`` when
             employment is zero.
         """
+        profit_nominal = self.profit_nominal(goods_cost)
+        if profit_nominal == 0:
+            return (
+                0.0  # Zero profit per employment if both profit and employment are zero
+            )
         if self["employment"] == 0:
             return float("inf")  # Infinite profit per employment if employment is zero
-        return self.profit_nominal(goods_cost) / self["employment"]
+        return profit_nominal / self["employment"]
+
+    def profit_per_construction_cost_nominal(self, goods_cost: dict[str, int]) -> float:
+        """Calculate profit divided by construction cost per building level.
+
+        Args:
+            goods_cost: Mapping of good keys to their base market prices.
+
+        Returns:
+            Net profit divided by total construction cost, or ``float("inf")`` when
+            construction cost is zero.
+        """
+        profit_nominal = self.profit_nominal(goods_cost)
+        if profit_nominal == 0:
+            return 0.0  # Zero profit per construction cost if both profit and construction cost are zero
+        if self["construction_cost"] == 0:
+            return float(
+                "inf"
+            )  # Infinite profit per construction cost if construction cost is zero
+        return profit_nominal / self["construction_cost"]
+
+    def profit_margin_nominal(self, goods_cost: dict[str, int]) -> float:
+        """Calculate profit divided by total value of output goods per building level.
+
+        Args:
+            goods_cost: Mapping of good keys to their base market prices.
+
+        Returns:
+            Net profit divided by total value of output goods, or ``float("inf")`` when
+            total value of output goods is zero.
+        """
+        profit_nominal = self.profit_nominal(goods_cost)
+        if profit_nominal == 0:
+            return 0.0  # Zero profit margin if both profit and value of output goods are zero
+        value_goods_outputs_nominal = self.value_goods_outputs_nominal(goods_cost)
+        if value_goods_outputs_nominal == 0:
+            return float(
+                "inf"
+            )  # Infinite profit margin if total value of output goods is zero
+        return self.profit_nominal(goods_cost) / self.value_goods_outputs_nominal(
+            goods_cost
+        )
 
 
 def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
@@ -242,7 +322,22 @@ def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
             row_dict["era"] = building["era"]
             row_dict["employment"] = building["employment"]
             row_dict["construction_cost"] = building_cost_dict[building_key]
+            row_dict["value_goods_inputs_nominal"] = (
+                building.value_goods_inputs_nominal(goods_dict)
+            )
+            row_dict["value_goods_outputs_nominal"] = (
+                building.value_goods_outputs_nominal(goods_dict)
+            )
             row_dict["profit_nominal"] = building.profit_nominal(goods_dict)
+            row_dict["profit_margin_nominal"] = building.profit_margin_nominal(
+                goods_dict
+            )
+            row_dict["profit_per_capita_nominal"] = building.profit_per_capita_nominal(
+                goods_dict
+            )
+            row_dict["profit_per_construction_cost_nominal"] = (
+                building.profit_per_construction_cost_nominal(goods_dict)
+            )
             for key, amount in building.items():
                 if key in ("era", "employment"):
                     continue
