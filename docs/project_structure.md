@@ -65,9 +65,11 @@ or expose a `pyradox.Tree` subclass with helper methods.
   one row per tradeable good (`key`, `cost`, etc.).
 - `production_methods.py` — `ProductionMethodParser` (`Tree` subclass). Loads
   `common/production_methods`. `employment()` returns per-method total and
-  per-profession employment from `level_scaled` modifiers; `to_dataframe()`
-  builds a flat per-configuration table combining building and
-  production-method-group data with employment and net goods-flow columns.
+  per-profession employment from `level_scaled` modifiers; `state_modifiers()`
+  returns per-method state modifiers flattened across the
+  `state_modifiers` scaling blocks; `to_dataframe()` builds a flat
+  per-configuration table combining building and production-method-group data
+  with employment, net goods-flow and state-modifier columns.
 - `production_method_groups.py` — `production_method_groups()` function. Loads
   `common/production_method_groups` into a dict mapping each group key to its
   ordered list of production-method keys.

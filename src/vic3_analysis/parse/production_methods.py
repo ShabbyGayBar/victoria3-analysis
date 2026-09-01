@@ -3,10 +3,10 @@ Parser for Victoria 3 production-method definitions.
 
 Reads all ``.txt`` files under ``common/production_methods`` and exposes them
 as a :class:`ProductionMethodParser` (a ``pyradox.Tree`` subclass) that
-supports raw per-method iteration, per-profession employment look-ups, and
-flat ``pandas.DataFrame`` conversion combining building and
-production-method-group data with per-method attributes and appended
-employment and goods-flow columns.
+supports raw per-method iteration, per-profession employment look-ups,
+per-method state-modifier look-ups, and flat ``pandas.DataFrame`` conversion
+combining building and production-method-group data with per-method
+attributes and appended employment, goods-flow and state-modifier columns.
 """
 
 from pathlib import Path
@@ -32,8 +32,9 @@ class ProductionMethodParser(Tree):
     the game's ``common/production_methods`` directory.  Raw entries can be
     iterated via :meth:`items` (inherited from ``Tree``); per-method employment
     (total and broken down by profession) is available via :meth:`employment`;
-    and a flat per-configuration table of production-method attributes plus
-    appended employment and goods-flow columns is built by
+    per-method state modifiers are available via :meth:`state_modifiers`; and
+    a flat per-configuration table of production-method attributes plus
+    appended employment, goods-flow and state-modifier columns is built by
     :meth:`to_dataframe`.
     """
 
@@ -115,6 +116,49 @@ class ProductionMethodParser(Tree):
             result[key] = pm_entry
         return result
 
+    def state_modifiers(self) -> dict[str, dict[str, Any]]:
+        """Return per-method state modifiers flattened across scaling blocks.
+
+        Iterates every production method in the tree and, for each one that
+        defines ``state_modifiers``, flattens its ``unscaled``,
+        ``level_scaled`` and ``workforce_scaled`` blocks into a single dict
+        mapping modifier keys (e.g. ``state_infrastructure_add``) to their
+        values.  The scaling distinction is dropped; vanilla never defines
+        the same modifier key under two scaling blocks of one method.
+
+        Returns:
+            A dict mapping each production-method key that defines
+            ``state_modifiers`` to a dict of its modifier keys and values.
+
+        Raises:
+            ValueError: If the same modifier key is defined under more than
+                one scaling block of a single production method.
+        """
+        result: dict[str, dict[str, Any]] = {}
+        for key, subtree in self.items():
+            if not isinstance(subtree, Tree):
+                continue
+            state_modifiers = self._pm_to_python(key, subtree).get("state_modifiers")
+            if not isinstance(state_modifiers, dict):
+                continue
+            pm_entry: dict[str, Any] = {}
+            scaling_seen: dict[str, str] = {}
+            for scaling_key, scaling_block in state_modifiers.items():
+                if not isinstance(scaling_block, dict):
+                    continue
+                for modifier_key, value in scaling_block.items():
+                    previous = scaling_seen.get(modifier_key)
+                    if previous is not None:
+                        raise ValueError(
+                            f"State modifier {modifier_key} of production "
+                            f"method {key} is defined under both {previous} "
+                            f"and {scaling_key}"
+                        )
+                    scaling_seen[modifier_key] = scaling_key
+                    pm_entry[modifier_key] = value
+            result[key] = pm_entry
+        return result
+
     def _goods_io(self, goods_keys: set[str]) -> dict[str, dict[str, Any]]:
         """Return per-method net goods flows from ``workforce_scaled`` modifiers.
 
@@ -155,7 +199,12 @@ class ProductionMethodParser(Tree):
                 result[key][good] = value if match.group(1) == "output" else -value
         return result
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(
+        self,
+        df_goods: pd.DataFrame | None = None,
+        df_buildings: pd.DataFrame | None = None,
+        pmg_dict: dict[str, list[str]] | None = None,
+    ) -> pd.DataFrame:
         """Build a flat DataFrame of per-configuration production-method stats.
 
         Combines the parsed production methods with building and
@@ -167,44 +216,69 @@ class ProductionMethodParser(Tree):
         Total and per-profession employment and per-good net flows (positive =
         output, negative = input) are appended as columns at the end.  Goods
         columns are prefixed with ``goods_`` to distinguish them from
-        attribute columns.
+        attribute columns.  State modifiers (flattened across the
+        ``state_modifiers`` scaling blocks, e.g. ``state_infrastructure_add``)
+        are appended after the goods columns.
 
         Returns:
             A ``DataFrame`` with ``"building"``,
             ``"production_method_group"`` and ``"production_method"`` key
             columns, the production method's scalar/list attributes, and
-            appended ``"employment"`` (total), ``"employment_<profession>"``
-            and ``"goods_<good>"`` columns.  Employment and goods columns are
-            zero-filled; scalar-attribute columns are left missing (``NaN``)
-            when a method does not define them, matching
-            :meth:`BuildingsParser.to_dataframe`.
+            appended ``"employment"`` (total), ``"employment_<profession>"``,
+            ``"goods_<good>"`` and state-modifier (e.g.
+            ``"state_infrastructure_add"``) columns.  Employment, goods and
+            state-modifier columns are zero-filled; scalar-attribute columns
+            are left missing (``NaN``) when a method does not define them,
+            matching :meth:`BuildingsParser.to_dataframe`.
 
         Raises:
             ValueError: If a goods modifier string cannot be classified as
                 either an input or an output, if the associated good key
-                cannot be identified, or if a production-method-group referenced
-                by a building is not found.
+                cannot be identified, if a state modifier is defined under
+                multiple scaling blocks of one production method, or if a
+                production-method-group referenced by a building is not found.
         """
         game_dir = self._game_dir
 
-        df_goods = goods(game_dir)
+        if df_goods is None:
+            df_goods = goods(game_dir)
         goods_keys = set(df_goods["key"].tolist())
 
-        buildings_tree = BuildingsParser(game_dir)
-        buildings_pmg_dict = buildings_tree.production_method_groups()
+        if df_buildings is None:
+            buildings_tree = BuildingsParser(game_dir)
+            buildings_pmg_dict = buildings_tree.production_method_groups()
+        else:
+            buildings_pmg_dict = dict(
+                zip(
+                    df_buildings["key"].tolist(),
+                    df_buildings["production_method_groups"].tolist(),
+                )
+            )
 
-        pmg_dict = production_method_groups(game_dir)
+        if pmg_dict is None:
+            pmg_dict = production_method_groups(game_dir)
 
         employment_dict = self.employment()
         goods_flows = self._goods_io(goods_keys)
+        state_modifiers_dict = self.state_modifiers()
 
         # Collect every per-profession employment key (e.g. "employment_laborers")
-        employment_profession_keys: set[str] = {
-            k
-            for pm_data in employment_dict.values()
-            for k in pm_data
-            if k.startswith("employment_") and k != "employment"
-        }
+        employment_profession_keys: list[str] = sorted(
+            {
+                k
+                for pm_data in employment_dict.values()
+                for k in pm_data
+                if k.startswith("employment_") and k != "employment"
+            }
+        )
+
+        state_modifier_keys: list[str] = sorted(
+            {
+                modifier_key
+                for pm_data in state_modifiers_dict.values()
+                for modifier_key in pm_data
+            }
+        )
 
         # Precompute per-method scalar/list attributes (skip dict/Tree), cached
         pm_attrs: dict[str, dict[str, Any]] = {}
@@ -230,6 +304,7 @@ class ProductionMethodParser(Tree):
                 for pm in pmg_dict[pmg]:
                     emp = employment_dict.get(pm, {})
                     flows = goods_flows.get(pm, {})
+                    state_mods = state_modifiers_dict.get(pm, {})
                     row: dict[str, Any] = {
                         "building": building,
                         "production_method_group": pmg,
@@ -238,6 +313,7 @@ class ProductionMethodParser(Tree):
                         "employment": emp.get("employment", 0),
                         **{k: emp.get(k, 0) for k in employment_profession_keys},
                         **{f"goods_{gk}": flows.get(gk, 0) for gk in goods_keys},
+                        **{k: state_mods.get(k, 0) for k in state_modifier_keys},
                     }
                     data.append(row)
 
