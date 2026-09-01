@@ -272,6 +272,7 @@ def _pm_frame() -> pd.DataFrame:
             "unlocking_technologies": [None, "tech_2", "tech_1", None, None],
             "employment": [100, 150, 0, -50, 10],
             "employment_laborers": [100, 150, 0, 0, 10],
+            "state_infrastructure_add": [0, 2, 0, 0, 1],
             "goods_good_x": [-4, 0, 1, 0, 2],
             "goods_good_y": [3, 5, 0, 0, 0],
         }
@@ -295,7 +296,7 @@ def test_synthetic_exact_table() -> None:
             ],
             "building_group": ["bg_a"] * 5,
             "urbanization": [10.0] * 4 + [0.0],
-            "infrastructure_usage_per_level": [1.0] * 4 + [0.0],
+            "infrastructure_usage_per_level": [1.0, 1.0, -1.0, -1.0, -1.0],
             "era": [1, 1, 2, 2, 0],
             "unlocking_tech": [
                 "tech_1",
@@ -345,6 +346,39 @@ def test_missing_goods_column_zero_filled() -> None:
 
     assert "goods_good_z" in result.columns
     assert (result["goods_good_z"] == 0).all()
+
+
+def test_missing_state_infrastructure_column_zero_filled() -> None:
+    df_pm = _pm_frame().drop(columns="state_infrastructure_add")
+
+    with pytest.warns(UserWarning, match="State-infrastructure column missing"):
+        result = production_table(
+            _buildings_frame(), _goods_frame(), df_pm, _tech_frame()
+        )
+
+    assert (result["infrastructure_usage_per_level"] == [1.0] * 4 + [0.0]).all()
+
+
+def test_net_infrastructure_usage(df_production: pd.DataFrame) -> None:
+    railways = df_production[
+        (df_production["building"] == "building_railway")
+        & df_production["production_method"].str.startswith("pm_early_trains+")
+    ]
+    assert (railways["infrastructure_usage_per_level"] == -20).all()
+
+    ports = df_production[
+        (df_production["building"] == "building_port")
+        & df_production["production_method"].str.startswith("pm_basic_port+")
+    ]
+    assert (ports["infrastructure_usage_per_level"] == -3).all()
+
+    food = df_production[
+        (
+            df_production["production_method"]
+            == "pm_bakery+pm_disabled_canning+pm_disabled_distillery+pm_manual_dough_processing"
+        )
+    ]
+    assert (food["infrastructure_usage_per_level"] == 1.5).all()
 
 
 def test_unpriced_goods_column_ignored() -> None:

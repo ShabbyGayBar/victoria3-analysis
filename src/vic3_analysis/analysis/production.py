@@ -61,7 +61,12 @@ def production_table(
     For every building, enumerates every combination of production methods
     (one per production-method group) and aggregates the per-method
     employment (total and per profession) and net goods flows (positive =
-    output, negative = input).  Buildings without a construction cost are
+    output, negative = input).  The ``infrastructure_usage_per_level``
+    column holds the net per-level footprint: the building group's usage
+    minus the ``state_infrastructure_add`` generation summed over the chosen
+    production methods, so provider configurations (ports, railways, urban
+    centers) carry negative values under the full-employment nominal model.
+    Buildings without a construction cost are
     kept with a construction cost of ``0``.  Each row also records the
     technologies required to unlock the configuration (the building's own
     unlocking technologies followed by those of every chosen production
@@ -85,7 +90,9 @@ def production_table(
             ``tables/production_methods.csv``) with ``building``,
             ``production_method_group``, ``production_method``,
             ``unlocking_technologies``, ``employment``,
-            ``employment_<profession>``, and ``goods_<good>`` columns.
+            ``employment_<profession>``, ``state_infrastructure_add``, and
+            ``goods_<good>`` columns (the state-infrastructure column is
+            zero-filled with a warning when absent).
         df_tech: Technology table (:func:`~vic3_analysis.technology` or
             ``tables/technology.csv``) with ``key`` and ``era`` columns.
 
@@ -94,8 +101,9 @@ def production_table(
         ``"production_method"`` column holds the chosen production methods
         concatenated with ``+``.  The remaining columns are ``"building"``,
         ``"building_group"``, ``"urbanization"``,
-        ``"infrastructure_usage_per_level"``, ``"era"``, ``"unlocking_tech"``,
-        ``"employment"``, ``"construction_cost"``,
+        ``"infrastructure_usage_per_level"`` (net of the configuration's
+        ``state_infrastructure_add`` generation), ``"era"``,
+        ``"unlocking_tech"``, ``"employment"``, ``"construction_cost"``,
         ``"value_goods_inputs_nominal"``, ``"value_goods_outputs_nominal"``,
         ``"profit_nominal"``, ``"profit_margin_nominal"``,
         ``"profit_per_capita_nominal"``, and
@@ -109,7 +117,7 @@ def production_table(
     """
     goods_cols = [f"goods_{key}" for key in df_goods["key"]]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
-    sum_cols = ["employment", *profession_cols, *goods_cols]
+    sum_cols = ["employment", *profession_cols, "state_infrastructure_add", *goods_cols]
 
     missing_goods_cols = [col for col in goods_cols if col not in df_pm.columns]
     if missing_goods_cols:
@@ -120,6 +128,15 @@ def production_table(
         )
         df_pm = df_pm.reindex(
             columns=[*df_pm.columns, *missing_goods_cols], fill_value=0
+        )
+    if "state_infrastructure_add" not in df_pm.columns:
+        warnings.warn(
+            "State-infrastructure column missing from the production-method "
+            "table, zero-filled: state_infrastructure_add",
+            stacklevel=2,
+        )
+        df_pm = df_pm.reindex(
+            columns=[*df_pm.columns, "state_infrastructure_add"], fill_value=0
         )
     unpriced_goods_cols = [
         col
@@ -255,6 +272,10 @@ def production_table(
     )
 
     result = pd.concat([pd.DataFrame(combo_rows), sums], axis=1)
+
+    result["infrastructure_usage_per_level"] = (
+        result["infrastructure_usage_per_level"] - result["state_infrastructure_add"]
+    )
 
     prices = df_goods["cost"].to_numpy(dtype=np.float64)
     flows = result[goods_cols].to_numpy(dtype=np.float64)

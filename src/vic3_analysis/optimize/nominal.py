@@ -279,6 +279,31 @@ class NominalOptimizer:
         self.inequality_constraints.append((A, b))
         return self
 
+    def constraint_infrastructure(self, limit: float = 0.0) -> Self:
+        """Append an inequality constraint requiring minimum net infrastructure.
+
+        Builds a matrix-vector pair ``(A, b)`` such that ``A @ x <= b``
+        enforces that the net infrastructure — the per-configuration
+        ``"infrastructure_usage_per_level"`` column (building-group usage
+        minus ``state_infrastructure_add`` generation) summed over all
+        building levels — is at least *limit*.
+
+        Args:
+            limit: Minimum total net infrastructure.  Defaults to ``0.0``.
+
+        Returns:
+            ``self``, for fluent chaining.
+        """
+        infrastructure = (
+            self.model.df_production["infrastructure_usage_per_level"]
+            .fillna(0)
+            .to_numpy(dtype=np.float64)
+        )
+        A = -infrastructure
+        b = np.array([-limit])
+        self.inequality_constraints.append((A, b))
+        return self
+
     def constraint_ban_building(self, building_keys: List[str]) -> Self:
         """Append an equality constraint forcing banned building levels to zero.
 

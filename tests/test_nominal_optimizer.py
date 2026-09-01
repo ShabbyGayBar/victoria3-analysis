@@ -209,6 +209,20 @@ def test_constraint_produce_invalid(optimizer: NominalOptimizer):
         optimizer.constraint_produce("not_a_real_good", 1.0)
 
 
+def test_constraint_infrastructure(optimizer: NominalOptimizer):
+    optimizer.reset("gdp")
+    r = optimizer.constraint_infrastructure(5.0)
+    assert r is optimizer
+    A, b = optimizer.inequality_constraints[-1]
+    infrastructure = (
+        optimizer.model.df_production["infrastructure_usage_per_level"]
+        .fillna(0)
+        .to_numpy(dtype=np.float64)
+    )
+    np.testing.assert_array_equal(A, -infrastructure)
+    np.testing.assert_array_equal(b, np.array([-5.0]))
+
+
 def test_constraint_ban_building(optimizer: NominalOptimizer, economy: Economy):
     optimizer.reset("gdp")
     n_b = len(economy.building_index())
