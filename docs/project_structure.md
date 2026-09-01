@@ -124,7 +124,8 @@ or expose a `pyradox.Tree` subclass with helper methods.
   fluent constraint builders (`constraint_limit_import`,
   `constraint_limit_employment`, `constraint_limit_construction_cost`,
   `constraint_limit_building`, `constraint_produce`, `constraint_ban_building`,
-  `constraint_ban_pm`), and `linprog()` for solving the LP via
+  `constraint_ban_pm`, `constraint_urbanization_center`), and `linprog()` for
+  solving the LP via
   `scipy.optimize.linprog`. The underlying `OptimizeResult` is retained on the
   `result` attribute so downstream tooling (e.g. `supply_chain.bottleneck`) can
   read constraint marginals (shadow prices).

@@ -292,6 +292,37 @@ def test_constraint_ban_building_group_no_match(optimizer: NominalOptimizer):
     assert A.sum() == 0
 
 
+def test_constraint_urbanization_center(optimizer: NominalOptimizer, economy: Economy):
+    optimizer.reset("gdp")
+    n_b = len(economy.building_index())
+    r = optimizer.constraint_urbanization_center()
+    assert r is optimizer
+    A, b = optimizer.equality_constraints[-1]
+    assert A.shape == (n_b,)
+    np.testing.assert_array_equal(b, np.array([0.0]))
+    urbanization = (
+        economy.df_production["urbanization"].fillna(0).to_numpy(dtype=np.float64)
+    )
+    mask = (economy.df_production["building"] == "building_urban_center").to_numpy()
+    assert mask.sum() > 0
+    expected = urbanization - 100.0 * mask
+    np.testing.assert_allclose(A, expected)
+
+
+def test_constraint_urbanization_center_custom_rate(
+    optimizer: NominalOptimizer, economy: Economy
+):
+    optimizer.reset("gdp")
+    optimizer.constraint_urbanization_center(50.0)
+    A, b = optimizer.equality_constraints[-1]
+    urbanization = (
+        economy.df_production["urbanization"].fillna(0).to_numpy(dtype=np.float64)
+    )
+    mask = (economy.df_production["building"] == "building_urban_center").to_numpy()
+    np.testing.assert_allclose(A, urbanization - 50.0 * mask)
+    np.testing.assert_array_equal(b, np.array([0.0]))
+
+
 def test_linprog(optimizer: NominalOptimizer, economy: Economy):
     n_b = len(economy.building_index())
     state = (
@@ -320,6 +351,26 @@ def test_linprog_with_ban(optimizer: NominalOptimizer, economy: Economy):
         .linprog()
     )
     assert isinstance(state, EconomyState)
+
+
+def test_linprog_with_urbanization_center(
+    optimizer: NominalOptimizer, economy: Economy
+):
+    state = (
+        optimizer.reset("gdp")
+        .constraint_limit_construction_cost(5000.0)
+        .constraint_limit_employment(100_000.0)
+        .constraint_urbanization_center()
+        .linprog()
+    )
+    assert isinstance(state, EconomyState)
+    urbanization = (
+        economy.df_production["urbanization"].fillna(0).to_numpy(dtype=np.float64)
+    )
+    mask = (economy.df_production["building"] == "building_urban_center").to_numpy()
+    total_urbanization = float(np.dot(state.building_levels, urbanization))
+    urban_center_levels = float(state.building_levels[mask].sum())
+    np.testing.assert_allclose(total_urbanization, 100.0 * urban_center_levels)
 
 
 def test_linprog_construction_cost_min(optimizer: NominalOptimizer):
