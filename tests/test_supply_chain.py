@@ -14,7 +14,7 @@ from vic3_analysis.analysis.supply_chain import (
 )
 
 TERMINAL_GOOD = "automobiles"
-RAW_GOOD = "services"
+RAW_GOOD = "manowars"
 
 
 @pytest.fixture(scope="module")

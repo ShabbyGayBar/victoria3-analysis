@@ -297,6 +297,7 @@ def test_linprog(optimizer: NominalOptimizer, economy: Economy):
     state = (
         optimizer.reset("gdp")
         .constraint_limit_construction_cost(5000.0)
+        .constraint_limit_employment(100_000.0)
         .constraint_limit_import(0.0)
         .linprog()
     )
@@ -313,6 +314,7 @@ def test_linprog_with_ban(optimizer: NominalOptimizer, economy: Economy):
     state = (
         optimizer.reset("gdp")
         .constraint_limit_construction_cost(5000.0)
+        .constraint_limit_employment(100_000.0)
         .constraint_limit_import(0.0)
         .constraint_ban_building([bk])
         .linprog()
@@ -333,6 +335,7 @@ def test_linprog_with_throughput_bonus(optimizer: NominalOptimizer, economy: Eco
         .add_throughput_bonus(bk, 2.0)
         .set_objective("gdp")
         .constraint_limit_construction_cost(5000.0)
+        .constraint_limit_employment(100_000.0)
         .constraint_limit_import(0.0)
         .linprog()
     )
@@ -351,7 +354,7 @@ def test_import_marginals_after_solve(optimizer: NominalOptimizer, economy: Econ
     n_goods = len(economy.goods_index())
     optimizer.reset("gdp").constraint_limit_construction_cost(
         5000.0
-    ).constraint_limit_import(0.0)
+    ).constraint_limit_employment(100_000.0).constraint_limit_import(0.0)
     optimizer.linprog()
     marginals = optimizer.import_marginals()
     assert marginals is not None
@@ -359,6 +362,8 @@ def test_import_marginals_after_solve(optimizer: NominalOptimizer, economy: Econ
 
 
 def test_import_marginals_no_autarky(optimizer: NominalOptimizer, economy: Economy):
-    optimizer.reset("gdp").constraint_limit_construction_cost(5000.0)
+    optimizer.reset("gdp").constraint_limit_construction_cost(
+        5000.0
+    ).constraint_limit_employment(100_000.0)
     optimizer.linprog()
     assert optimizer.import_marginals() is None

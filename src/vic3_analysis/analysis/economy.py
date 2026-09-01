@@ -15,7 +15,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from vic3_analysis import PopTypesParser, goods, production_table
+from vic3_analysis import (
+    BuildingsParser,
+    PopTypesParser,
+    ProductionMethodParser,
+    goods,
+    production_table,
+    technology,
+)
 
 
 def _warning_missing_columns(missing: set[str], table_name: str) -> None:
@@ -333,7 +340,12 @@ class Economy:
                 :class:`~vic3_analysis.PopTypesParser`.
         """
         if df_production is None:
-            df_production = production_table(game_dir)
+            df_production = production_table(
+                BuildingsParser(game_dir).to_dataframe(),
+                goods(game_dir),
+                ProductionMethodParser(game_dir).to_dataframe(),
+                technology(game_dir),
+            )
         if df_goods is None:
             df_goods = goods(game_dir)
         if df_pop_types is None:

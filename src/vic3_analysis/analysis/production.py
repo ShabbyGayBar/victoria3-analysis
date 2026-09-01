@@ -1,351 +1,276 @@
 """
-Economic production analysis for Victoria 3.
+Production-table analysis for Victoria 3.
 
-Provides :class:`ProductionUnit` for representing per-building-level
-production data and :func:`production_table` for building a comprehensive
-DataFrame of all possible building configurations.
+Builds the production table: one row per building configuration (a building
+combined with one production method per production-method group), derived
+purely from the four pre-generated parse tables (buildings, goods,
+production methods, and technology).
 """
 
-from vic3_analysis import (
-    get_vic3_directory,
-    BuildingsParser,
-    goods,
-    production_method_groups,
-    ProductionMethodParser,
-    technology,
-)
-from pathlib import Path
-import pandas as pd
+import warnings
 from itertools import product
-from typing import Iterable, List, Tuple, Any
+
+import numpy as np
+import pandas as pd
 
 
-def _all_combinations(lists: List[Iterable[Any]]) -> Iterable[Tuple[Any, ...]]:
-    """
-    Lazily generate all combinations (Cartesian product) from n lists.
-
-    Args:
-        lists: A list of iterables (e.g., lists/tuples/ranges). Lists can be of different lengths.
-
-    Yields:
-        Tuples, each being one combination (one pick from each input list).
-    """
-    # Convert to list so multiple passes are safe (product may need to re-iterate)
-    normalized = [list(lst) for lst in lists]
-    # If any list is empty, the product is empty by definition
-    if any(len(lst) == 0 for lst in normalized):
-        return  # yields nothing
-    yield from product(*normalized)
-
-
-class ProductionUnit(dict):
-    """A dict-like snapshot of one building level's production statistics.
-
-    Stores goods flows (positive = output, negative = input), total and
-    per-profession employment, and the earliest era at which this
-    configuration becomes available.  Supports addition (``+``) to aggregate
-    multiple production methods.
-
-    """
-
-    def __init__(
-        self,
-        production: dict[str, int],
-        employment: int = 0,
-        era: int = 0,
-        employment_by_profession: dict[str, int] | None = None,
-    ):
-        """Initialise a :class:`ProductionUnit`.
-
-        Args:
-            production: Mapping of good keys to their net amounts per building
-                level (positive = output, negative = input).
-            employment: Number of pops employed per building level.
-            era: Minimum era required to unlock this production configuration.
-            employment_by_profession: Mapping of ``"<profession>"`` keys to the
-                number of pops of that profession employed per building level.
-                Stored as ``"employment_<profession>"`` entries.
-        """
-        super().__init__()
-        self["era"] = era
-        self["employment"] = employment
-        self.update(production)
-        if employment_by_profession:
-            for profession, amount in employment_by_profession.items():
-                self[f"employment_{profession}"] = amount
-
-    def __add__(self, other):
-        """Combine two :class:`ProductionUnit` instances into one.
-
-        Goods amounts, employment (total and per-profession) are summed;
-        ``"era"`` is set to the maximum of the two units.
-
-        Args:
-            other: Another :class:`ProductionUnit` (or compatible dict).
-
-        Returns:
-            A new :class:`ProductionUnit` representing the combined production.
-        """
-        result = self.copy()
-        for key in other.keys():
-            if key in self.keys():
-                result[key] += other[key]
-            else:
-                result[key] = other[key]
-        result["era"] = max(self["era"], other["era"])
-        return ProductionUnit(production=result)
-
-    def profit_nominal(self, goods_cost: dict[str, int]) -> int:
-        """Calculate the net nominal profit per building level.
-
-        Args:
-            goods_cost: Mapping of good keys to their base market prices.
-
-        Returns:
-            The net monetary value of all goods flows (revenues from outputs
-            minus costs of inputs).
-        """
-        value = 0
-        for good, amount in self.items():
-            if not good.startswith("goods_"):
-                continue
-            value += goods_cost[good] * amount
-        return value
-
-    def value_goods_inputs_nominal(self, goods_cost: dict[str, int]) -> int:
-        """Calculate the net nominal value of goods inputs per building level.
-
-        Args:
-            goods_cost: Mapping of good keys to their base market prices.
-
-        Returns:
-            The net monetary value of all goods inputs (costs of inputs).
-        """
-        value = 0
-        for good, amount in self.items():
-            if not good.startswith("goods_"):
-                continue
-            if amount < 0:  # Only consider inputs (negative amounts)
-                value += goods_cost[good] * amount
-        return -value
-
-    def value_goods_outputs_nominal(self, goods_cost: dict[str, int]) -> int:
-        """Calculate the net nominal value of goods outputs per building level.
-
-        Args:
-            goods_cost: Mapping of good keys to their base market prices.
-
-        Returns:
-            The net monetary value of all goods outputs (revenues from outputs).
-        """
-        value = 0
-        for good, amount in self.items():
-            if not good.startswith("goods_"):
-                continue
-            if amount > 0:  # Only consider outputs (positive amounts)
-                value += goods_cost[good] * amount
-        return value
-
-    def profit_per_capita_nominal(self, goods_cost: dict[str, int]) -> float:
-        """Calculate profit divided by employment per building level.
-
-        Args:
-            goods_cost: Mapping of good keys to their base market prices.
-
-        Returns:
-            Net profit divided by total employment, or ``float("inf")`` when
-            employment is zero.
-        """
-        profit_nominal = self.profit_nominal(goods_cost)
-        if profit_nominal == 0:
-            return (
-                0.0  # Zero profit per employment if both profit and employment are zero
-            )
-        if self["employment"] == 0:
-            return float("inf")  # Infinite profit per employment if employment is zero
-        return profit_nominal / self["employment"]
-
-    def profit_per_construction_cost_nominal(self, goods_cost: dict[str, int]) -> float:
-        """Calculate profit divided by construction cost per building level.
-
-        Args:
-            goods_cost: Mapping of good keys to their base market prices.
-
-        Returns:
-            Net profit divided by total construction cost, or ``float("inf")`` when
-            construction cost is zero.
-        """
-        profit_nominal = self.profit_nominal(goods_cost)
-        if profit_nominal == 0:
-            return 0.0  # Zero profit per construction cost if both profit and construction cost are zero
-        if self["construction_cost"] == 0:
-            return float(
-                "inf"
-            )  # Infinite profit per construction cost if construction cost is zero
-        return profit_nominal / self["construction_cost"]
-
-    def profit_margin_nominal(self, goods_cost: dict[str, int]) -> float:
-        """Calculate profit divided by total value of output goods per building level.
-
-        Args:
-            goods_cost: Mapping of good keys to their base market prices.
-
-        Returns:
-            Net profit divided by total value of output goods, or ``float("inf")`` when
-            total value of output goods is zero.
-        """
-        profit_nominal = self.profit_nominal(goods_cost)
-        if profit_nominal == 0:
-            return 0.0  # Zero profit margin if both profit and value of output goods are zero
-        value_goods_outputs_nominal = self.value_goods_outputs_nominal(goods_cost)
-        if value_goods_outputs_nominal == 0:
-            return float(
-                "inf"
-            )  # Infinite profit margin if total value of output goods is zero
-        return self.profit_nominal(goods_cost) / self.value_goods_outputs_nominal(
-            goods_cost
-        )
-
-
-def production_table(game_dir: str | Path | None = None) -> pd.DataFrame:
-    """Build a DataFrame of all possible building configurations and their stats.
-
-    For every building that has a construction cost, enumerates every
-    combination of production methods (one per production-method-group) and
-    records the aggregated employment (total and per profession), goods flows,
-    nominal profit, era, and construction cost.
+def _tech_keys(value: object) -> list[str]:
+    """Split a ``+``-joined unlocking-technologies value into tech keys.
 
     Args:
-        game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
-            directory is located automatically via
-            :func:`~vic3_analysis.utils.get_vic3_directory`.
+        value: A raw ``unlocking_technologies`` column value.  Values are
+            ``+``-joined technology keys; missing values (``NaN``) have none.
 
     Returns:
-        A ``DataFrame`` where each row represents one specific building
-        configuration (a unique combination of production methods).  The
-        ``"building"`` column holds the building key and the
-        ``"production_method"`` column holds the concatenated production
-        methods (``"<pm1>+<pm2>+..."``); other columns include
-        ``"building_group"``, ``"era"``, ``"construction_cost"``,
-        ``"profit_nominal"``, ``"employment"``, ``"employment_<profession>"`` (one
-        per profession), ``"urbanization"``,
-        ``"infrastructure_usage_per_level"``, and one ``"goods_<good>"`` column
-        per tradeable good.
+        The list of technology keys, empty when the value is missing or empty.
     """
-    if game_dir is None:
-        game_dir = get_vic3_directory()
+    if not isinstance(value, str):
+        return []
+    return [key for key in value.split("+") if key]
 
-    # Get goods costs
-    df_goods = goods(game_dir)
-    goods_dict = dict(zip(df_goods["key"], df_goods["cost"]))
 
-    # Get technology to era mapping
-    df_tech = technology(game_dir)
-    tech_era_dict = dict(zip(df_tech["key"], df_tech["era"]))
+def _era_of_techs(tech_keys: list[str], era_by_tech: dict[str, int]) -> int:
+    """Return the maximum era among the given unlocking technologies.
 
-    # Get production method groups to production methods mapping
-    pmg_pm_dict = production_method_groups(game_dir)
+    Args:
+        tech_keys: Unlocking technology keys (may be empty).
+        era_by_tech: Mapping of technology key to era.
 
-    buildings_tree = BuildingsParser(game_dir)
-    # Get building to production method groups mapping
-    building_pmg_dict = buildings_tree.production_method_groups()
-    # Get building construction costs
-    building_cost_dict = {}
-    for building_key, building_values in buildings_tree.items():
-        if "required_construction_points" in building_values.keys():
-            building_cost_dict[building_key] = building_values[
-                "required_construction_points"
-            ]
-    # Get building group information
-    building_group_dict = {}
-    for building_key, building_values in buildings_tree.items():
-        if "building_group" in building_values.keys():
-            building_group_dict[building_key] = building_values["building_group"]
+    Returns:
+        The maximum era, or ``0`` when no technologies are given.
 
-    # Get building-level urbanization and infrastructure usage per level from
-    # the building-group attributes joined by BuildingsParser.to_dataframe,
-    # defaulting missing values to 0
-    df_buildings = buildings_tree.to_dataframe()
-    urbanization_dict = dict(
-        zip(df_buildings["key"], df_buildings["urbanization"].fillna(0))
-    )
-    infrastructure_dict = dict(
-        zip(
-            df_buildings["key"],
-            df_buildings["infrastructure_usage_per_level"].fillna(0),
+    Raises:
+        ValueError: If a technology key is missing from ``era_by_tech``.
+    """
+    era = 0
+    for key in tech_keys:
+        if key not in era_by_tech:
+            raise ValueError(f"Unknown unlocking technology: {key}")
+        era = max(era, era_by_tech[key])
+    return era
+
+
+def production_table(
+    df_buildings: pd.DataFrame,
+    df_goods: pd.DataFrame,
+    df_pm: pd.DataFrame,
+    df_tech: pd.DataFrame,
+) -> pd.DataFrame:
+    """Build the production table of all building configurations.
+
+    For every building, enumerates every combination of production methods
+    (one per production-method group) and aggregates the per-method
+    employment (total and per profession) and net goods flows (positive =
+    output, negative = input).  Buildings without a construction cost are
+    kept with a construction cost of ``0``.  Each row also records the
+    technologies required to unlock the configuration (the building's own
+    unlocking technologies followed by those of every chosen production
+    method, de-duplicated in order of first appearance) and the earliest era
+    at which the configuration becomes available (the maximum era of those
+    technologies, ``0`` when none).  Nominal values are evaluated at the
+    goods table's base prices; the ratio columns follow plain division
+    semantics (``x / 0`` is ``inf`` and ``0 / 0`` is ``NaN``).
+
+    Args:
+        df_buildings: Buildings table (``BuildingsParser.to_dataframe()`` or
+            ``tables/buildings.csv``) with ``key``, ``building_group``,
+            ``urbanization``, ``infrastructure_usage_per_level``,
+            ``required_construction_points``, ``production_method_groups``,
+            and ``unlocking_technologies`` columns.
+        df_goods: Goods table (:func:`~vic3_analysis.goods` or
+            ``tables/goods.csv``) with ``key`` and ``cost`` columns.  Its row
+            order fixes the ``goods_<good>`` column order of the result.
+        df_pm: Production-methods table
+            (``ProductionMethodParser.to_dataframe()`` or
+            ``tables/production_methods.csv``) with ``building``,
+            ``production_method_group``, ``production_method``,
+            ``unlocking_technologies``, ``employment``,
+            ``employment_<profession>``, and ``goods_<good>`` columns.
+        df_tech: Technology table (:func:`~vic3_analysis.technology` or
+            ``tables/technology.csv``) with ``key`` and ``era`` columns.
+
+    Returns:
+        A ``DataFrame`` with one row per building configuration.  The
+        ``"production_method"`` column holds the chosen production methods
+        concatenated with ``+``.  The remaining columns are ``"building"``,
+        ``"building_group"``, ``"urbanization"``,
+        ``"infrastructure_usage_per_level"``, ``"era"``, ``"unlocking_tech"``,
+        ``"employment"``, ``"construction_cost"``,
+        ``"value_goods_inputs_nominal"``, ``"value_goods_outputs_nominal"``,
+        ``"profit_nominal"``, ``"profit_margin_nominal"``,
+        ``"profit_per_capita_nominal"``, and
+        ``"profit_per_construction_cost_nominal"``, followed by one
+        ``goods_<good>`` column per good and one ``employment_<profession>``
+        column per profession.
+
+    Raises:
+        ValueError: If an unlocking technology referenced by a building or a
+            production method is missing from the technology table.
+    """
+    goods_cols = [f"goods_{key}" for key in df_goods["key"]]
+    profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
+    sum_cols = ["employment", *profession_cols, *goods_cols]
+
+    missing_goods_cols = [col for col in goods_cols if col not in df_pm.columns]
+    if missing_goods_cols:
+        warnings.warn(
+            f"Goods columns missing from the production-method table, "
+            f"zero-filled: {sorted(missing_goods_cols)}",
+            stacklevel=2,
         )
-    )
-
-    # Get production method employment and production output
-    df_pm = ProductionMethodParser(game_dir).to_dataframe()
-    employment_profession_keys = [
-        col for col in df_pm.columns if col.startswith("employment_")
+        df_pm = df_pm.reindex(
+            columns=[*df_pm.columns, *missing_goods_cols], fill_value=0
+        )
+    unpriced_goods_cols = [
+        col
+        for col in df_pm.columns
+        if col.startswith("goods_") and col not in goods_cols
     ]
-    pm_dict = {}
-    for _, row in df_pm.iterrows():
-        if row["building"] not in building_cost_dict:
-            continue  # Skip if building is not in building_cost_dict
-        pm_dict[row["production_method"]] = ProductionUnit(
-            era=tech_era_dict.get(row["unlocking_technologies"], 0),
-            employment=row["employment"],  # pyright: ignore[reportArgumentType]
-            production={  # pyright: ignore[reportArgumentType]
-                good: row[f"goods_{good}"]
-                for good in goods_dict.keys()
-                if f"goods_{good}" in row
-            },
-            employment_by_profession={  # pyright: ignore[reportArgumentType]
-                col[len("employment_") :]: row[col]
-                for col in employment_profession_keys
-            },
+    if unpriced_goods_cols:
+        warnings.warn(
+            f"Goods columns without a base price, ignored: "
+            f"{sorted(unpriced_goods_cols)}",
+            stacklevel=2,
         )
 
-    possible_buildings = []
-    for building_key in building_cost_dict.keys():
-        # list all possible combinations of production methods for this building
-        pm_lists = []
-        for pmg in building_pmg_dict[building_key]:
-            pm_lists.append(pmg_pm_dict[pmg])
-        # iterate through all combinations of production methods for this building
-        for combo in _all_combinations(pm_lists):
-            building = ProductionUnit(production={})
-            for pm in combo:
-                building += pm_dict[pm]
-            row_dict = {
-                "building": building_key,
-                "production_method": "+".join(combo),
-            }
-            row_dict["building_group"] = building_group_dict[building_key]
-            row_dict["urbanization"] = urbanization_dict[building_key]
-            row_dict["infrastructure_usage_per_level"] = infrastructure_dict[
-                building_key
-            ]
-            row_dict["era"] = building["era"]
-            row_dict["employment"] = building["employment"]
-            row_dict["construction_cost"] = building_cost_dict[building_key]
-            row_dict["value_goods_inputs_nominal"] = (
-                building.value_goods_inputs_nominal(goods_dict)
-            )
-            row_dict["value_goods_outputs_nominal"] = (
-                building.value_goods_outputs_nominal(goods_dict)
-            )
-            row_dict["profit_nominal"] = building.profit_nominal(goods_dict)
-            row_dict["profit_margin_nominal"] = building.profit_margin_nominal(
-                goods_dict
-            )
-            row_dict["profit_per_capita_nominal"] = building.profit_per_capita_nominal(
-                goods_dict
-            )
-            row_dict["profit_per_construction_cost_nominal"] = (
-                building.profit_per_construction_cost_nominal(goods_dict)
-            )
-            for key, amount in building.items():
-                if key in ("era", "employment"):
-                    continue
-                if key.startswith("employment_"):
-                    row_dict[key] = amount
-                else:
-                    row_dict[f"goods_{key}"] = amount
-            possible_buildings.append(row_dict)
+    era_by_tech: dict[str, int] = {
+        key: int(era) for key, era in zip(df_tech["key"], df_tech["era"])
+    }
 
-    result = pd.DataFrame(possible_buildings)
-    return result
+    pm_keys = df_pm["production_method"].tolist()
+    pm_techs = [_tech_keys(value) for value in df_pm["unlocking_technologies"]]
+    pm_eras = [_era_of_techs(techs, era_by_tech) for techs in pm_techs]
+
+    group_positions: dict[tuple[str, str], list[int]] = {}
+    for position, (building, group) in enumerate(
+        zip(df_pm["building"], df_pm["production_method_group"])
+    ):
+        group_positions.setdefault((building, group), []).append(position)
+
+    building_columns = [
+        "key",
+        "building_group",
+        "urbanization",
+        "infrastructure_usage_per_level",
+        "required_construction_points",
+        "production_method_groups",
+        "unlocking_technologies",
+    ]
+    combo_rows: list[dict[str, object]] = []
+    membership: list[tuple[int, int]] = []
+
+    for (
+        building,
+        building_group,
+        urbanization,
+        infrastructure,
+        construction_cost,
+        pmg_value,
+        unlock_value,
+    ) in zip(*[df_buildings[column] for column in building_columns]):
+        if not isinstance(pmg_value, str) or not pmg_value:
+            warnings.warn(
+                f"Building {building} has no production method groups, skipped",
+                stacklevel=2,
+            )
+            continue
+
+        groups: list[list[int]] = []
+        for pmg in pmg_value.split("+"):
+            positions = group_positions.get((building, pmg))
+            if not positions:
+                warnings.warn(
+                    f"Building {building} has no production methods in group "
+                    f"{pmg}, skipped",
+                    stacklevel=2,
+                )
+                groups = []
+                break
+            groups.append(positions)
+        if not groups:
+            continue
+
+        building_techs = _tech_keys(unlock_value)
+        building_era = _era_of_techs(building_techs, era_by_tech)
+        if pd.isna(construction_cost):
+            construction_cost = 0
+        if pd.isna(urbanization):
+            urbanization = 0.0
+        if pd.isna(infrastructure):
+            infrastructure = 0.0
+
+        for positions in product(*groups):
+            combo_id = len(combo_rows)
+            era = building_era
+            techs = list(building_techs)
+            for position in positions:
+                if pm_eras[position] > era:
+                    era = pm_eras[position]
+                techs.extend(pm_techs[position])
+            combo_rows.append(
+                {
+                    "building": building,
+                    "production_method": "+".join(
+                        pm_keys[position] for position in positions
+                    ),
+                    "building_group": building_group,
+                    "urbanization": urbanization,
+                    "infrastructure_usage_per_level": infrastructure,
+                    "era": era,
+                    "unlocking_tech": "+".join(dict.fromkeys(techs)),
+                    "construction_cost": int(construction_cost),
+                }
+            )
+            membership.extend((combo_id, position) for position in positions)
+
+    column_order = [
+        "building",
+        "production_method",
+        "building_group",
+        "urbanization",
+        "infrastructure_usage_per_level",
+        "era",
+        "unlocking_tech",
+        "employment",
+        "construction_cost",
+        "value_goods_inputs_nominal",
+        "value_goods_outputs_nominal",
+        "profit_nominal",
+        "profit_margin_nominal",
+        "profit_per_capita_nominal",
+        "profit_per_construction_cost_nominal",
+        *goods_cols,
+        *profession_cols,
+    ]
+    if not combo_rows:
+        return pd.DataFrame(columns=column_order)
+
+    member_positions = [position for _, position in membership]
+    combo_ids = [combo_id for combo_id, _ in membership]
+    members = df_pm.iloc[member_positions]
+    sums = (
+        members.groupby(np.asarray(combo_ids), sort=True)[sum_cols]
+        .sum()
+        .reset_index(drop=True)
+    )
+
+    result = pd.concat([pd.DataFrame(combo_rows), sums], axis=1)
+
+    prices = df_goods["cost"].to_numpy(dtype=np.float64)
+    flows = result[goods_cols].to_numpy(dtype=np.float64)
+    result["value_goods_inputs_nominal"] = np.maximum(-flows, 0.0) @ prices
+    result["value_goods_outputs_nominal"] = np.maximum(flows, 0.0) @ prices
+    result["profit_nominal"] = (
+        result["value_goods_outputs_nominal"] - result["value_goods_inputs_nominal"]
+    )
+    result["profit_margin_nominal"] = (
+        result["profit_nominal"] / result["value_goods_outputs_nominal"]
+    )
+    result["profit_per_capita_nominal"] = (
+        result["profit_nominal"] / result["employment"]
+    )
+    result["profit_per_construction_cost_nominal"] = (
+        result["profit_nominal"] / result["construction_cost"]
+    )
+
+    return result.reindex(columns=column_order)
