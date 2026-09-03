@@ -35,6 +35,15 @@
 - [x] `NominalOptimizer` for `scipy.optimize.linprog` optimisation over
   building levels with named objectives, throughput bonuses, and fluent
   constraint builders.
+- [x] Architecture refactor: all problem definition moved from
+  `NominalOptimizer` (fluent constraint builders deleted) to the `Scenario`
+  formulation in `optimize/scenario.py` — a frozen dataclass with pure,
+  economy-parameterised translation methods (throughput-adjusted matrices,
+  objective vectors, constraints in fixed order, `import_marginals`).
+  `NominalOptimizer` is now solely a solver (`solve(scenario)`), retaining
+  `result` / `scenario` from the last solve for duals. This removes the
+  bonus/objective ordering trap and makes flows bonus-consistent across the
+  analysis functions.
 
 ## Documentation & agent infrastructure
 
@@ -62,17 +71,20 @@ a reusable `src/vic3_analysis/analysis/supply_chain.py` module (composable
 functions + small dataclasses) paired with `examples/` scripts and tests,
 mirroring the `production_table()` + `examples/production_analysis.py` pattern.
 
-- [x] `Scenario` dataclass: a cangshulun-style recipe as data (terminal good,
-  target amount, objective, autarky, banned PMs/buildings, throughput bonuses,
-  era cap).
+- [x] `Scenario` dataclass (now in `optimize/scenario.py`): an optimisation
+  recipe as data (multi-good produce baskets, objective, import limit,
+  banned PMs / buildings / building groups, per-building level limits,
+  throughput bonuses, era / construction-cost / employment caps,
+  infrastructure floor, urban-center tie).
 - [x] `SupplyChainNode` / `ProducerNode` dataclasses: recursive upstream
   dependency tree (goods → producer configs → input goods → raw resources).
-- [x] Upstream trace: `upstream_tree(economy, good, state=None)` using the
-  separate input/output matrices (not the net matrix) to separate producers
-  from consumers; *recipe* mode (all producers) when `state is None`, *realised*
-  mode (non-zero configs scaled by level) when a solved `EconomyState` is given.
+- [x] Upstream trace: `upstream_tree(economy, good, state=None, scenario=None)`
+  using the separate input/output matrices (not the net matrix) to separate
+  producers from consumers; *recipe* mode (all producers) when `state is None`,
+  *realised* mode (non-zero configs scaled by level) when a solved
+  `EconomyState` is given; scenario-aware for throughput-adjusted flows.
 - [x] LP scenario runner: `optimize_chain(economy, scenario) -> EconomyState`,
-  a thin convenience over `NominalOptimizer` applying the `Scenario` recipe.
+  a thin convenience over the solver-only `NominalOptimizer`.
 - [x] Value-added breakdown: `value_added_breakdown(economy, state, good=None)`
   attributing GDP, employment, and construction cost to each good/stage (chain
   vs. whole-economy) using the upstream tree.

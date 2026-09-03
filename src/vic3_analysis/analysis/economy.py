@@ -426,6 +426,16 @@ class Economy:
     def pop_wealth_init(self) -> np.ndarray:
         return self.df_pop_types["start_quality_of_life"].to_numpy(dtype=np.float64)
 
+    def employment_vector(self) -> np.ndarray:
+        """Total employment per building level, aligned to production-table rows.
+
+        Returns:
+            A 1-D array of shape ``(n_buildings,)`` giving the total employment
+            of each building configuration per level (``"employment"`` column,
+            missing values zero-filled).
+        """
+        return self.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
+
     def construction_cost_vector(self) -> np.ndarray:
         # Construction cost per building level aligned to production-table rows.
         return self.df_production["construction_cost"].to_numpy(dtype=np.float64)

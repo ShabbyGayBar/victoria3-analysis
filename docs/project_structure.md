@@ -106,31 +106,39 @@ or expose a `pyradox.Tree` subclass with helper methods.
   building-level vector using base goods prices and per-profession wealth from
   the pop-types table.
 - `supply_chain.py` — Supply-chain analysis on the nominal economy. Provides
-  the `Scenario` dataclass (a cangshulun-style optimisation recipe as data,
-  with `build_optimizer()` / `optimize()` methods), the `SupplyChainNode` /
-  `ProducerNode` dependency-graph dataclasses (with `iter_producers()`,
-  `collect_producers()`, `collect_good_nodes()`, `chain_depth()`,
-  `count_raw_inputs()`, and `to_mermaid()` methods), and composable functions:
-  `upstream_tree` (memoised recipe/realised trace), `value_added_breakdown`
-  (per-config or per-good GDP/employment/construction-cost attribution),
-  `bottleneck` (input cost-share ranking plus LP import-cap marginals), and
-  `compare_scenarios` (multi-scenario metric table with chain characteristics).
-  `Economy.producible_goods()` lists goods with at least one producer
-  configuration.
+  the `SupplyChainNode` / `ProducerNode` dependency-graph dataclasses (with
+  `iter_producers()`, `collect_producers()`, `collect_good_nodes()`,
+  `chain_depth()`, `count_raw_inputs()`, and `to_mermaid()` methods), and
+  composable functions: `optimize_chain` (solve a `Scenario` via
+  `NominalOptimizer`), `upstream_tree` (memoised recipe/realised trace, with
+  an optional `scenario` for throughput-adjusted flows),
+  `value_added_breakdown` (per-config or per-good GDP/employment/
+  construction-cost attribution, likewise `scenario`-aware), `bottleneck`
+  (input cost-share ranking plus LP import-cap marginals read from the solved
+  scenario), and `compare_scenarios` (multi-scenario metric table with chain
+  characteristics). `Economy.producible_goods()` lists goods with at least one
+  producer configuration.
 
 ### `src/vic3_analysis/optimize/` — Optimisation
 
-- `nominal.py` — `NominalOptimizer`, a linear-programming optimiser over an
-  `Economy`. Provides derived-vector methods (`gdp_vector`, `employment_vector`,
-  `construction_cost_vector`, etc.), `set_objective`, `add_throughput_bonus`,
-  fluent constraint builders (`constraint_limit_import`,
-  `constraint_limit_employment`, `constraint_limit_construction_cost`,
-  `constraint_limit_building`, `constraint_produce`, `constraint_ban_building`,
-  `constraint_ban_pm`, `constraint_urbanization_center`), and `linprog()` for
-  solving the LP via
-  `scipy.optimize.linprog`. The underlying `OptimizeResult` is retained on the
-  `result` attribute so downstream tooling (e.g. `supply_chain.bottleneck`) can
-  read constraint marginals (shadow prices).
+- `scenario.py` — `Scenario`, a frozen dataclass that captures an
+  optimisation recipe as data (produce basket, objective, import limit, banned
+  PMs / buildings / building groups, per-building level limits, throughput
+  bonuses, era / construction-cost / employment caps, infrastructure floor,
+  urban-center tie). Its economy-parameterised translation methods are pure
+  and deterministic: `goods_input_matrix` / `goods_output_matrix` /
+  `goods_matrix` (throughput-adjusted flows), `gdp_vector`,
+  `objective_vector`, `inequality_constraints` / `equality_constraints`
+  (stacked linprog-ready `(A, b)` arrays in fixed block order, `None` when
+  absent), `linprog_args` (the bundled `c` / `A_ub` / `b_ub` / `A_eq` / `b_eq`
+  keyword `LinprogArgs` TypedDict for `scipy.optimize.linprog`), and
+  `import_marginals` (interprets its own duals from a solved LP result).
+- `nominal.py` — `NominalOptimizer`, solely a solver: `solve(scenario)`
+  delegates to `scipy.optimize.linprog` with the scenario's `linprog_args`,
+  returning an `EconomyState`. The underlying `OptimizeResult` and the solved
+  scenario are retained on the `result` / `scenario` attributes so downstream
+  tooling (e.g. `supply_chain.bottleneck`) can read constraint marginals
+  (shadow prices).
 
 ## `examples/` — Table-generation Scripts
 
@@ -152,20 +160,17 @@ The script name maps 1:1 to the output table:
 Run any script with `uv run python -m examples.<name>` or directly. They are
 the canonical "how do I use this package" reference for non-developers.
 
-- `cangshulun_1.py`, `cangshulun_2.py` — optimisation scenario scripts
-  ("仓鼠轮" experiments) exploring minimum-population and throughput-bonus
-  production strategies using `NominalOptimizer`. Runnable as `__main__`
-  scripts; not collected by pytest's `test_*` pattern.
 - `supply_chain_optimize.py`, `supply_chain_trace.py`,
   `supply_chain_compare.py` — supply-chain analysis demos built on the
   `vic3_analysis.analysis.supply_chain` module: scenario-based optimisation
-  (reproduces the `cangshulun_1` recipe via `Scenario`), recipe/realised
-  upstream tracing (writes Mermaid `.mmd` files), and a full sweep of all
-  producible terminal goods with normalised target value and
-  `construction_cost` objective (writes `tables/supply_chain_sweep.csv` and
-  summary charts). The optimisation and comparison scripts also generate
-  matplotlib bar charts saved as PNGs. Runnable as `__main__` scripts; not
-  collected by pytest.
+  (reproduces the historical `cangshulun_1` recipe via `Scenario` — the
+  original `cangshulun_1.py` / `cangshulun_2.py` scripts were removed once the
+  recipe became a `Scenario`), recipe/realised upstream tracing (writes
+  Mermaid `.mmd` files), and a full sweep of all producible terminal goods
+  with normalised target value and `construction_cost` objective (writes
+  `tables/supply_chain_sweep.csv` and summary charts). The optimisation and
+  comparison scripts also generate matplotlib bar charts saved as PNGs.
+  Runnable as `__main__` scripts; not collected by pytest.
 
 ## `tables/` — Generated CSV Output
 
@@ -196,10 +201,18 @@ game directory.
   `test_buy_packages.py`, `test_pop_types.py`, `test_state_regions.py` —
   smoke tests that instantiate each parser and call its primary method.
 - `test_economy.py` — exercises `Economy` and `EconomyState` end-to-end
-  (matrices, solve, DataFrames, GDP/wealth).
-- `test_nominal_optimizer.py` — exercises `NominalOptimizer` end-to-end
-  (vectors, `set_objective`, `reset`, `add_throughput_bonus`, constraint
-  builders, and `linprog`).
+  (matrices, derived vectors, solve, DataFrames, GDP/wealth).
+- `test_scenario.py` — exercises the `Scenario` formulation (objective
+  validation, throughput-adjusted matrices, objective-vector signs, constraint
+  order and content per field, `import_marginals` guards).
+- `test_nominal_optimizer.py` — exercises the solver-only `NominalOptimizer`
+  (`solve` returns a state satisfying produce / import / building-limit /
+  urbanization constraints, unbounded and infeasible scenarios raise, the
+  `result` / `scenario` attributes, marginal access after solve).
+- `test_supply_chain.py` — exercises the supply-chain toolkit end-to-end
+  (`optimize_chain`, `upstream_tree` recipe/realised/bonus-consistent views,
+  Mermaid serialisation, chain metrics, `value_added_breakdown`,
+  `bottleneck`, `compare_scenarios`, `producible_goods`).
 
 ## `docs/` — MkDocs Documentation
 

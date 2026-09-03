@@ -1,6 +1,6 @@
 import pandas as pd
 
-from vic3_analysis import Economy, Scenario, upstream_tree
+from vic3_analysis import Economy, Scenario, optimize_chain, upstream_tree
 from __init__ import THIS_DIR
 
 df_production_table = pd.read_csv(THIS_DIR / ".." / "tables" / "production_table.csv")
@@ -25,12 +25,12 @@ def run_supply_chain_trace():
     print("\nWritten to figures/supply_chain_recipe.mmd")
 
     print("\n=== Realised trace (1 automobile/wk, autarky, max automation) ===")
-    state = Scenario(
-        terminal_good="automobiles",
-        target_amount=1.0,
+    scenario = Scenario(
+        produce=(("automobiles", 1.0),),
         objective="automation",
-    ).optimize(economy)
-    realised = upstream_tree(economy, "automobiles", state)
+    )
+    state = optimize_chain(economy, scenario)
+    realised = upstream_tree(economy, "automobiles", state, scenario)
     realised_mermaid = realised.to_mermaid(
         realized=True, title="Realised: automobiles (1/wk, autarky)"
     )

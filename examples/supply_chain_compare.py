@@ -33,10 +33,9 @@ def run_supply_chain_compare():
     scenarios = [
         Scenario(
             name=good,
-            terminal_good=good,
-            target_amount=NORMALIZED_VALUE / price_map[good],
+            produce=((good, NORMALIZED_VALUE / price_map[good]),),
             objective="construction_cost",
-            autarky=True,
+            import_limit=0.0,
         )
         for good in producible
     ]
@@ -58,13 +57,14 @@ def run_supply_chain_compare():
 
 def _save_sweep_charts(df: pd.DataFrame) -> None:
     ok = df[df["error"] == ""].copy()
+    assert isinstance(ok, pd.DataFrame)
 
     fig, ax = plt.subplots(figsize=(12, max(8, len(ok) * 0.3)))
-    ok_sorted = ok.sort_values("construction_cost", ascending=True)  # pyright: ignore[reportCallIssue]
+    ok_sorted = ok.sort_values("construction_cost", ascending=True)
     colors = [
         "#d62728" if c < 0 else "#1f77b4" for c in ok_sorted["bottleneck_marginal"]
     ]
-    ax.barh(ok_sorted["terminal_good"], ok_sorted["construction_cost"], color=colors)
+    ax.barh(ok_sorted["name"], ok_sorted["construction_cost"], color=colors)
     ax.set_xlabel("Construction Cost (minimised)")
     ax.set_title(
         f"Supply Chain Sweep: Construction Cost by Terminal Good "
@@ -75,9 +75,9 @@ def _save_sweep_charts(df: pd.DataFrame) -> None:
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(12, max(8, len(ok) * 0.3)))
-    ok_sorted = ok.sort_values("gdp_per_construction", ascending=True)  # pyright: ignore[reportCallIssue]
+    ok_sorted = ok.sort_values("gdp_per_construction", ascending=True)
     ax.barh(
-        ok_sorted["terminal_good"],
+        ok_sorted["name"],
         ok_sorted["gdp_per_construction"],
         color="darkorange",
     )

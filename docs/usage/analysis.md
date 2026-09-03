@@ -2,34 +2,37 @@
 
 This is my main purpose for creating this project.
 
-The optimization is implemented in the `NominalOptimizer` class, using linear programming and other optimization functions provided by the `scipy` library.
+Optimisation is split into two layers: a [`Scenario`](../api.md) (in
+`vic3_analysis.optimize.scenario`) defines the problem — objective,
+constraints, and throughput bonuses as data — and [`NominalOptimizer`](../api.md)
+(in `vic3_analysis.optimize.nominal`) is solely the solver, wrapping
+`scipy.optimize.linprog`. `NominalOptimizer.solve(scenario)` returns an
+`EconomyState` containing the optimal building levels and the resulting
+economy state.
 
-The method responsible for performing the optimization is `linprog()`, which returns an `EconomyState` containing the optimal building levels and their corresponding economy state.
+To perform a production optimisation, we must first acquire the following:
 
-To perform a production optimization, we must first acquire the following:
++ An `Economy` instance, which wraps the production table, goods table, and pop-types table parsed from the Victoria 3 game files.
 
-+ An `Economy` instance, which wraps the production table, goods table, and pop-types table parsed from the Victoria 3 game files. The `NominalOptimizer` is constructed with an `Economy` and derives per-building vectors (GDP, employment, construction cost, goods flows) from it.
++ A `Scenario`, constructed from named fields. The `objective` accepts `"gdp"` (maximise gross GDP), `"employment"` (maximise total employment), `"automation"` (minimise employment, i.e. maximise automation) and `"construction_cost"` (minimise total construction cost). `produce` is a tuple of `(good, amount)` pairs, each of which must be produced with at least that net output per week. `import_limit=0.0` (the default) enforces autarky and `None` disables import caps. The remaining fields cover banned PMs / buildings / building groups, per-building level limits (a limit of `0` bans outright), throughput bonuses, era / construction-cost / employment caps, a minimum net-infrastructure floor, and the urban-center urbanization tie.
 
-+ An objective, set via `set_objective()`. Named objectives include `"gdp"` (maximise gross GDP), `"employment"` (maximise total employment), and `"construction_cost"` (minimise total construction cost). For custom objectives, you can set `objective_vector` directly to any `*_vector()` result (e.g. `employment_vector()` to *minimise* employment).
+The scenario's translation is pure and deterministic: constraint order is fixed (inequality: import cap, construction-cost cap, employment cap, produce basket, building limits, infrastructure floor; equality: era cap, banned PMs, banned groups, urban-center tie), so throughput bonuses are reflected consistently everywhere and LP duals can be mapped back to their meaning without inspecting solver internals. `Scenario.linprog_args(economy)` returns the `c` / `A_ub` / `b_ub` / `A_eq` / `b_eq` keyword dict, so `scipy.optimize.linprog` can also be invoked directly (`opt.linprog(**scenario.linprog_args(economy))`) for solver options the wrapper does not expose.
 
-+ Constraints, added incrementally via the fluent `constraint_*` methods. For example, if you want to ensure that your economy must be self-sufficient, i.e., does not import any goods, call `constraint_limit_import(limit=0)`. Or if you want to ensure that your economy produces at least 100 units of steel, call `constraint_produce('steel', 100)`. To keep the total net infrastructure (the `infrastructure_usage_per_level` column summed over building levels, negative for providers such as ports and railways) above a floor, call `constraint_infrastructure(limit)`. All constraint methods start with `constraint_`, append to the optimizer's constraint lists, and return `self` for chaining.
-
-When calling the `linprog()` method, no arguments are needed — the objective vector and constraints are already stored on the `NominalOptimizer` instance. The `linprog()` method will automatically combine the constraints into the format required by the `scipy` library.
-
-Say you want to know what building combination can produce at least 100 units of steel with the least population. In this case, the objective vector is `employment_vector()`, since the population is represented by the employment in the production table. The constraint is `constraint_produce('steel', 100)` and `constraint_limit_import(0)`. The code for this optimization is as follows:
+Say you want to know what building combination can produce at least 100 units of steel with the least population:
 
 ```python
-from vic3_analysis import Economy, NominalOptimizer
+from vic3_analysis import Economy, NominalOptimizer, Scenario
 
 economy = Economy()
-optimizer = NominalOptimizer(economy)
-optimizer.objective_vector = optimizer.employment_vector()
-optimizer.constraint_produce("steel", 100)
-optimizer.constraint_limit_import(0)
-state = optimizer.linprog()
+scenario = Scenario(
+    produce=(("steel", 100),),
+    objective="automation",  # minimise employment (max automation)
+    import_limit=0.0,        # autarky
+)
+state = NominalOptimizer(economy).solve(scenario)
 
 import numpy as np
-annual_gdp = float(np.dot(state.building_levels, optimizer.gdp_vector())) * 52
+annual_gdp = float(np.dot(state.building_levels, scenario.gdp_vector(economy))) * 52
 employment = float(np.sum(state.pops))
 construction_cost = economy.construction_cost(state)
 print(f"GDP: {annual_gdp}")
@@ -40,36 +43,39 @@ print(economy.df_buildings(state))
 
 # Supply Chain Analysis
 
-On top of the `NominalOptimizer`, the `vic3_analysis.analysis.supply_chain`
-module turns the "cangshulun" experiment pattern into a reusable toolkit for
-trace, optimisation, value-added attribution, bottleneck ranking, and
-scenario comparison. All public symbols are re-exported from `vic3_analysis`.
+On top of the `Scenario` / `NominalOptimizer` split, the
+`vic3_analysis.analysis.supply_chain` module turns the "cangshulun" experiment
+pattern into a reusable toolkit for trace, optimisation, value-added
+attribution, bottleneck ranking, and scenario comparison. All public symbols
+are re-exported from `vic3_analysis`.
 
 ## Scenario-based optimisation
 
-A [`Scenario`](../api.md#vic3_analysis.analysis.supply_chain.Scenario)
-captures the recipe (terminal good, target, objective, autarky, banned
-production methods / buildings, throughput bonuses, era cap, construction-cost
-and employment caps) as data. `Scenario.build_optimizer()` configures a
-`NominalOptimizer` from it, and `Scenario.optimize()` solves it:
+A [`Scenario`](../api.md) captures the recipe (produce basket, objective,
+import policy, banned production methods / buildings, throughput bonuses,
+caps) as data. `optimize_chain` solves it:
 
 ```python
-from vic3_analysis import Economy, Scenario
+from vic3_analysis import Economy, Scenario, optimize_chain
 
 economy = Economy()
-state = Scenario(
-    terminal_good="automobiles",
-    target_amount=10e6 / 5200.0,
-    objective="automation",   # minimise employment (max automation)
-    autarky=True,
-    banned_pms=("pm_diesel_engines",),
-    banned_buildings=("building_dye_plantation",),
-    throughput_bonuses=(("building_automotive_industry", 2.45),),
-).optimize(economy)
+state = optimize_chain(
+    economy,
+    Scenario(
+        produce=(("automobiles", 10e6 / 5200.0),),
+        objective="automation",   # minimise employment (max automation)
+        import_limit=0.0,         # autarky
+        banned_pms=("pm_diesel_engines",),
+        building_limits=(("building_dye_plantation", 0.0),),
+        throughput_bonuses=(("building_automotive_industry", 2.45),),
+    ),
+)
 ```
 
 `objective` accepts `"gdp"` (maximise), `"employment"` (maximise),
 `"automation"` (minimise employment), and `"construction_cost"` (minimise).
+For solver-level access (including the retained LP result with duals), use
+`NominalOptimizer(economy).solve(scenario)` directly.
 
 ## Upstream trace
 
@@ -85,8 +91,11 @@ leaves.
 from vic3_analysis import upstream_tree
 
 recipe = upstream_tree(economy, "automobiles")          # all producers
-realised = upstream_tree(economy, "automobiles", state)  # actual chain
+realised = upstream_tree(economy, "automobiles", state, scenario)  # actual chain
 ```
+
+Passing the solved *scenario* makes the realised view use its
+throughput-adjusted flows, consistent with the scenario's solved GDP.
 
 ## Mermaid visualisation
 
@@ -130,9 +139,12 @@ chain.
 ```python
 from vic3_analysis import value_added_breakdown
 
-per_config = value_added_breakdown(economy, state, good="automobiles")
-per_good = value_added_breakdown(economy, state, by="good")
+per_config = value_added_breakdown(economy, state, good="automobiles", scenario=scenario)
+per_good = value_added_breakdown(economy, state, by="good", scenario=scenario)
 ```
+
+Passing the solved *scenario* values flows with its throughput-adjusted
+matrices, so GDP totals match `scenario.gdp_vector(economy)`.
 
 ## Bottleneck
 
@@ -142,12 +154,15 @@ supply. When passed the solved optimizer, it also reads the LP shadow prices
 input whose relaxation would most reduce the objective.
 
 ```python
-from vic3_analysis import bottleneck
+from vic3_analysis import NominalOptimizer, Scenario, bottleneck
 
-optimizer = scenario.build_optimizer(economy)
-state = optimizer.linprog()
+optimizer = NominalOptimizer(economy)
+state = optimizer.solve(scenario)
 bottlenecks = bottleneck(economy, state, good="automobiles", optimizer=optimizer)
 ```
+
+The solved scenario's `import_marginals(economy, optimizer.result)` interprets
+its own duals, so the ranking reflects the scenario's constraint layout.
 
 ## Scenario comparison
 
@@ -172,7 +187,7 @@ producer configuration, useful for generating a sweep over every terminal good:
 from vic3_analysis import Scenario, compare_scenarios
 
 scenarios = [
-    Scenario(name=g, terminal_good=g, target_amount=100.0 / price_map[g],
+    Scenario(name=g, produce=((g, 100.0 / price_map[g]),),
              objective="construction_cost")
     for g in economy.producible_goods()
 ]

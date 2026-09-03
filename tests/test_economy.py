@@ -184,6 +184,16 @@ def test_construction_cost_vector(economy):
     )
 
 
+def test_employment_vector(economy):
+    emp = economy.employment_vector()
+    assert emp.shape == (len(economy.df_production),)
+    assert emp.dtype == np.float64
+    expected = economy.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
+    np.testing.assert_array_equal(emp, expected)
+    # equals the row sums of the employment matrix.
+    np.testing.assert_allclose(emp, economy.employment_matrix().sum(axis=1))
+
+
 def test_solve_invalid_method(economy):
     levels = np.zeros(len(economy.building_index()), dtype=np.float64)
     with pytest.raises(ValueError, match="Invalid method"):

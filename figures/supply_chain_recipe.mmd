@@ -7,12 +7,14 @@ flowchart LR
     g_electricity(("electricity (3)"))
     g_engines(("engines (12)"))
     g_explosives(("explosives (4)"))
-    g_fabric(("fabric (120)"))
+    g_fabric(("fabric (170)"))
     g_fertilizer(("fertilizer (75)"))
-    g_fish(("fish (12)"))
-    g_grain(("grain (265)"))
+    g_fish(("fish (22)"))
+    g_glass(("glass (24)"))
+    g_grain(("grain (315)"))
     g_hardwood(("hardwood (54)"))
     g_iron(("iron (48)"))
+    g_lead(("lead (48)"))
     g_oil(("oil (18)"))
     g_paper(("paper (9)"))
     g_rubber(("rubber (12)"))
@@ -20,8 +22,9 @@ flowchart LR
     g_steel(("steel (12)"))
     g_sulfur(("sulfur (48)"))
     g_tools(("tools (16)"))
-    g_transportation(("transportation (21)"))
-    g_wood(("wood (72)"))
+    g_transportation(("transportation (129)"))
+    g_wood(("wood (122)"))
+    g_automobiles --> g_transportation
     g_clippers --> g_fish
     g_clippers --> g_oil
     g_coal --> g_electricity
@@ -32,6 +35,7 @@ flowchart LR
     g_coal --> g_grain
     g_coal --> g_hardwood
     g_coal --> g_iron
+    g_coal --> g_lead
     g_coal -.-> g_oil
     g_coal --> g_paper
     g_coal --> g_steamers
@@ -40,6 +44,7 @@ flowchart LR
     g_coal -.-> g_tools
     g_coal -.-> g_transportation
     g_coal --> g_wood
+    g_dye --> g_glass
     g_dye --> g_paper
     g_electricity --> g_automobiles
     g_electricity -.-> g_engines
@@ -60,9 +65,11 @@ flowchart LR
     g_engines --> g_dye
     g_engines -.-> g_electricity
     g_engines --> g_fabric
+    g_engines --> g_glass
     g_engines --> g_grain
     g_engines --> g_hardwood
     g_engines --> g_iron
+    g_engines --> g_lead
     g_engines -.-> g_oil
     g_engines --> g_rubber
     g_engines --> g_steamers
@@ -71,6 +78,7 @@ flowchart LR
     g_engines --> g_wood
     g_explosives --> g_coal
     g_explosives --> g_iron
+    g_explosives --> g_lead
     g_explosives -.-> g_sulfur
     g_fabric --> g_automobiles
     g_fabric --> g_clippers
@@ -78,6 +86,7 @@ flowchart LR
     g_fertilizer --> g_explosives
     g_fertilizer -.-> g_grain
     g_fish --> g_grain
+    g_glass --> g_transportation
     g_grain --> g_fabric
     g_grain -.-> g_fertilizer
     g_hardwood --> g_automobiles
@@ -86,14 +95,17 @@ flowchart LR
     g_iron --> g_fertilizer
     g_iron --> g_steel
     g_iron -.-> g_tools
+    g_lead --> g_glass
     g_oil --> g_automobiles
     g_oil -.-> g_coal
     g_oil -.-> g_electricity
     g_oil -.-> g_engines
     g_oil --> g_fertilizer
+    g_oil --> g_glass
     g_oil --> g_grain
     g_oil --> g_hardwood
     g_oil --> g_iron
+    g_oil --> g_lead
     g_oil --> g_sulfur
     g_oil --> g_tools
     g_oil -.-> g_transportation
@@ -117,9 +129,11 @@ flowchart LR
     g_tools --> g_engines
     g_tools --> g_fabric
     g_tools --> g_fertilizer
+    g_tools --> g_glass
     g_tools --> g_grain
     g_tools --> g_hardwood
     g_tools -.-> g_iron
+    g_tools --> g_lead
     g_tools --> g_paper
     g_tools -.-> g_steel
     g_tools --> g_sulfur
@@ -131,6 +145,7 @@ flowchart LR
     g_transportation --> g_fish
     g_transportation --> g_hardwood
     g_transportation --> g_iron
+    g_transportation --> g_lead
     g_transportation -.-> g_oil
     g_transportation --> g_rubber
     g_transportation --> g_sulfur
@@ -138,6 +153,7 @@ flowchart LR
     g_wood --> g_clippers
     g_wood --> g_dye
     g_wood -.-> g_electricity
+    g_wood --> g_glass
     g_wood --> g_hardwood
     g_wood --> g_paper
     g_wood -.-> g_tools

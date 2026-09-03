@@ -7,6 +7,7 @@ import pandas as pd
 
 from vic3_analysis import (
     Economy,
+    NominalOptimizer,
     Scenario,
     bottleneck,
     value_added_breakdown,
@@ -55,9 +56,9 @@ def _save_building_levels(state, economy):
     plt.close(fig)
 
 
-def _save_net_goods(state, optimizer):
-    net_goods = state.building_levels @ optimizer.goods_matrix
-    goods_idx = optimizer.goods_index()
+def _save_net_goods(state, economy, scenario):
+    net_goods = state.building_levels @ scenario.goods_matrix(economy)
+    goods_idx = economy.goods_index()
     pairs = [(g, float(v)) for g, v in zip(goods_idx, net_goods) if abs(v) > 1e-10]
     pairs.sort(key=lambda x: x[1])
     labels = [p[0] for p in pairs]
@@ -73,8 +74,8 @@ def _save_net_goods(state, optimizer):
     plt.close(fig)
 
 
-def _save_value_added(state, economy):
-    df = value_added_breakdown(economy, state, by="good")
+def _save_value_added(state, economy, scenario):
+    df = value_added_breakdown(economy, state, by="good", scenario=scenario)
     df = df.sort_values("gdp")
     fig, ax = plt.subplots(figsize=(10, max(6, len(df) * 0.35)))
     ax.barh(df["good"], df["gdp"], color="darkorange")
@@ -105,18 +106,17 @@ def run_supply_chain_optimize():
         df_production=df_production_table, df_goods=df_goods, df_pop_types=df_pop_types
     )
     scenario = Scenario(
-        terminal_good="automobiles",
-        target_amount=10e6 / 5200.0,
+        produce=(("automobiles", 10e6 / 5200.0),),
         objective="automation",
-        autarky=True,
+        import_limit=0.0,
         banned_pms=CANGSHULUN_BANNED_PMS,
-        banned_buildings=("building_dye_plantation",),
+        building_limits=(("building_dye_plantation", 0.0),),
     )
 
-    optimizer = scenario.build_optimizer(economy)
-    state = optimizer.linprog()
+    optimizer = NominalOptimizer(economy)
+    state = optimizer.solve(scenario)
 
-    annual_gdp = float(np.dot(state.building_levels, optimizer.gdp_vector())) * 52
+    annual_gdp = float(np.dot(state.building_levels, scenario.gdp_vector(economy))) * 52
     employment = float(np.sum(state.pops))
     construction_cost = economy.construction_cost(state)
     gdp_per_capita = annual_gdp / employment if employment else float("inf")
@@ -131,16 +131,16 @@ def run_supply_chain_optimize():
     print(economy.df_buildings(state))
 
     print("\nNet Goods Output:")
-    net_goods = state.building_levels @ optimizer.goods_matrix
-    for good, value in zip(optimizer.goods_index(), net_goods):
+    net_goods = state.building_levels @ scenario.goods_matrix(economy)
+    for good, value in zip(economy.goods_index(), net_goods):
         if abs(value) > 1e-10:
             print(f"  {good}: {value}")
 
     _save_building_levels(state, economy)
     print("\nSaved figures/building_levels.png")
-    _save_net_goods(state, optimizer)
+    _save_net_goods(state, economy, scenario)
     print("Saved figures/net_goods.png")
-    _save_value_added(state, economy)
+    _save_value_added(state, economy, scenario)
     print("Saved figures/value_added.png")
     _save_bottleneck(state, economy, optimizer)
     print("Saved figures/bottleneck.png")

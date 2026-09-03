@@ -5,13 +5,15 @@ import pytest
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.analysis.supply_chain import (
     ProducerNode,
-    Scenario,
     SupplyChainNode,
     bottleneck,
     compare_scenarios,
+    optimize_chain,
     upstream_tree,
     value_added_breakdown,
 )
+from vic3_analysis.optimize.nominal import NominalOptimizer
+from vic3_analysis.optimize.scenario import Scenario
 
 TERMINAL_GOOD = "automobiles"
 RAW_GOOD = "manowars"
@@ -24,140 +26,18 @@ def economy() -> Economy:
 
 @pytest.fixture(scope="module")
 def automation_scenario() -> Scenario:
-    return Scenario(
-        terminal_good=TERMINAL_GOOD,
-        target_amount=1.0,
-        objective="automation",
-        autarky=True,
-    )
+    return Scenario(produce=((TERMINAL_GOOD, 1.0),), objective="automation")
 
 
 @pytest.fixture(scope="module")
 def solved(economy: Economy, automation_scenario: Scenario):
-    optimizer = automation_scenario.build_optimizer(economy)
-    state = optimizer.linprog()
+    optimizer = NominalOptimizer(economy)
+    state = optimizer.solve(automation_scenario)
     return optimizer, state
 
 
-def test_scenario_defaults():
-    scenario = Scenario(terminal_good="steel", target_amount=5.0)
-    assert scenario.objective == "automation"
-    assert scenario.autarky is True
-    assert scenario.banned_pms == ()
-    assert scenario.banned_buildings == ()
-    assert scenario.throughput_bonuses == ()
-    assert scenario.era_cap is None
-    assert scenario.construction_cost_cap is None
-    assert scenario.employment_cap is None
-    assert scenario.name is None
-
-
-def test_scenario_display_name():
-    assert Scenario(terminal_good="steel", target_amount=1.0).display_name() == "steel"
-    assert (
-        Scenario(
-            terminal_good="steel", target_amount=1.0, name="recipe-a"
-        ).display_name()
-        == "recipe-a"
-    )
-
-
-def test_scenario_frozen():
-    scenario = Scenario(terminal_good="steel", target_amount=1.0)
-    with pytest.raises(Exception):
-        setattr(scenario, "terminal_good", "iron")
-
-
-def test_build_optimizer_objective_sign(economy: Economy):
-    good = TERMINAL_GOOD
-    for objective in ("gdp", "employment", "automation", "construction_cost"):
-        optimizer = Scenario(
-            terminal_good=good, target_amount=1.0, objective=objective
-        ).build_optimizer(economy)
-        emp = optimizer.employment_vector()
-        gdp = optimizer.gdp_vector()
-        if objective == "gdp":
-            np.testing.assert_allclose(optimizer.objective_vector, -gdp)
-        elif objective == "employment":
-            np.testing.assert_allclose(optimizer.objective_vector, -emp)
-        elif objective == "automation":
-            np.testing.assert_allclose(optimizer.objective_vector, emp)
-        elif objective == "construction_cost":
-            np.testing.assert_array_equal(
-                optimizer.objective_vector, optimizer.construction_cost_vector()
-            )
-
-
-def test_build_optimizer_invalid_objective(economy: Economy):
-    with pytest.raises(ValueError, match="Unknown objective"):
-        Scenario(
-            terminal_good=TERMINAL_GOOD, target_amount=1.0, objective="bogus"
-        ).build_optimizer(economy)
-
-
-def test_build_optimizer_unknown_good(economy: Economy):
-    with pytest.raises(ValueError, match="not found in goods index"):
-        Scenario(terminal_good="not_a_real_good", target_amount=1.0).build_optimizer(
-            economy
-        )
-
-
-def test_build_optimizer_constraints(economy: Economy):
-    n_goods = len(economy.goods_index())
-    optimizer = Scenario(
-        terminal_good=TERMINAL_GOOD,
-        target_amount=1.0,
-        banned_pms=("pm_diesel_engines",),
-        banned_buildings=("building_dye_plantation",),
-    ).build_optimizer(economy)
-    # autarky -> one (A, b) pair with n_goods rows; produce -> one 1-row pair.
-    assert len(optimizer.inequality_constraints) == 2
-    a_import, _ = optimizer.inequality_constraints[0]
-    assert a_import.shape == (n_goods, len(economy.building_index()))
-    a_produce, b_produce = optimizer.inequality_constraints[1]
-    assert a_produce.ndim == 1
-    assert b_produce.shape == (1,)
-    # banned pms + banned buildings -> two equality pairs.
-    assert len(optimizer.equality_constraints) == 2
-
-
-def test_build_optimizer_no_autarky(economy: Economy):
-    optimizer = Scenario(
-        terminal_good=TERMINAL_GOOD,
-        target_amount=1.0,
-        autarky=False,
-    ).build_optimizer(economy)
-    # only the produce constraint, no import caps.
-    assert len(optimizer.inequality_constraints) == 1
-
-
-def test_build_optimizer_era_and_caps(economy: Economy):
-    optimizer = Scenario(
-        terminal_good=TERMINAL_GOOD,
-        target_amount=1.0,
-        era_cap=1,
-        construction_cost_cap=5000.0,
-        employment_cap=1000.0,
-    ).build_optimizer(economy)
-    # autarky + construction cap + employment cap + produce = 4 inequality pairs.
-    assert len(optimizer.inequality_constraints) == 4
-    assert len(optimizer.equality_constraints) == 1
-
-
-def test_build_optimizer_throughput_bonus(economy: Economy):
-    bk = "building_automotive_industry"
-    optimizer = Scenario(
-        terminal_good=TERMINAL_GOOD,
-        target_amount=1.0,
-        throughput_bonuses=((bk, 2.0),),
-    ).build_optimizer(economy)
-    mask = (economy.df_production["building"] == bk).to_numpy()
-    base = (economy.goods_output_matrix() - economy.goods_input_matrix())[mask]
-    np.testing.assert_allclose(optimizer.goods_matrix[mask], base * 2.0)
-
-
 def test_optimize_chain_returns_state(economy: Economy, automation_scenario: Scenario):
-    state = automation_scenario.optimize(economy)
+    state = optimize_chain(economy, automation_scenario)
     assert isinstance(state, EconomyState)
     assert state.building_levels.shape == (len(economy.building_index()),)
 
@@ -165,37 +45,12 @@ def test_optimize_chain_returns_state(economy: Economy, automation_scenario: Sce
 def test_optimize_chain_satisfies_produce(
     economy: Economy, automation_scenario: Scenario
 ):
-    optimizer = automation_scenario.build_optimizer(economy)
-    state = optimizer.linprog()
-    idx = optimizer.goods_index().index(TERMINAL_GOOD)
-    net = float(state.building_levels @ optimizer.goods_matrix[:, idx])
-    assert net >= automation_scenario.target_amount - 1e-6
-
-
-def test_optimize_chain_unbounded(economy: Economy):
-    # maximising GDP with no construction cap is unbounded.
-    with pytest.raises(ValueError, match="Optimization failed"):
-        Scenario(
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
-            objective="gdp",
-        ).optimize(economy)
-
-
-def test_nominal_optimizer_result_attribute(solved):
-    optimizer, _state = solved
-    assert optimizer.result is not None
-    assert hasattr(optimizer.result, "ineqlin")
-
-
-def test_nominal_optimizer_result_cleared_on_reset(economy: Economy):
-    optimizer = Scenario(
-        terminal_good=TERMINAL_GOOD, target_amount=1.0
-    ).build_optimizer(economy)
-    optimizer.linprog()
-    assert optimizer.result is not None
-    optimizer.reset()
-    assert optimizer.result is None
+    state = optimize_chain(economy, automation_scenario)
+    idx = economy.goods_index().index(TERMINAL_GOOD)
+    net = float(
+        state.building_levels @ automation_scenario.goods_matrix(economy)[:, idx]
+    )
+    assert net >= automation_scenario.produce[0][1] - 1e-6
 
 
 def test_upstream_tree_invalid_good(economy: Economy):
@@ -223,7 +78,7 @@ def test_upstream_tree_raw_good(economy: Economy):
 
 
 def test_upstream_tree_realized_filters_inactive(economy: Economy, solved):
-    optimizer, state = solved
+    _optimizer, state = solved
     tree = upstream_tree(economy, TERMINAL_GOOD, state)
     assert not tree.is_raw
     levels = state.building_levels
@@ -233,7 +88,7 @@ def test_upstream_tree_realized_filters_inactive(economy: Economy, solved):
 
 
 def test_upstream_tree_realized_scales_flows(economy: Economy, solved):
-    optimizer, state = solved
+    _optimizer, state = solved
     tree = upstream_tree(economy, TERMINAL_GOOD, state)
     out_mat = economy.goods_output_matrix()
     goods_index = economy.goods_index()
@@ -249,7 +104,7 @@ def test_upstream_tree_realized_scales_flows(economy: Economy, solved):
 def test_upstream_tree_realized_employment_matches(economy: Economy, solved):
     _optimizer, state = solved
     tree = upstream_tree(economy, TERMINAL_GOOD, state)
-    emp_vec = economy.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
+    emp_vec = economy.employment_vector()
     key_to_i = {k: i for i, k in enumerate(economy.building_index())}
     collected = {}
     for producer in tree.iter_producers():
@@ -260,6 +115,39 @@ def test_upstream_tree_realized_employment_matches(economy: Economy, solved):
         for p in collected.values()
     )
     assert total == pytest.approx(float(np.sum(state.pops)), rel=1e-6)
+
+
+def test_upstream_tree_scenario_bonus_consistent(economy: Economy):
+    scenario = Scenario(
+        produce=((TERMINAL_GOOD, 1.0),),
+        objective="automation",
+        throughput_bonuses=(("building_automotive_industry", 2.0),),
+    )
+    state = optimize_chain(economy, scenario)
+    tree = upstream_tree(economy, TERMINAL_GOOD, state, scenario)
+    out_mat = scenario.goods_output_matrix(economy)
+    goods_index = economy.goods_index()
+    key_to_i = {k: i for i, k in enumerate(economy.building_index())}
+    for producer in tree.iter_producers():
+        i = key_to_i[producer.config]
+        level = float(state.building_levels[i])
+        for good, amount in producer.outputs.items():
+            j = goods_index.index(good)
+            assert amount == pytest.approx(out_mat[i, j] * level)
+    # without the scenario the same state renders unscaled flows, so the
+    # bonused building's outputs differ by the bonus multiplier.
+    raw_tree = upstream_tree(economy, TERMINAL_GOOD, state)
+    adjusted = tree.collect_producers()
+    raw = raw_tree.collect_producers()
+    auto_configs = [
+        config
+        for config in set(adjusted) & set(raw)
+        if raw[config].building == "building_automotive_industry"
+    ]
+    assert auto_configs
+    config = auto_configs[0]
+    for good, amount in adjusted[config].outputs.items():
+        assert amount == pytest.approx(2.0 * raw[config].outputs[good])
 
 
 def test_iter_producers_yields_producers(economy: Economy):
@@ -286,7 +174,7 @@ def test_to_mermaid_recipe(economy: Economy):
 
 
 def test_to_mermaid_realized(economy: Economy, solved):
-    optimizer, state = solved
+    _optimizer, state = solved
     tree = upstream_tree(economy, TERMINAL_GOOD, state)
     m = tree.to_mermaid(realized=True)
     assert m.startswith("flowchart LR")
@@ -317,7 +205,7 @@ def test_to_mermaid_dashed_cycle_edges(economy: Economy):
 
 
 def test_to_mermaid_recipe_vs_realized_differ(economy: Economy, solved):
-    optimizer, state = solved
+    _optimizer, state = solved
     recipe = upstream_tree(economy, TERMINAL_GOOD)
     realised = upstream_tree(economy, TERMINAL_GOOD, state)
     m_recipe = recipe.to_mermaid()
@@ -436,6 +324,30 @@ def test_value_added_breakdown_chain_subset(economy: Economy, solved):
     assert df["gdp"].sum() >= 0
 
 
+def test_value_added_breakdown_scenario_bonus_consistent(economy: Economy):
+    scenario = Scenario(
+        produce=((TERMINAL_GOOD, 1.0),),
+        objective="automation",
+        throughput_bonuses=(("building_automotive_industry", 2.0),),
+    )
+    state = optimize_chain(economy, scenario)
+    # with the scenario, GDP totals match the bonus-adjusted objective vector.
+    df = value_added_breakdown(economy, state, scenario=scenario)
+    adjusted = float(np.dot(state.building_levels, scenario.gdp_vector(economy)))
+    assert df["gdp"].sum() == pytest.approx(adjusted, rel=1e-6)
+    # without it, totals match the raw matrices instead (and differ).
+    df_raw = value_added_breakdown(economy, state)
+    raw = float(
+        np.dot(
+            state.building_levels,
+            (economy.goods_output_matrix() - economy.goods_input_matrix())
+            @ economy.base_prices(),
+        )
+    )
+    assert df_raw["gdp"].sum() == pytest.approx(raw, rel=1e-6)
+    assert not np.isclose(adjusted, raw, rtol=1e-6)
+
+
 def test_bottleneck_columns(economy: Economy, solved):
     _optimizer, state = solved
     df = bottleneck(economy, state)
@@ -449,14 +361,14 @@ def test_bottleneck_columns(economy: Economy, solved):
 def test_bottleneck_with_optimizer(economy: Economy, solved):
     optimizer, state = solved
     df = bottleneck(economy, state, good=TERMINAL_GOOD, optimizer=optimizer)
-    assert df["import_marginal"].notna().any()  # pyright: ignore[reportGeneralTypeIssues]
+    assert df["import_marginal"].notna().to_numpy().any()
     assert (df["cost_share"] >= 0).all()
 
 
 def test_bottleneck_without_optimizer(economy: Economy, solved):
     _optimizer, state = solved
     df = bottleneck(economy, state, good=TERMINAL_GOOD)
-    assert df["import_marginal"].isna().all()  # pyright: ignore[reportGeneralTypeIssues]
+    assert df["import_marginal"].isna().to_numpy().all()
 
 
 def test_bottleneck_invalid_good(economy: Economy, solved):
@@ -467,32 +379,28 @@ def test_bottleneck_invalid_good(economy: Economy, solved):
 
 def test_compare_scenarios(economy: Economy):
     scenarios = [
-        Scenario(name="automation", terminal_good=TERMINAL_GOOD, target_amount=1.0),
+        Scenario(name="automation", produce=((TERMINAL_GOOD, 1.0),)),
         Scenario(
             name="bonus",
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
+            produce=((TERMINAL_GOOD, 1.0),),
             throughput_bonuses=(("building_automotive_industry", 2.0),),
         ),
         Scenario(
             name="min-construction",
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
+            produce=((TERMINAL_GOOD, 1.0),),
             objective="construction_cost",
         ),
         Scenario(
             name="unbounded",
-            terminal_good=TERMINAL_GOOD,
-            target_amount=1.0,
+            produce=((TERMINAL_GOOD, 1.0),),
             objective="gdp",
         ),
     ]
     df = compare_scenarios(economy, scenarios)
     expected = [
         "name",
-        "terminal_good",
+        "produce",
         "objective",
-        "target_amount",
         "base_price",
         "annual_gdp",
         "employment",
@@ -521,9 +429,20 @@ def test_compare_scenarios(economy: Economy):
     assert df.iloc[0]["chain_depth"] > 0
     assert df.iloc[0]["n_raw_inputs"] > 0
     assert df.iloc[0]["base_price"] == 100.0
+    assert df.iloc[0]["produce"] == f"{TERMINAL_GOOD}=1"
     # chain columns zeroed for failed scenarios.
     assert df.iloc[3]["n_active_buildings"] == 0
     assert df.iloc[3]["chain_depth"] == 0
+
+
+def test_compare_scenarios_empty_basket(economy: Economy):
+    # a produce-free scenario solves trivially; chain columns are zeroed.
+    df = compare_scenarios(economy, [Scenario(objective="construction_cost")])
+    assert len(df) == 1
+    assert df.iloc[0]["error"] == ""
+    assert df.iloc[0]["n_active_buildings"] == 0
+    assert df.iloc[0]["bottleneck_good"] == ""
+    assert pd.isna(df.iloc[0]["base_price"])
 
 
 def test_compare_scenarios_empty(economy: Economy):

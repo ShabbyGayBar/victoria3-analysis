@@ -20,17 +20,17 @@ from vic3_analysis.parse.technology import technology
 
 from vic3_analysis.analysis.production import production_table
 from vic3_analysis.analysis.economy import Economy
+from vic3_analysis.optimize.scenario import Scenario
+from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.analysis.supply_chain import (
-    Scenario,
     SupplyChainNode,
     ProducerNode,
     upstream_tree,
+    optimize_chain,
     value_added_breakdown,
     bottleneck,
     compare_scenarios,
 )
-
-from vic3_analysis.optimize.nominal import NominalOptimizer
 
 __all__ = [
     "get_vic3_directory",
@@ -48,11 +48,12 @@ __all__ = [
     "production_table",
     "Economy",
     "Scenario",
+    "NominalOptimizer",
     "SupplyChainNode",
     "ProducerNode",
     "upstream_tree",
+    "optimize_chain",
     "value_added_breakdown",
     "bottleneck",
     "compare_scenarios",
-    "NominalOptimizer",
 ]
