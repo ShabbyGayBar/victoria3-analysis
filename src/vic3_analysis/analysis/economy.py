@@ -387,25 +387,54 @@ class Economy:
         # Base prices aligned to the goods index.
         return self.df_goods["cost"].to_numpy(dtype=np.float64)
 
-    def goods_input_matrix(self) -> np.ndarray:
-        goods_columns = [f"goods_{good}" for good in self.goods_index()]
+    def _apply_throughput_multipliers(
+        self,
+        matrix: np.ndarray,
+        throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
+    ) -> np.ndarray:
+        """Scale matrix rows by optional per-configuration multipliers."""
+        if throughput_multipliers is None:
+            return matrix
+        if throughput_multipliers.ndim != 1:
+            raise ValueError("throughput_multipliers must be a 1-D array.")
+        if throughput_multipliers.shape[0] != len(self.building_index()):
+            raise ValueError(
+                "throughput_multipliers length must match the number of rows "
+                "in the production table."
+            )
+        return matrix * throughput_multipliers[:, None]
 
-        return np.maximum(
+    def goods_input_matrix(
+        self,
+        throughput_multipliers: (
+            np.ndarray[tuple[int], np.dtype[np.float64]] | None
+        ) = None,
+    ) -> np.ndarray:
+        """Return gross goods inputs, optionally scaled by configuration."""
+        goods_columns = [f"goods_{good}" for good in self.goods_index()]
+        matrix = np.maximum(
             -self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
                 dtype=np.float64
             ),
             0,
         )
+        return self._apply_throughput_multipliers(matrix, throughput_multipliers)
 
-    def goods_output_matrix(self) -> np.ndarray:
+    def goods_output_matrix(
+        self,
+        throughput_multipliers: (
+            np.ndarray[tuple[int], np.dtype[np.float64]] | None
+        ) = None,
+    ) -> np.ndarray:
+        """Return gross goods outputs, optionally scaled by configuration."""
         goods_columns = [f"goods_{good}" for good in self.goods_index()]
-
-        return np.maximum(
+        matrix = np.maximum(
             self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
                 dtype=np.float64
             ),
             0,
         )
+        return self._apply_throughput_multipliers(matrix, throughput_multipliers)
 
     def employment_matrix(self) -> np.ndarray:
         employment_columns = [f"employment_{pop}" for pop in self.pop_index()]
@@ -496,6 +525,9 @@ class Economy:
         method: str = "nominal",
         imports: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
         exports: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
+        throughput_multipliers: (
+            np.ndarray[tuple[int], np.dtype[np.float64]] | None
+        ) = None,
     ) -> EconomyState:
         """Solve for an :class:`EconomyState` from a building-level vector.
 
@@ -509,6 +541,9 @@ class Economy:
                 goods. Defaults to zeros.
             exports: 1-D array of shape ``(n_goods,)`` specifying exported
                 goods. Defaults to zeros.
+            throughput_multipliers: Optional 1-D array of shape
+                ``(n_buildings,)`` scaling each configuration's gross goods
+                inputs and outputs. Defaults to no scaling.
 
         Returns:
             An :class:`EconomyState` describing the resulting state.
@@ -516,8 +551,10 @@ class Economy:
         Raises:
             ValueError: If *method* is not ``"nominal"``, if
                 *building_levels* is not 1-D or its length does not match the
-                number of rows in the production table, or if *imports* or
-                *exports* lengths do not match the number of goods.
+                number of rows in the production table, if *imports* or
+                *exports* lengths do not match the number of goods, or if
+                *throughput_multipliers* is not aligned to the production
+                table.
         """
 
         if building_levels.ndim != 1:
@@ -535,9 +572,13 @@ class Economy:
             exports = np.zeros(len(self.goods_index()), dtype=np.float64)
         elif exports.shape[0] != len(self.goods_index()):
             raise ValueError("exports length must match the number of goods.")
-
         if method == "nominal":
-            return self._solve_nominal(building_levels, imports, exports)
+            return self._solve_nominal(
+                building_levels,
+                imports,
+                exports,
+                throughput_multipliers,
+            )
         raise ValueError(f"Invalid method: {method!r}")
 
     def _solve_nominal(
@@ -545,6 +586,7 @@ class Economy:
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
         imports: np.ndarray[tuple[int], np.dtype[np.float64]],
         exports: np.ndarray[tuple[int], np.dtype[np.float64]],
+        throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
     ) -> EconomyState:
         """Derive a nominal :class:`EconomyState` from a building-level vector.
 
@@ -559,13 +601,17 @@ class Economy:
                 goods.
             exports: 1-D array of shape ``(n_goods,)`` specifying exported
                 goods.
+            throughput_multipliers: Optional per-configuration multipliers for
+                gross goods inputs and outputs.
 
         Returns:
             An :class:`EconomyState` with prices, supply, demand, employment,
             and wealth derived from *building_levels*.
         """
-        building_goods_input = building_levels @ self.goods_input_matrix()
-        building_goods_output = building_levels @ self.goods_output_matrix()
+        goods_input_matrix = self.goods_input_matrix(throughput_multipliers)
+        goods_output_matrix = self.goods_output_matrix(throughput_multipliers)
+        building_goods_input = building_levels @ goods_input_matrix
+        building_goods_output = building_levels @ goods_output_matrix
         pops = building_levels[:, None] * self.employment_matrix()
 
         return EconomyState(

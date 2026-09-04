@@ -160,6 +160,29 @@ def test_goods_output_matrix(economy):
     assert (mat >= 0).all()
 
 
+def test_goods_matrices_with_throughput_multipliers(economy):
+    multipliers = np.full(len(economy.building_index()), 2.0, dtype=np.float64)
+    np.testing.assert_allclose(
+        economy.goods_input_matrix(multipliers),
+        economy.goods_input_matrix() * multipliers[:, None],
+    )
+    np.testing.assert_allclose(
+        economy.goods_output_matrix(multipliers),
+        economy.goods_output_matrix() * multipliers[:, None],
+    )
+
+
+@pytest.mark.parametrize("matrix_method", ["goods_input_matrix", "goods_output_matrix"])
+def test_goods_matrices_reject_misaligned_throughput_multipliers(
+    economy, matrix_method
+):
+    method = getattr(economy, matrix_method)
+    with pytest.raises(ValueError, match="throughput_multipliers must be a 1-D"):
+        method(np.ones((len(economy.building_index()), 1), dtype=np.float64))
+    with pytest.raises(ValueError, match="throughput_multipliers length"):
+        method(np.ones(len(economy.building_index()) + 1, dtype=np.float64))
+
+
 def test_employment_matrix(economy):
     mat = economy.employment_matrix()
     assert mat.shape == (len(economy.df_production), len(economy.df_pop_types))
@@ -272,6 +295,34 @@ def test_solve_with_imports_exports(economy):
     np.testing.assert_array_equal(state.exports, exports)
     np.testing.assert_allclose(state.sell_orders, state.building_goods_output + imports)
     np.testing.assert_allclose(state.buy_orders, state.building_goods_input + exports)
+
+
+def test_solve_with_throughput_multipliers(economy):
+    levels = _first_producing_levels(economy)
+    multipliers = np.full(len(economy.building_index()), 2.0, dtype=np.float64)
+    state = economy.solve(levels, throughput_multipliers=multipliers)
+    np.testing.assert_allclose(
+        state.building_goods_input,
+        levels @ (economy.goods_input_matrix() * multipliers[:, None]),
+    )
+    np.testing.assert_allclose(
+        state.building_goods_output,
+        levels @ (economy.goods_output_matrix() * multipliers[:, None]),
+    )
+
+
+def test_solve_rejects_misaligned_throughput_multipliers(economy):
+    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    with pytest.raises(ValueError, match="throughput_multipliers must be a 1-D"):
+        economy.solve(
+            levels,
+            throughput_multipliers=np.ones((len(levels), 1), dtype=np.float64),
+        )
+    with pytest.raises(ValueError, match="throughput_multipliers length"):
+        economy.solve(
+            levels,
+            throughput_multipliers=np.ones(len(levels) + 1, dtype=np.float64),
+        )
 
 
 def test_construction_cost(economy):

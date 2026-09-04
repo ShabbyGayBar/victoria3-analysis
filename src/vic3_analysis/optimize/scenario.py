@@ -157,7 +157,7 @@ class Scenario:
             return "+".join(good for good, _amount in self.produce)
         return "unnamed"
 
-    def _throughput_multipliers(self, economy: Economy) -> np.ndarray:
+    def throughput_multipliers(self, economy: Economy) -> np.ndarray:
         """Return per-configuration goods-flow multipliers from bonuses.
 
         Args:
@@ -184,9 +184,8 @@ class Scenario:
             The ``(n_buildings, n_goods)`` input matrix with the rows of
             bonused buildings scaled by their multipliers.
         """
-        return (
-            economy.goods_input_matrix()
-            * self._throughput_multipliers(economy)[:, None]
+        return economy.goods_input_matrix(
+            throughput_multipliers=self.throughput_multipliers(economy)
         )
 
     def goods_output_matrix(self, economy: Economy) -> np.ndarray:
@@ -199,9 +198,8 @@ class Scenario:
             The ``(n_buildings, n_goods)`` output matrix with the rows of
             bonused buildings scaled by their multipliers.
         """
-        return (
-            economy.goods_output_matrix()
-            * self._throughput_multipliers(economy)[:, None]
+        return economy.goods_output_matrix(
+            throughput_multipliers=self.throughput_multipliers(economy)
         )
 
     def goods_matrix(self, economy: Economy) -> np.ndarray:

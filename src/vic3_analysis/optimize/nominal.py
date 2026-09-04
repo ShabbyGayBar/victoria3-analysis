@@ -76,4 +76,7 @@ class NominalOptimizer:
             raise ValueError(f"Optimization failed: {res.message}")
         self.result = res
         self.scenario = scenario
-        return self.model.solve(res.x)
+        return self.model.solve(
+            res.x,
+            throughput_multipliers=scenario.throughput_multipliers(self.model),
+        )

@@ -58,6 +58,23 @@ def test_solve_satisfies_import_caps(economy: Economy):
     assert (net >= -1e-6).all()
 
 
+def test_solve_state_reflects_throughput_bonuses(economy: Economy):
+    scenario = Scenario(
+        produce=((TERMINAL_GOOD, 1.0),),
+        objective="construction_cost",
+        throughput_bonuses=(("building_automotive_industry", 2.0),),
+    )
+    state = NominalOptimizer(economy).solve(scenario)
+    np.testing.assert_allclose(
+        state.building_goods_input,
+        state.building_levels @ scenario.goods_input_matrix(economy),
+    )
+    np.testing.assert_allclose(
+        state.building_goods_output,
+        state.building_levels @ scenario.goods_output_matrix(economy),
+    )
+
+
 def test_solve_satisfies_building_limits(economy: Economy):
     scenario = Scenario(
         produce=((TERMINAL_GOOD, 1.0),),
