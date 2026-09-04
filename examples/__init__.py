@@ -5,10 +5,27 @@ TABLES_DIR = THIS_DIR / ".." / "tables"
 FIGURES_DIR = THIS_DIR / ".." / "figures"
 
 DEFAULT_BANNED_BGS = (
+    "bg_gold_fields",
+    "bg_army",
+    "bg_conscription",
+    "bg_naval_fortification",
+    "bg_naval_administration",
+    "bg_naval_logistics_center",
+    "bg_army_logistics_center",
+    "bg_bureaucracy",
+    "bg_technology",
+    "bg_skyscraper",
     "bg_monuments",
     "bg_monuments_hidden",
+    "bg_canals",
+    "bg_trade",
+    "bg_manor_houses",
+    "bg_financial_districts",
     "bg_subsistence_agriculture",
     "bg_subsistence_ranching",
+    "bg_construction",
+    "bg_company_headquarter",
+    "bg_company_regional_headquarter",
 )
 
 CANGSHULUN_BANNED_PMS = (
