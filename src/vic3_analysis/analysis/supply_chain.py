@@ -731,6 +731,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
                 if primary_good is not None
                 else float("nan")
             ),
+            "era_cap": scenario.era_cap,
         }
         try:
             state = solver.solve(scenario)
@@ -805,6 +806,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
         "construction_cost",
         "gdp_per_capita",
         "gdp_per_construction",
+        "era_cap",
         "arable_land_consumption",
         *level_columns,
         "n_active_buildings",
