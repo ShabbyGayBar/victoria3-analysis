@@ -17,6 +17,16 @@ from vic3_analysis.optimize.scenario import Scenario
 
 TERMINAL_GOOD = "automobiles"
 RAW_GOOD = "manowars"
+RESOURCE_LIMITED_GROUPS = frozenset(
+    {
+        "bg_mining",
+        "bg_logging",
+        "bg_rubber",
+        "bg_fishing",
+        "bg_whaling",
+        "bg_oil_extraction",
+    }
+)
 
 
 @pytest.fixture(scope="module")
@@ -397,6 +407,12 @@ def test_compare_scenarios(economy: Economy):
         ),
     ]
     df = compare_scenarios(economy, scenarios)
+    production = economy.df_production
+    resource_mask = production["building_group"].isin(tuple(RESOURCE_LIMITED_GROUPS))
+    resource_buildings = list(
+        dict.fromkeys(production.loc[resource_mask, "building"].astype(str))
+    )
+    level_columns = [f"level_{building}" for building in resource_buildings]
     expected = [
         "name",
         "produce",
@@ -405,6 +421,7 @@ def test_compare_scenarios(economy: Economy):
         "annual_gdp",
         "employment",
         "construction_cost",
+        *level_columns,
         "gdp_per_capita",
         "gdp_per_construction",
         "n_active_buildings",
@@ -430,6 +447,16 @@ def test_compare_scenarios(economy: Economy):
     assert df.iloc[0]["n_raw_inputs"] > 0
     assert df.iloc[0]["base_price"] == 100.0
     assert df.iloc[0]["produce"] == f"{TERMINAL_GOOD}=1"
+    assert list(df.columns[7 : 7 + len(level_columns)]) == level_columns
+    assert level_columns
+    # Every discovered building level aggregates all PM configurations for it.
+    state = optimize_chain(economy, scenarios[0])
+    for building, column in zip(resource_buildings, level_columns):
+        mask = production["building"].astype(str) == building
+        expected_level = float(np.sum(state.building_levels[mask.to_numpy()]))
+        assert df.iloc[0][column] == pytest.approx(expected_level)
+    # The unbounded scenario has no solved state, so all dynamic values are NaN.
+    assert df.iloc[3][level_columns].isna().all()
     # chain columns zeroed for failed scenarios.
     assert df.iloc[3]["n_active_buildings"] == 0
     assert df.iloc[3]["chain_depth"] == 0
@@ -443,6 +470,25 @@ def test_compare_scenarios_empty_basket(economy: Economy):
     assert df.iloc[0]["n_active_buildings"] == 0
     assert df.iloc[0]["bottleneck_good"] == ""
     assert pd.isna(df.iloc[0]["base_price"])
+    level_columns = [column for column in df.columns if column.startswith("level_")]
+    assert level_columns
+    assert (df.loc[0, level_columns] == 0.0).all()
+
+
+def test_compare_scenarios_without_building_group(economy: Economy):
+    production = economy.df_production.drop(columns="building_group")
+    custom_economy = Economy(
+        df_production=production,
+        df_goods=economy.df_goods,
+        df_pop_types=economy.df_pop_types,
+    )
+    df = compare_scenarios(
+        custom_economy, [Scenario(objective="construction_cost")]
+    )
+
+    assert len(df) == 1
+    assert not any(column.startswith("level_") for column in df.columns)
+    assert df.iloc[0]["error"] == ""
 
 
 def test_compare_scenarios_empty(economy: Economy):

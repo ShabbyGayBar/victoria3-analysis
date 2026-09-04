@@ -283,6 +283,28 @@ def test_construction_cost(economy):
     assert economy.construction_cost(state) == pytest.approx(expected)
 
 
+def test_levels_per_building(economy: Economy):
+    buildings = economy.df_production["building"].astype(str).to_numpy()
+    expected_order = list(dict.fromkeys(buildings))
+    first_building = expected_order[0]
+    first_building_rows = np.flatnonzero(buildings == first_building)
+    levels = np.zeros(len(buildings), dtype=np.float64)
+    levels[first_building_rows] = np.arange(
+        1, len(first_building_rows) + 1, dtype=np.float64
+    )
+
+    totals = economy.levels_per_building(economy.solve(levels))
+
+    assert list(totals) == expected_order
+    assert totals[first_building] == pytest.approx(float(np.sum(levels)))
+    assert all(totals[building] == 0.0 for building in expected_order[1:])
+
+
+def test_levels_per_building_rejects_misaligned_state(economy: Economy):
+    with pytest.raises(ValueError, match="must match the production table"):
+        economy.levels_per_building(_make_state())
+
+
 def test_market_prices_variance(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)

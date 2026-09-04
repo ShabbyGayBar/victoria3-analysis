@@ -12,7 +12,7 @@ df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
 df_goods = pd.read_csv(TABLES_DIR / "goods.csv")
 df_pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
 
-NORMALIZED_VALUE = 100.0
+NORMALIZED_VALUE = 100000.0
 
 
 economy = Economy(

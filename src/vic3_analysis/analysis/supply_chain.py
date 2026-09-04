@@ -34,6 +34,16 @@ from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
 
 _TOL = 1e-10
+_RESOURCE_LIMITED_BUILDING_GROUPS: frozenset[str] = frozenset(
+    {
+        "bg_mining",
+        "bg_logging",
+        "bg_rubber",
+        "bg_fishing",
+        "bg_whaling",
+        "bg_oil_extraction",
+    }
+)
 
 
 def optimize_chain(economy: Economy, scenario: Scenario) -> EconomyState:
@@ -639,13 +649,13 @@ def bottleneck(
             {
                 "good": g,
                 "input_cost": float(input_cost[j]),
-                "cost_share": float(input_cost[j] / total_input)
-                if total_input > 0
-                else 0.0,
+                "cost_share": (
+                    float(input_cost[j] / total_input) if total_input > 0 else 0.0
+                ),
                 "net_supply": float(net_supply[j]),
-                "import_marginal": float(marginals[j])
-                if marginals is not None
-                else float("nan"),
+                "import_marginal": (
+                    float(marginals[j]) if marginals is not None else float("nan")
+                ),
             }
         )
     df = pd.DataFrame(rows)
@@ -658,12 +668,16 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
     """Run multiple scenarios and tabulate headline and chain metrics.
 
     For each scenario solves the LP, then computes annual GDP, total
-    employment, construction cost, GDP per capita, GDP per construction cost,
-    base price, and supply-chain characteristics (active building count, chain
-    depth, raw-input count, bottleneck good / cost share / marginal).  Chain
-    characteristics are traced from the first produce-basket good.  Scenarios
-    that fail to solve are reported with ``NaN``/zero metrics and an ``error``
-    message so a comparison is not aborted by a single infeasible recipe.
+    employment, construction cost, resource-limited building levels, GDP per
+    capita, GDP per construction cost, base price, and supply-chain
+    characteristics (active building count, chain depth, raw-input count,
+    bottleneck good / cost share / marginal).  Resource-limited levels are
+    reported in dynamically named ``level_<building_key>`` columns, with each
+    building's value aggregated across all of its production-method
+    configurations.  Chain characteristics are traced from the first
+    produce-basket good.  Scenarios that fail to solve are reported with
+    ``NaN``/zero metrics and an ``error`` message so a comparison is not
+    aborted by a single infeasible recipe.
 
     Args:
         economy: The :class:`Economy` to optimise over.
@@ -672,13 +686,35 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
     Returns:
         A ``DataFrame`` with one row per scenario and columns ``name``,
         ``produce``, ``objective``, ``base_price``, ``annual_gdp``,
-        ``employment``, ``construction_cost``, ``gdp_per_capita``,
-        ``gdp_per_construction``, ``n_active_buildings``, ``chain_depth``,
+        ``employment``, ``construction_cost``,
+        one ``level_<building_key>`` column per resource-limited building
+        (aggregated across its production-method configurations),
+        followed by ``gdp_per_capita``, ``gdp_per_construction``,
+        ``n_active_buildings``, ``chain_depth``,
         ``n_raw_inputs``, ``bottleneck_good``, ``bottleneck_cost_share``,
-        ``bottleneck_marginal``, and ``error``.
+        ``bottleneck_marginal``, and ``error``.  The dynamic level columns
+        follow the first-appearance order of their building keys in
+        ``economy.df_production``.
     """
     solver = NominalOptimizer(economy)
     price_map = dict(zip(economy.goods_index(), economy.base_prices()))
+    production = economy.df_production
+    # ``building_group`` is optional for custom production tables (the
+    # upstream-tree analysis treats its absence as an empty group).  Such a
+    # table simply has no resource-limited building columns.
+    building_values = production["building"].astype(str).to_numpy()
+    if "building_group" in production.columns:
+        resource_mask = (
+            production["building_group"]
+            .isin(tuple(_RESOURCE_LIMITED_BUILDING_GROUPS))
+            .to_numpy()
+        )
+    else:
+        resource_mask = np.zeros(len(production), dtype=bool)
+    resource_limited_buildings = tuple(
+        str(building) for building in pd.unique(building_values[resource_mask])
+    )
+    level_columns = [f"level_{building}" for building in resource_limited_buildings]
 
     rows: list[dict[str, object]] = []
     for scenario in scenarios:
@@ -706,13 +742,15 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
             row["annual_gdp"] = annual_gdp
             row["employment"] = employment
             row["construction_cost"] = construction_cost
+            levels_per_building = economy.levels_per_building(state)
+            for building in resource_limited_buildings:
+                row[f"level_{building}"] = levels_per_building[building]
             row["gdp_per_capita"] = (
                 annual_gdp / employment if employment > 0 else float("inf")
             )
             row["gdp_per_construction"] = (
                 annual_gdp / construction_cost if construction_cost > 0 else 0.0
             )
-
             if primary_good is not None:
                 tree = upstream_tree(economy, primary_good, state, scenario)
                 row["n_active_buildings"] = len(tree.collect_producers())
@@ -741,6 +779,8 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
             row["annual_gdp"] = float("nan")
             row["employment"] = float("nan")
             row["construction_cost"] = float("nan")
+            for column in level_columns:
+                row[column] = float("nan")
             row["gdp_per_capita"] = float("nan")
             row["gdp_per_construction"] = float("nan")
             row["n_active_buildings"] = 0
@@ -764,6 +804,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
         "construction_cost",
         "gdp_per_capita",
         "gdp_per_construction",
+        *level_columns,
         "n_active_buildings",
         "chain_depth",
         "n_raw_inputs",

@@ -169,9 +169,15 @@ its own duals, so the ranking reflects the scenario's constraint layout.
 [`compare_scenarios`](../api.md) runs several `Scenario` objects and tabulates
 annual GDP, employment, construction cost, GDP per capita, GDP per construction
 cost, base price, and supply-chain characteristics (active building count, chain
-depth, raw-input count, bottleneck good / cost share / marginal). Infeasible or
-unbounded scenarios are reported with `NaN`/zero metrics and an `error` message
-rather than aborting the table.
+depth, raw-input count, bottleneck good / cost share / marginal). It also adds
+one dynamic `level_<building_key>` column for every resource-limited building
+found in the production table's `bg_mining`, `bg_logging`, `bg_rubber`,
+`bg_fishing`, `bg_whaling`, and `bg_oil_extraction` groups. Each value is the
+sum of the solved levels across all production-method configurations for that
+building, using `Economy.levels_per_building()`; columns follow their first
+appearance in the production table.
+Infeasible or unbounded scenarios are reported with `NaN`/zero metrics and an
+`error` message rather than aborting the table.
 
 ```python
 from vic3_analysis import compare_scenarios

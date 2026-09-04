@@ -456,6 +456,40 @@ class Economy:
         """
         return float(np.dot(eco.building_levels, self.construction_cost_vector()))
 
+    def levels_per_building(self, state: EconomyState) -> dict[str, float]:
+        """Return total levels per building across all PM configurations.
+
+        Building levels in :class:`EconomyState` are aligned to production-table
+        rows, where one building can appear in many production-method
+        configurations.  This method aggregates those configuration levels by
+        building key while preserving the buildings' first-appearance order in
+        :attr:`df_production`.
+
+        Args:
+            state: The :class:`EconomyState` whose levels are aggregated.
+
+        Returns:
+            A mapping from every building key in the production table to its
+            total level.  Unused buildings are included with value ``0.0``.
+
+        Raises:
+            ValueError: If the state's building-level vector is not aligned to
+                the production table.
+        """
+        expected_shape = (len(self.df_production),)
+        if state.building_levels.shape != expected_shape:
+            raise ValueError(
+                "state.building_levels shape must match the production table."
+            )
+
+        totals: dict[str, float] = {}
+        for building, level in zip(
+            self.df_production["building"], state.building_levels
+        ):
+            key = str(building)
+            totals[key] = totals.get(key, 0.0) + float(level)
+        return totals
+
     def solve(
         self,
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
