@@ -25,11 +25,6 @@ from vic3_analysis import (
 )
 
 
-def _warning_missing_columns(missing: set[str], table_name: str) -> None:
-    if missing:
-        warnings.warn(f"Missing {table_name} columns: {sorted(missing)}")
-
-
 def _weighted_percentile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
     """Return the weighted percentile *q* (in ``[0, 1]``) of *values*.
 
@@ -353,6 +348,11 @@ class Economy:
         self.df_production = df_production
         self.df_goods = df_goods
         self.df_pop_types = df_pop_types
+        goods_columns = [f"goods_{good}" for good in self.goods_index()]
+
+        missing = set(goods_columns) - set(self.df_production.columns)
+        if missing:
+            warnings.warn(f"Missing goods input columns: {sorted(missing)}")
 
     def building_index(self) -> list[str]:
         # Building-configuration keys (building+production_method) in df_production.
@@ -390,9 +390,6 @@ class Economy:
     def goods_input_matrix(self) -> np.ndarray:
         goods_columns = [f"goods_{good}" for good in self.goods_index()]
 
-        missing = set(goods_columns) - set(self.df_production.columns)
-        _warning_missing_columns(missing, "goods input")
-
         return np.maximum(
             -self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
                 dtype=np.float64
@@ -403,9 +400,6 @@ class Economy:
     def goods_output_matrix(self) -> np.ndarray:
         goods_columns = [f"goods_{good}" for good in self.goods_index()]
 
-        missing = set(goods_columns) - set(self.df_production.columns)
-        _warning_missing_columns(missing, "goods output")
-
         return np.maximum(
             self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
                 dtype=np.float64
@@ -415,9 +409,6 @@ class Economy:
 
     def employment_matrix(self) -> np.ndarray:
         employment_columns = [f"employment_{pop}" for pop in self.pop_index()]
-
-        missing = set(employment_columns) - set(self.df_production.columns)
-        _warning_missing_columns(missing, "employment")
 
         return self.df_production.reindex(
             columns=employment_columns, fill_value=0
