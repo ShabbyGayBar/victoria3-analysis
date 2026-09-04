@@ -745,6 +745,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
             levels_per_building = economy.levels_per_building(state)
             for building in resource_limited_buildings:
                 row[f"level_{building}"] = levels_per_building[building]
+            row["arable_land_consumption"] = economy.arable_land_consumption(state)
             row["gdp_per_capita"] = (
                 annual_gdp / employment if employment > 0 else float("inf")
             )
@@ -804,6 +805,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
         "construction_cost",
         "gdp_per_capita",
         "gdp_per_construction",
+        "arable_land_consumption",
         *level_columns,
         "n_active_buildings",
         "chain_depth",

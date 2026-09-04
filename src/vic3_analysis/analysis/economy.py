@@ -24,6 +24,17 @@ from vic3_analysis import (
     technology,
 )
 
+_ARABLE_LAND_BUILDING_GROUPS: frozenset[str] = frozenset(
+    {
+        "bg_staple_crops",
+        "bg_ranching",
+        "bg_agriculture",
+        "bg_plantations",
+        "bg_subsistence_agriculture",
+        "bg_subsistence_ranching",
+    }
+)
+
 
 def _weighted_percentile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
     """Return the weighted percentile *q* (in ``[0, 1]``) of *values*.
@@ -484,6 +495,34 @@ class Economy:
             construction cost vector.
         """
         return float(np.dot(eco.building_levels, self.construction_cost_vector()))
+
+    def arable_land_consumption(self, state: EconomyState) -> float:
+        """Return the total arable land consumed by an economy state.
+
+        Each building level consumes one unit of arable land when its building
+        group is agricultural, plantation, ranching, or subsistence land use.
+
+        Args:
+            state: The :class:`EconomyState` whose land consumption is summed.
+
+        Returns:
+            The sum of building-configuration levels in arable-land-consuming
+            building groups.
+
+        Raises:
+            ValueError: If the state's building-level vector is not aligned to
+                the production table.
+        """
+        expected_shape = (len(self.df_production),)
+        if state.building_levels.shape != expected_shape:
+            raise ValueError(
+                "state.building_levels shape must match the production table."
+            )
+
+        consumes_arable_land = self.df_production["building_group"].isin(
+            tuple(_ARABLE_LAND_BUILDING_GROUPS)
+        )
+        return float(np.sum(state.building_levels[consumes_arable_land.to_numpy()]))
 
     def levels_per_building(self, state: EconomyState) -> dict[str, float]:
         """Return total levels per building across all PM configurations.

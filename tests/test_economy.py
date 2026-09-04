@@ -334,6 +334,40 @@ def test_construction_cost(economy):
     assert economy.construction_cost(state) == pytest.approx(expected)
 
 
+def test_arable_land_consumption(economy: Economy):
+    arable_land_groups = {
+        "bg_staple_crops",
+        "bg_ranching",
+        "bg_agriculture",
+        "bg_plantations",
+        "bg_subsistence_agriculture",
+        "bg_subsistence_ranching",
+    }
+    groups = economy.df_production["building_group"]
+    levels = np.zeros(len(groups), dtype=np.float64)
+    for group in arable_land_groups:
+        group_rows = np.flatnonzero(groups.to_numpy() == group)
+        assert len(group_rows) > 0
+        levels[group_rows[0]] = 1.0
+
+    staple_crop_rows = np.flatnonzero(groups.to_numpy() == "bg_staple_crops")
+    levels[staple_crop_rows[1]] = 2.0
+
+    excluded_row = np.flatnonzero(
+        ~groups.isin(tuple(arable_land_groups)).to_numpy()
+    )[0]
+    levels[excluded_row] = 100.0
+
+    consumption = economy.arable_land_consumption(economy.solve(levels))
+
+    assert consumption == pytest.approx(float(len(arable_land_groups) + 2))
+
+
+def test_arable_land_consumption_rejects_misaligned_state(economy: Economy):
+    with pytest.raises(ValueError, match="must match the production table"):
+        economy.arable_land_consumption(_make_state())
+
+
 def test_levels_per_building(economy: Economy):
     buildings = economy.df_production["building"].astype(str).to_numpy()
     expected_order = list(dict.fromkeys(buildings))
