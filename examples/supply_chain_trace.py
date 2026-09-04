@@ -1,13 +1,11 @@
 import pandas as pd
 
 from vic3_analysis import Economy, Scenario, optimize_chain, upstream_tree
-from __init__ import THIS_DIR
+from __init__ import FIGURES_DIR, TABLES_DIR
 
-df_production_table = pd.read_csv(THIS_DIR / ".." / "tables" / "production_table.csv")
-df_goods = pd.read_csv(THIS_DIR / ".." / "tables" / "goods.csv")
-df_pop_types = pd.read_csv(THIS_DIR / ".." / "tables" / "pop_types.csv")
-
-FIGURES_DIR = THIS_DIR / ".." / "figures"
+df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
+df_goods = pd.read_csv(TABLES_DIR / "goods.csv")
+df_pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
 
 
 def run_supply_chain_trace():

@@ -1,5 +1,5 @@
-from __init__ import THIS_DIR
+from __init__ import TABLES_DIR
 from vic3_analysis import technology
 
 df = technology()
-df.to_csv(THIS_DIR / ".." / "tables" / "technology.csv", index=False)
+df.to_csv(TABLES_DIR / "technology.csv", index=False)

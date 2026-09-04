@@ -3,15 +3,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from __init__ import THIS_DIR
+from __init__ import FIGURES_DIR, TABLES_DIR
 from vic3_analysis import buy_packages
 
-FIGURES_DIR = THIS_DIR / ".." / "figures" / "buy_packages"
+BUY_PACKAGES_FIGURES_DIR = FIGURES_DIR / "buy_packages"
 
 data = buy_packages()
-data.to_csv(THIS_DIR / ".." / "tables" / "buy_packages.csv", index=False)
+data.to_csv(TABLES_DIR / "buy_packages.csv", index=False)
 
-FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+BUY_PACKAGES_FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 wealth = data["wealth"].to_numpy()
 for column in data.columns:
     if column == "wealth":
@@ -23,6 +23,6 @@ for column in data.columns:
     ax.set_ylabel(column)
     ax.set_title(f"{column} vs wealth")
     fig.tight_layout()
-    fig.savefig(str(FIGURES_DIR / f"{column}.svg"))
+    fig.savefig(str(BUY_PACKAGES_FIGURES_DIR / f"{column}.svg"))
     plt.close(fig)
     print(f"Saved figures/buy_packages/{column}.svg")
