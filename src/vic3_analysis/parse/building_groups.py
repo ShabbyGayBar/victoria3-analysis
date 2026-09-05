@@ -22,6 +22,7 @@ from vic3_analysis import get_vic3_directory, parse_merge
 _inherited_attrs: dict[str, bool] = {
     "land_usage": False,
     "cash_reserves_max": True,  # vanilla comment: inherits if "unspecified or set to 0"
+    "economy_of_scale": False,
 }
 
 
@@ -109,6 +110,8 @@ class BuildingGroupParser(Tree):
         - ``cash_reserves_max`` — inherited when missing *or* explicitly ``0``
           (per the vanilla file comment: "If unspecified or set to 0, it will
           use the value from the parent group").
+        - ``economy_of_scale`` — inherited when missing because the vanilla
+          rule applies to buildings in a flagged group or any child group.
 
         Non-inherited attributes keep their raw, group-local values (including
         ``None``/missing, which are simply absent from the dict).  Cycle guards

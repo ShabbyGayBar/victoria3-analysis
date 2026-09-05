@@ -10,6 +10,20 @@ constraints, and throughput bonuses as data — and [`NominalOptimizer`](../api.
 `EconomyState` containing the optimal building levels and the resulting
 economy state.
 
+Direct calls to `Economy.solve(building_levels)` apply economy of scale to
+eligible, non-subsistence buildings. Levels are summed across production-method
+configurations of the same building, and each level adds 1% to both goods
+inputs and outputs up to a default cap of 20%. Pass a different
+`economy_of_scale_level_cap` for technology- or country-adjusted caps, or set
+it to `0.0` to disable the effect. Economy-of-scale bonuses stack additively
+with `throughput_multipliers`; employment and other per-level quantities are
+unchanged.
+
+`NominalOptimizer` disables economy of scale because its level-dependent flows
+are nonlinear and are not represented by the current linear programme. Its
+returned state therefore remains consistent with the scenario objective and
+constraints.
+
 To perform a production optimisation, we must first acquire the following:
 
 + An `Economy` instance, which wraps the production table, goods table, and pop-types table parsed from the Victoria 3 game files.

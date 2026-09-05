@@ -81,7 +81,9 @@ def production_table(
             ``tables/buildings.csv``) with ``key``, ``building_group``,
             ``urbanization``, ``infrastructure_usage_per_level``,
             ``required_construction_points``, ``production_method_groups``,
-            and ``unlocking_technologies`` columns.
+            and ``unlocking_technologies`` columns. Optional
+            ``economy_of_scale`` and ``is_subsistence`` columns determine
+            economy-of-scale eligibility; missing columns default to false.
         df_goods: Goods table (:func:`~vic3_analysis.goods` or
             ``tables/goods.csv``) with ``key`` and ``cost`` columns.  Its row
             order fixes the ``goods_<good>`` column order of the result.
@@ -100,7 +102,7 @@ def production_table(
         A ``DataFrame`` with one row per building configuration.  The
         ``"production_method"`` column holds the chosen production methods
         concatenated with ``+``.  The remaining columns are ``"building"``,
-        ``"building_group"``, ``"urbanization"``,
+        ``"building_group"``, ``"economy_of_scale"``, ``"urbanization"``,
         ``"infrastructure_usage_per_level"`` (net of the configuration's
         ``state_infrastructure_add`` generation), ``"era"``,
         ``"unlocking_tech"``, ``"employment"``, ``"construction_cost"``,
@@ -173,6 +175,17 @@ def production_table(
         "production_method_groups",
         "unlocking_technologies",
     ]
+    economy_of_scale = (
+        df_buildings["economy_of_scale"].fillna(False).eq(True)
+        if "economy_of_scale" in df_buildings.columns
+        else pd.Series(False, index=df_buildings.index)
+    )
+    is_subsistence = (
+        df_buildings["is_subsistence"].fillna(False).eq(True)
+        if "is_subsistence" in df_buildings.columns
+        else pd.Series(False, index=df_buildings.index)
+    )
+    economy_of_scale_eligible = economy_of_scale & ~is_subsistence
     combo_rows: list[dict[str, object]] = []
     membership: list[tuple[int, int]] = []
 
@@ -184,7 +197,11 @@ def production_table(
         construction_cost,
         pmg_value,
         unlock_value,
-    ) in zip(*[df_buildings[column] for column in building_columns]):
+        has_economy_of_scale,
+    ) in zip(
+        *[df_buildings[column] for column in building_columns],
+        economy_of_scale_eligible,
+    ):
         if not isinstance(pmg_value, str) or not pmg_value:
             warnings.warn(
                 f"Building {building} has no production method groups, skipped",
@@ -231,6 +248,7 @@ def production_table(
                         pm_keys[position] for position in positions
                     ),
                     "building_group": building_group,
+                    "economy_of_scale": bool(has_economy_of_scale),
                     "urbanization": urbanization,
                     "infrastructure_usage_per_level": infrastructure,
                     "era": era,
@@ -244,6 +262,7 @@ def production_table(
         "building",
         "production_method",
         "building_group",
+        "economy_of_scale",
         "urbanization",
         "infrastructure_usage_per_level",
         "era",

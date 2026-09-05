@@ -36,6 +36,9 @@ def test_resolved_attributes_inheritance():
     assert resolved["bg_subsistence_agriculture"]["cash_reserves_max"] == 25000
     # bg_agriculture itself has land_usage set; no inheritance needed
     assert resolved["bg_agriculture"]["land_usage"] == "rural"
+    # Economy of scale applies through child groups, while explicit false wins.
+    assert resolved["bg_light_industry"]["economy_of_scale"] is True
+    assert resolved["bg_trade"]["economy_of_scale"] is False
 
 
 def test_group_to_python_dict_and_scalar():

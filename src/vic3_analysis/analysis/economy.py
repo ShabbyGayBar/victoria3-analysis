@@ -406,6 +406,14 @@ class Economy:
         """Scale matrix rows by optional per-configuration multipliers."""
         if throughput_multipliers is None:
             return matrix
+        self._validate_throughput_multipliers(throughput_multipliers)
+        return matrix * throughput_multipliers[:, None]
+
+    def _validate_throughput_multipliers(
+        self,
+        throughput_multipliers: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> None:
+        """Validate a production-row-aligned throughput multiplier vector."""
         if throughput_multipliers.ndim != 1:
             raise ValueError("throughput_multipliers must be a 1-D array.")
         if throughput_multipliers.shape[0] != len(self.building_index()):
@@ -413,7 +421,55 @@ class Economy:
                 "throughput_multipliers length must match the number of rows "
                 "in the production table."
             )
-        return matrix * throughput_multipliers[:, None]
+
+    def economy_of_scale_bonuses(
+        self,
+        building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
+        level_cap: float = 20.0,
+    ) -> np.ndarray:
+        """Return per-configuration economy-of-scale throughput bonuses.
+
+        Levels are summed across all production-method configurations of each
+        building. Eligible configurations receive one percentage point of
+        throughput per total building level, capped by *level_cap*. Returned
+        values are additive bonuses (for example, ``0.2`` for +20%), not full
+        multipliers.
+
+        Args:
+            building_levels: Production-row-aligned building levels.
+            level_cap: Maximum number of levels contributing to the bonus.
+
+        Returns:
+            A 1-D bonus vector aligned to the production table.
+
+        Raises:
+            ValueError: If *building_levels* is not aligned to the production
+                table or *level_cap* is negative or non-finite.
+        """
+        expected_shape = (len(self.df_production),)
+        if building_levels.shape != expected_shape:
+            raise ValueError("building_levels shape must match the production table.")
+        if not np.isfinite(level_cap) or level_cap < 0:
+            raise ValueError("level_cap must be a non-negative finite number.")
+        if "economy_of_scale" not in self.df_production.columns:
+            return np.zeros(expected_shape, dtype=np.float64)
+
+        buildings = self.df_production["building"].astype(str).to_numpy()
+        totals: dict[str, float] = {}
+        for building, level in zip(buildings, building_levels):
+            totals[building] = totals.get(building, 0.0) + float(level)
+
+        eligible = (
+            self.df_production["economy_of_scale"]
+            .fillna(False)
+            .eq(True)
+            .to_numpy(dtype=bool)
+        )
+        bonuses = np.zeros(expected_shape, dtype=np.float64)
+        for i, building in enumerate(buildings):
+            if eligible[i]:
+                bonuses[i] = 0.01 * min(max(totals[building], 0.0), level_cap)
+        return bonuses
 
     def goods_input_matrix(
         self,
@@ -633,6 +689,7 @@ class Economy:
             np.ndarray[tuple[int], np.dtype[np.float64]] | None
         ) = None,
         pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
+        economy_of_scale_level_cap: float = 0.0,
     ) -> EconomyState:
         """Solve for an :class:`EconomyState` from a building-level vector.
 
@@ -651,6 +708,9 @@ class Economy:
                 inputs and outputs. Defaults to no scaling.
             pop_needs: Optional 1-D array of shape ``(n_goods,)`` specifying
                 population needs demand. Defaults to zeros.
+            economy_of_scale_level_cap: Maximum building level contributing to
+                economy of scale. Defaults to ``20.0`` (+20% throughput); use
+                ``0.0`` to disable the effect.
 
         Returns:
             An :class:`EconomyState` describing the resulting state.
@@ -661,8 +721,9 @@ class Economy:
                 number of rows in the production table, if *imports* or
                 *exports* lengths do not match the number of goods, or if
                 *throughput_multipliers* is not aligned to the production
-                table, or if *pop_needs* is not a non-negative finite
-                goods-aligned vector.
+                table, if *pop_needs* is not a non-negative finite
+                goods-aligned vector, or if the economy-of-scale cap is
+                negative or non-finite.
         """
 
         if building_levels.ndim != 1:
@@ -684,6 +745,14 @@ class Economy:
             pop_needs = np.zeros(len(self.goods_index()), dtype=np.float64)
         else:
             pop_needs = self._validate_goods_vector(pop_needs, "pop_needs")
+        bonuses = self.economy_of_scale_bonuses(
+            building_levels, economy_of_scale_level_cap
+        )
+        if throughput_multipliers is None:
+            throughput_multipliers = np.ones(len(self.df_production), dtype=np.float64)
+        else:
+            self._validate_throughput_multipliers(throughput_multipliers)
+        throughput_multipliers = throughput_multipliers + bonuses
         if method == "nominal":
             return self._solve_nominal(
                 building_levels,

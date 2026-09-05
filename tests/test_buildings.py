@@ -37,3 +37,4 @@ def test_buildings_group_attr_columns():
     assert row["urbanization"] == 20
     assert row["parent_group"] == "bg_manufacturing"
     assert row["cash_reserves_max"] == 25000
+    assert row["economy_of_scale"] is True

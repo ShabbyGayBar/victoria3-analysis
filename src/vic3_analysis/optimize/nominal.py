@@ -65,7 +65,9 @@ class NominalOptimizer:
             optimal building-level vector.  The underlying
             :class:`scipy.optimize.OptimizeResult` is also stored on
             :attr:`result` (and the scenario on :attr:`scenario`) for
-            marginal inspection.
+            marginal inspection. Economy of scale is disabled because its
+            level-dependent throughput is nonlinear and is not represented in
+            the linear programme.
 
         Raises:
             ValueError: If :func:`scipy.optimize.linprog` reports that the
@@ -79,4 +81,5 @@ class NominalOptimizer:
         return self.model.solve(
             res.x,
             throughput_multipliers=scenario.throughput_multipliers(self.model),
+            economy_of_scale_level_cap=0.0,
         )

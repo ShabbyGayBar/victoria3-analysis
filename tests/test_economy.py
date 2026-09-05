@@ -357,10 +357,14 @@ def test_solve_nominal(economy):
     assert np.all(state.exports == 0)
     assert np.all(state.pop_needs == 0)
     np.testing.assert_allclose(
-        state.building_goods_input, levels @ economy.goods_input_matrix()
+        state.building_goods_input,
+        levels
+        @ economy.goods_input_matrix(1.0 + economy.economy_of_scale_bonuses(levels)),
     )
     np.testing.assert_allclose(
-        state.building_goods_output, levels @ economy.goods_output_matrix()
+        state.building_goods_output,
+        levels
+        @ economy.goods_output_matrix(1.0 + economy.economy_of_scale_bonuses(levels)),
     )
     np.testing.assert_allclose(
         state.pops, levels[:, None] * economy.employment_matrix()
@@ -430,13 +434,98 @@ def test_solve_with_throughput_multipliers(economy):
     levels = _first_producing_levels(economy)
     multipliers = np.full(len(economy.building_index()), 2.0, dtype=np.float64)
     state = economy.solve(levels, throughput_multipliers=multipliers)
+    combined = multipliers + economy.economy_of_scale_bonuses(levels)
     np.testing.assert_allclose(
         state.building_goods_input,
-        levels @ (economy.goods_input_matrix() * multipliers[:, None]),
+        levels @ economy.goods_input_matrix(combined),
     )
     np.testing.assert_allclose(
         state.building_goods_output,
-        levels @ (economy.goods_output_matrix() * multipliers[:, None]),
+        levels @ economy.goods_output_matrix(combined),
+    )
+
+
+def test_economy_of_scale_bonuses_aggregate_configs_and_cap(
+    economy: Economy,
+) -> None:
+    buildings = economy.df_production["building"].astype(str).to_numpy()
+    eligible = economy.df_production["economy_of_scale"].to_numpy(dtype=bool)
+    building = str(economy.df_production.loc[eligible, "building"].iloc[0])
+    positions = np.flatnonzero(buildings == building)
+    assert len(positions) >= 2
+
+    levels = np.zeros(len(buildings), dtype=np.float64)
+    levels[positions[0]] = 2.5
+    levels[positions[1]] = 3.75
+    levels[np.flatnonzero(~eligible)[0]] = 10.0
+    bonuses = economy.economy_of_scale_bonuses(levels)
+    np.testing.assert_allclose(bonuses[positions], 0.0625)
+    np.testing.assert_array_equal(bonuses[buildings != building], 0.0)
+
+    capped = economy.economy_of_scale_bonuses(levels, level_cap=5.0)
+    np.testing.assert_allclose(capped[positions], 0.05)
+
+    levels[positions] = 0.0
+    levels[positions[0]] = 25.0
+    np.testing.assert_allclose(economy.economy_of_scale_bonuses(levels)[positions], 0.2)
+    np.testing.assert_allclose(
+        economy.economy_of_scale_bonuses(levels, level_cap=30.0)[positions], 0.25
+    )
+
+
+@pytest.mark.parametrize("level_cap", [-1.0, np.nan, np.inf])
+def test_economy_of_scale_bonuses_reject_invalid_cap(
+    economy: Economy, level_cap: float
+) -> None:
+    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    with pytest.raises(ValueError, match="level_cap"):
+        economy.economy_of_scale_bonuses(levels, level_cap=level_cap)
+
+
+def test_economy_of_scale_bonuses_reject_misaligned_levels(
+    economy: Economy,
+) -> None:
+    with pytest.raises(ValueError, match="building_levels shape"):
+        economy.economy_of_scale_bonuses(
+            np.zeros(len(economy.building_index()) + 1, dtype=np.float64)
+        )
+
+
+def test_economy_of_scale_missing_column_and_disabled(economy: Economy) -> None:
+    levels = _first_producing_levels(economy)
+    without_flag = Economy(
+        df_production=economy.df_production.drop(columns="economy_of_scale"),
+        df_goods=economy.df_goods,
+        df_pop_types=economy.df_pop_types,
+    )
+    np.testing.assert_array_equal(
+        without_flag.economy_of_scale_bonuses(levels), np.zeros(len(levels))
+    )
+
+    state = economy.solve(levels, economy_of_scale_level_cap=0.0)
+    np.testing.assert_allclose(
+        state.building_goods_input, levels @ economy.goods_input_matrix()
+    )
+    np.testing.assert_allclose(
+        state.building_goods_output, levels @ economy.goods_output_matrix()
+    )
+
+
+def test_solve_with_raised_economy_of_scale_cap(economy: Economy) -> None:
+    eligible = economy.df_production["economy_of_scale"].to_numpy(dtype=bool)
+    position = int(np.flatnonzero(eligible)[0])
+    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels[position] = 25.0
+
+    state = economy.solve(levels, economy_of_scale_level_cap=30.0)
+    multipliers = 1.0 + economy.economy_of_scale_bonuses(levels, level_cap=30.0)
+    np.testing.assert_allclose(
+        state.building_goods_input,
+        levels @ economy.goods_input_matrix(multipliers),
+    )
+    np.testing.assert_allclose(
+        state.building_goods_output,
+        levels @ economy.goods_output_matrix(multipliers),
     )
 
 
