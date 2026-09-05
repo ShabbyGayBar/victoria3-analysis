@@ -519,6 +519,9 @@ class Economy:
                 "state.building_levels shape must match the production table."
             )
 
+        if "building_group" not in self.df_production.columns:
+            return 0.0
+
         consumes_arable_land = self.df_production["building_group"].isin(
             tuple(_ARABLE_LAND_BUILDING_GROUPS)
         )

@@ -421,9 +421,11 @@ def test_compare_scenarios(economy: Economy):
         "annual_gdp",
         "employment",
         "construction_cost",
-        *level_columns,
         "gdp_per_capita",
         "gdp_per_construction",
+        "era_cap",
+        "arable_land_consumption",
+        *level_columns,
         "n_active_buildings",
         "chain_depth",
         "n_raw_inputs",
@@ -447,7 +449,10 @@ def test_compare_scenarios(economy: Economy):
     assert df.iloc[0]["n_raw_inputs"] > 0
     assert df.iloc[0]["base_price"] == 100.0
     assert df.iloc[0]["produce"] == f"{TERMINAL_GOOD}=1"
-    assert list(df.columns[7 : 7 + len(level_columns)]) == level_columns
+    level_start = expected.index(level_columns[0])
+    assert list(df.columns[level_start : level_start + len(level_columns)]) == (
+        level_columns
+    )
     assert level_columns
     # Every discovered building level aggregates all PM configurations for it.
     state = optimize_chain(economy, scenarios[0])
@@ -475,6 +480,25 @@ def test_compare_scenarios_empty_basket(economy: Economy):
     assert (df.loc[0, level_columns] == 0.0).all()
 
 
+def test_compare_scenarios_solves_each_scenario_once(
+    economy: Economy, monkeypatch: pytest.MonkeyPatch
+):
+    calls = 0
+    original_solve = NominalOptimizer.solve
+
+    def counted_solve(optimizer: NominalOptimizer, scenario: Scenario):
+        nonlocal calls
+        calls += 1
+        return original_solve(optimizer, scenario)
+
+    monkeypatch.setattr(NominalOptimizer, "solve", counted_solve)
+    compare_scenarios(
+        economy,
+        [Scenario(produce=((TERMINAL_GOOD, 1.0),), objective="automation")],
+    )
+    assert calls == 1
+
+
 def test_compare_scenarios_without_building_group(economy: Economy):
     production = economy.df_production.drop(columns="building_group")
     custom_economy = Economy(
@@ -482,9 +506,7 @@ def test_compare_scenarios_without_building_group(economy: Economy):
         df_goods=economy.df_goods,
         df_pop_types=economy.df_pop_types,
     )
-    df = compare_scenarios(
-        custom_economy, [Scenario(objective="construction_cost")]
-    )
+    df = compare_scenarios(custom_economy, [Scenario(objective="construction_cost")])
 
     assert len(df) == 1
     assert not any(column.startswith("level_") for column in df.columns)

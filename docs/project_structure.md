@@ -160,16 +160,17 @@ The script name maps 1:1 to the output table:
 Run any script with `uv run python -m examples.<name>` or directly. They are
 the canonical "how do I use this package" reference for non-developers.
 
-- `supply_chain_optimize.py`, `supply_chain_trace.py`,
-  `supply_chain_compare.py` — supply-chain analysis demos built on the
+- `supply_chain_trace.py`, `supply_chain_compare.py`,
+  `supply_chain_cangshulun.py` — supply-chain analysis demos built on the
   `vic3_analysis.analysis.supply_chain` module: scenario-based optimisation
   (reproduces the historical `cangshulun_1` recipe via `Scenario` — the
   original `cangshulun_1.py` / `cangshulun_2.py` scripts were removed once the
   recipe became a `Scenario`), recipe/realised upstream tracing (writes
   Mermaid `.mmd` files), and a full sweep of all producible terminal goods
   with normalised target value and `construction_cost` objective (writes
-  `tables/supply_chain_sweep.csv` and summary charts). The optimisation and
-  comparison scripts also generate matplotlib bar charts saved as PNGs.
+  `tables/supply_chain_sweep.csv` and summary charts). The product-details
+  script writes `tables/supply_chain_cangshulun.csv` with `annual_gdp`,
+  `gdp_per_capita`, and per-employment building-level metrics.
   Runnable as `__main__` scripts; not collected by pytest.
 
 ## `tables/` — Generated CSV Output
@@ -179,6 +180,8 @@ documentation (`docs/usage/parse.md` links to them on GitHub) and usable for
 downstream analysis without a local game install. The flagship
 `production_table.csv` feeds the optimisation workflow.
 `supply_chain_sweep.csv` contains the full terminal-good sweep results.
+`supply_chain_cangshulun.csv` contains the cangshulun per-good report and
+named production-method variants.
 
 ## `figures/` — Generated Visualisation Output
 

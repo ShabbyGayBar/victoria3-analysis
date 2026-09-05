@@ -63,3 +63,50 @@ CANGSHULUN_BUILDING_LIMITS = (
     # 染料采用合成厂制备，即禁止使用种植园制备染料
     ("building_dye_plantation", 0.0),
 )
+
+# Throughput values used by the cangshulun video.  The scenario API matches
+# building keys, so scripts expand these group-level rules to each distinct
+# building exactly once before constructing a Scenario.
+CANGSHULUN_THROUGHPUT_GROUPS = (
+    ("bg_light_industry", 2.45),
+    ("bg_heavy_industry", 2.45),
+    ("bg_military_industry", 2.45),
+    ("bg_private_infrastructure", 2.45),
+    ("bg_power", 2.45),
+    ("bg_trade", 2.45),
+    ("bg_staple_crops", 2.45),
+    ("bg_ranching", 2.45),
+    ("bg_agriculture", 2.45),
+    ("bg_plantations", 2.45),
+    ("bg_mining", 2.15),
+    ("bg_logging", 2.15),
+    ("bg_rubber", 2.15),
+    ("bg_fishing", 2.15),
+    ("bg_whaling", 2.15),
+    ("bg_oil_extraction", 2.15),
+)
+
+# These PMs are intentionally disabled for the video comparison.  The
+# plantation-specific PMs are listed explicitly so unrelated upstream PMs
+# remain available.
+CANGSHULUN_VIDEO_BANNED_PMS = (
+    "slave_exploitation_coffee",
+    "worker_exploitation_coffee",
+    "slave_exploitation_cotton",
+    "worker_exploitation_cotton",
+    "slave_exploitation_dye",
+    "worker_exploitation_dye",
+    "slave_exploitation_tea",
+    "worker_exploitation_tea",
+    "worker_exploitation_tobacco",
+    "lectors_tobacco",
+    "radio_stations_tobacco",
+    "slave_exploitation_sugar",
+    "worker_exploitation_sugar",
+    "slave_exploitation_banana",
+    "worker_exploitation_banana",
+    "slave_exploitation_rubber",
+    "worker_exploitation_rubber",
+    "pm_rayon",
+    "pm_chainsaws",
+)

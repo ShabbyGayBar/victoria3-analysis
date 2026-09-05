@@ -169,7 +169,8 @@ its own duals, so the ranking reflects the scenario's constraint layout.
 [`compare_scenarios`](../api.md) runs several `Scenario` objects and tabulates
 annual GDP, employment, construction cost, GDP per capita, GDP per construction
 cost, base price, and supply-chain characteristics (active building count, chain
-depth, raw-input count, bottleneck good / cost share / marginal). It also adds
+depth, raw-input count, bottleneck good / cost share / marginal). The table's
+headline output metrics are `annual_gdp` and `gdp_per_capita`. It also adds
 one dynamic `level_<building_key>` column for every resource-limited building
 found in the production table's `bg_mining`, `bg_logging`, `bg_rubber`,
 `bg_fishing`, `bg_whaling`, and `bg_oil_extraction` groups. Each value is the
@@ -186,6 +187,14 @@ df = compare_scenarios(economy, [scenario_a, scenario_b, scenario_c])
 print(df.to_string(index=False))
 ```
 
+For the complete cangshulun per-product report, run
+`uv run python -m examples.supply_chain_cangshulun`. The script writes
+`tables/supply_chain_cangshulun.csv`: one normalised automation scenario
+for each producible good plus named railway, glass, furniture, logging,
+groceries, clothing, grain, and urban-centre variants. It records both
+`annual_gdp` and `gdp_per_capita`, as well as absolute and employment-normalised
+resource-building levels.
+
 `Economy.producible_goods()` returns all goods that have at least one
 producer configuration, useful for generating a sweep over every terminal good:
 
@@ -200,10 +209,9 @@ scenarios = [
 df = compare_scenarios(economy, scenarios)
 ```
 
-The `examples/supply_chain_optimize.py`, `examples/supply_chain_trace.py`, and
-`examples/supply_chain_compare.py` scripts demonstrate each facet end-to-end.
-The optimisation script generates matplotlib bar charts (building levels, net
-goods, value-added by good, bottleneck) saved as PNGs to `figures/`. The
-comparison script sweeps all producible terminal goods (normalised target value,
-`construction_cost` objective) and writes `tables/supply_chain_sweep.csv` plus
-summary charts to `figures/`.
+The `examples/supply_chain_trace.py`, `examples/supply_chain_compare.py`, and
+`examples/supply_chain_cangshulun.py` scripts demonstrate each facet
+end-to-end. The comparison script preserves the historical
+`tables/supply_chain_sweep.csv` export. The product-details script writes the
+separate `tables/supply_chain_cangshulun.csv` export with one normalised
+automation scenario per producible good and named PM variants.
