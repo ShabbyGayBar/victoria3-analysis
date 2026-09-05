@@ -8,7 +8,7 @@ prices and per-profession wealth from the pop-types table.
 """
 
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cached_property
 from pathlib import Path
 
@@ -471,6 +471,22 @@ class Economy:
         # Construction cost per building level aligned to production-table rows.
         return self.df_production["construction_cost"].to_numpy(dtype=np.float64)
 
+    def _validate_goods_vector(
+        self,
+        vector: np.ndarray,
+        name: str,
+    ) -> np.ndarray:
+        """Validate a goods-aligned vector and return it as float64."""
+        if vector.ndim != 1:
+            raise ValueError(f"{name} must be a 1-D array.")
+        if vector.shape[0] != len(self.goods_index()):
+            raise ValueError(f"{name} length must match the number of goods.")
+        if not np.isfinite(vector).all():
+            raise ValueError(f"{name} must contain only finite values.")
+        if (vector < 0).any():
+            raise ValueError(f"{name} must contain only non-negative values.")
+        return vector.astype(np.float64, copy=False)
+
     def market_prices_variance(self, eco: EconomyState) -> np.ndarray:
         """Calculate the market prices variance from base prices.
 
@@ -482,6 +498,42 @@ class Economy:
             A 1-D array of shape ``(n_goods,)`` containing the market prices variance.
         """
         return (eco.market_prices / self.base_prices() - 1) * 100
+
+    def market_prices(
+        self,
+        buy_orders: np.ndarray[tuple[int], np.dtype[np.float64]],
+        sell_orders: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> np.ndarray:
+        """Calculate market prices from buy and sell orders.
+
+        Args:
+            buy_orders: 1-D array of non-negative buy orders aligned to the
+                goods table.
+            sell_orders: 1-D array of non-negative sell orders aligned to the
+                goods table.
+
+        Returns:
+            A float64 array of prices aligned to :meth:`goods_index`.
+
+        Raises:
+            ValueError: If either input is not a 1-D goods-aligned array, does
+                not contain finite values, or contains negative values.
+        """
+        buy_orders = self._validate_goods_vector(buy_orders, "buy_orders")
+        sell_orders = self._validate_goods_vector(sell_orders, "sell_orders")
+
+        base_prices = self.base_prices()
+        prices = base_prices.copy()
+        shared = np.minimum(buy_orders, sell_orders)
+        mask = shared > 0
+        if mask.any():
+            ratio = (buy_orders[mask] - sell_orders[mask]) / shared[mask]
+            prices[mask] = base_prices[mask] * (1 + 0.75 * np.clip(ratio, -1, 1))
+        buy_only = (buy_orders > 0) & (sell_orders == 0)
+        sell_only = (sell_orders > 0) & (buy_orders == 0)
+        prices[buy_only] = base_prices[buy_only] * 1.75
+        prices[sell_only] = base_prices[sell_only] * 0.25
+        return prices.astype(np.float64, copy=False)
 
     def construction_cost(self, eco: EconomyState) -> float:
         """Calculate the total construction cost for an :class:`EconomyState`.
@@ -580,6 +632,7 @@ class Economy:
         throughput_multipliers: (
             np.ndarray[tuple[int], np.dtype[np.float64]] | None
         ) = None,
+        pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
     ) -> EconomyState:
         """Solve for an :class:`EconomyState` from a building-level vector.
 
@@ -587,8 +640,8 @@ class Economy:
             building_levels: 1-D array of shape ``(n_buildings,)`` specifying
                 the level of each building configuration in the production
                 table.
-            method: The solving method to use. Currently only ``"nominal"`` is
-                supported.
+            method: The solving method to use. ``"nominal"`` uses base prices;
+                ``"market"`` derives prices from buy and sell orders.
             imports: 1-D array of shape ``(n_goods,)`` specifying imported
                 goods. Defaults to zeros.
             exports: 1-D array of shape ``(n_goods,)`` specifying exported
@@ -596,17 +649,20 @@ class Economy:
             throughput_multipliers: Optional 1-D array of shape
                 ``(n_buildings,)`` scaling each configuration's gross goods
                 inputs and outputs. Defaults to no scaling.
+            pop_needs: Optional 1-D array of shape ``(n_goods,)`` specifying
+                population needs demand. Defaults to zeros.
 
         Returns:
             An :class:`EconomyState` describing the resulting state.
 
         Raises:
-            ValueError: If *method* is not ``"nominal"``, if
+            ValueError: If *method* is not ``"nominal"`` or ``"market"``, if
                 *building_levels* is not 1-D or its length does not match the
                 number of rows in the production table, if *imports* or
                 *exports* lengths do not match the number of goods, or if
                 *throughput_multipliers* is not aligned to the production
-                table.
+                table, or if *pop_needs* is not a non-negative finite
+                goods-aligned vector.
         """
 
         if building_levels.ndim != 1:
@@ -624,12 +680,25 @@ class Economy:
             exports = np.zeros(len(self.goods_index()), dtype=np.float64)
         elif exports.shape[0] != len(self.goods_index()):
             raise ValueError("exports length must match the number of goods.")
+        if pop_needs is None:
+            pop_needs = np.zeros(len(self.goods_index()), dtype=np.float64)
+        else:
+            pop_needs = self._validate_goods_vector(pop_needs, "pop_needs")
         if method == "nominal":
             return self._solve_nominal(
                 building_levels,
                 imports,
                 exports,
                 throughput_multipliers,
+                pop_needs,
+            )
+        if method == "market":
+            return self._solve_market(
+                building_levels,
+                imports,
+                exports,
+                throughput_multipliers,
+                pop_needs,
             )
         raise ValueError(f"Invalid method: {method!r}")
 
@@ -639,12 +708,13 @@ class Economy:
         imports: np.ndarray[tuple[int], np.dtype[np.float64]],
         exports: np.ndarray[tuple[int], np.dtype[np.float64]],
         throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
+        pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> EconomyState:
         """Derive a nominal :class:`EconomyState` from a building-level vector.
 
         Uses base (nominal) goods prices, gross goods output for supply, gross
-        goods input for demand (pop consumption is not yet integrated),
-        per-profession employment, and per-profession
+        goods input plus supplied population needs for demand, per-profession
+        employment, and per-profession
         ``start_quality_of_life`` for wealth.
 
         Args:
@@ -655,6 +725,7 @@ class Economy:
                 goods.
             throughput_multipliers: Optional per-configuration multipliers for
                 gross goods inputs and outputs.
+            pop_needs: 1-D array of goods-aligned population needs demand.
 
         Returns:
             An :class:`EconomyState` with prices, supply, demand, employment,
@@ -676,7 +747,28 @@ class Economy:
             pops=pops,
             pop_wealth=np.broadcast_to(self.pop_wealth_init(), pops.shape).copy(),
             pop_balance=np.zeros((len(self.building_index()), len(self.pop_index()))),
-            pop_needs=np.zeros(len(self.goods_index()), dtype=np.float64),
+            pop_needs=pop_needs,
+        )
+
+    def _solve_market(
+        self,
+        building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
+        imports: np.ndarray[tuple[int], np.dtype[np.float64]],
+        exports: np.ndarray[tuple[int], np.dtype[np.float64]],
+        throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
+        pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
+    ) -> EconomyState:
+        """Derive a market-price :class:`EconomyState` from a building vector."""
+        state = self._solve_nominal(
+            building_levels,
+            imports,
+            exports,
+            throughput_multipliers,
+            pop_needs,
+        )
+        return replace(
+            state,
+            market_prices=self.market_prices(state.buy_orders, state.sell_orders),
         )
 
     def df_buildings(self, eco: EconomyState) -> pd.DataFrame:

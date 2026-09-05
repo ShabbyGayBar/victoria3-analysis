@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -146,6 +148,86 @@ def test_base_prices(economy):
     )
 
 
+def test_market_prices_balanced_and_empty(economy: Economy):
+    n_goods = len(economy.goods_index())
+    base_prices = economy.base_prices()
+    zeros = np.zeros(n_goods, dtype=np.float64)
+    balanced = np.full(n_goods, 10.0, dtype=np.float64)
+
+    np.testing.assert_array_equal(economy.market_prices(zeros, zeros), base_prices)
+    np.testing.assert_array_equal(
+        economy.market_prices(balanced, balanced), base_prices
+    )
+
+
+def test_market_prices_documented_wood_example(economy: Economy):
+    wood = economy.goods_index().index("wood")
+    buy_orders = np.zeros(len(economy.goods_index()), dtype=np.float64)
+    sell_orders = np.zeros(len(economy.goods_index()), dtype=np.float64)
+    buy_orders[wood] = 100.0
+    sell_orders[wood] = 120.0
+
+    prices = economy.market_prices(buy_orders, sell_orders)
+
+    assert prices[wood] == pytest.approx(economy.base_prices()[wood] * 0.85)
+    assert prices[wood] == pytest.approx(17.0)
+
+
+@pytest.mark.parametrize(
+    ("buy_orders", "sell_orders", "factor"),
+    [
+        (2.0, 0.0, 1.75),
+        (0.0, 2.0, 0.25),
+        (10.0, 1.0, 1.75),
+        (1.0, 10.0, 0.25),
+    ],
+)
+def test_market_prices_caps_and_clamping(
+    economy: Economy, buy_orders: float, sell_orders: float, factor: float
+):
+    good = 0
+    buy_vector = np.zeros(len(economy.goods_index()), dtype=np.float64)
+    sell_vector = np.zeros(len(economy.goods_index()), dtype=np.float64)
+    buy_vector[good] = buy_orders
+    sell_vector[good] = sell_orders
+
+    prices = economy.market_prices(buy_vector, sell_vector)
+
+    assert prices[good] == pytest.approx(economy.base_prices()[good] * factor)
+
+
+@pytest.mark.parametrize("invalid_argument", ["buy_orders", "sell_orders"])
+@pytest.mark.parametrize(
+    "invalid_kind",
+    ["non_1d", "wrong_length", "negative", "nan", "inf"],
+)
+def test_market_prices_rejects_invalid_orders(
+    economy: Economy, invalid_argument: str, invalid_kind: str
+):
+    n_goods = len(economy.goods_index())
+    valid = np.zeros(n_goods, dtype=np.float64)
+    if invalid_kind == "non_1d":
+        invalid_value = np.zeros((n_goods, 1), dtype=np.float64)
+    elif invalid_kind == "wrong_length":
+        invalid_value = np.zeros(n_goods + 1, dtype=np.float64)
+    elif invalid_kind == "negative":
+        invalid_value = valid.copy()
+        invalid_value[0] = -1.0
+    elif invalid_kind == "nan":
+        invalid_value = valid.copy()
+        invalid_value[0] = np.nan
+    else:
+        invalid_value = valid.copy()
+        invalid_value[0] = np.inf
+    kwargs = {"buy_orders": valid, "sell_orders": valid}
+    kwargs[invalid_argument] = cast(
+        np.ndarray[tuple[int], np.dtype[np.float64]], invalid_value
+    )
+
+    with pytest.raises(ValueError):
+        economy.market_prices(**kwargs)
+
+
 def test_goods_input_matrix(economy):
     mat = np.asarray(economy.goods_input_matrix())
     assert mat.shape == (len(economy.df_production), len(economy.df_goods))
@@ -285,6 +367,53 @@ def test_solve_nominal(economy):
     )
 
 
+def test_solve_nominal_pop_needs_and_default(economy: Economy):
+    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    needs = np.arange(len(economy.goods_index()), dtype=np.float64) + 1.0
+
+    default_state = economy.solve(levels)
+    explicit_zero_state = economy.solve(
+        levels, pop_needs=np.zeros(len(economy.goods_index()), dtype=np.float64)
+    )
+    supplied_state = economy.solve(levels, pop_needs=needs)
+
+    np.testing.assert_array_equal(
+        default_state.pop_needs, explicit_zero_state.pop_needs
+    )
+    np.testing.assert_array_equal(default_state.market_prices, economy.base_prices())
+    np.testing.assert_array_equal(supplied_state.pop_needs, needs)
+    np.testing.assert_allclose(
+        supplied_state.buy_orders,
+        supplied_state.building_goods_input + supplied_state.exports + needs,
+    )
+    np.testing.assert_array_equal(supplied_state.market_prices, economy.base_prices())
+
+
+@pytest.mark.parametrize(
+    "invalid_kind", ["non_1d", "wrong_length", "negative", "nan", "inf"]
+)
+def test_solve_rejects_invalid_pop_needs(economy: Economy, invalid_kind: str):
+    n_goods = len(economy.goods_index())
+    pop_needs = np.zeros(n_goods, dtype=np.float64)
+    if invalid_kind == "non_1d":
+        pop_needs = np.zeros((n_goods, 1), dtype=np.float64)
+    elif invalid_kind == "wrong_length":
+        pop_needs = np.zeros(n_goods + 1, dtype=np.float64)
+    elif invalid_kind == "negative":
+        pop_needs[0] = -1.0
+    elif invalid_kind == "nan":
+        pop_needs[0] = np.nan
+    else:
+        pop_needs[0] = np.inf
+    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+
+    with pytest.raises(ValueError, match="pop_needs"):
+        economy.solve(
+            levels,
+            pop_needs=cast(np.ndarray[tuple[int], np.dtype[np.float64]], pop_needs),
+        )
+
+
 def test_solve_with_imports_exports(economy):
     n_g = len(economy.goods_index())
     levels = np.zeros(len(economy.building_index()), dtype=np.float64)
@@ -309,6 +438,58 @@ def test_solve_with_throughput_multipliers(economy):
         state.building_goods_output,
         levels @ (economy.goods_output_matrix() * multipliers[:, None]),
     )
+
+
+def test_solve_market_reuses_flows_and_changes_only_prices(economy: Economy):
+    n_b = len(economy.building_index())
+    n_g = len(economy.goods_index())
+    levels = _first_producing_levels(economy)
+    imports = np.full(n_g, 0.5, dtype=np.float64)
+    exports = np.full(n_g, 0.25, dtype=np.float64)
+    pop_needs = np.full(n_g, 0.75, dtype=np.float64)
+    throughput_multipliers = np.full(n_b, 2.0, dtype=np.float64)
+
+    nominal = economy.solve(
+        levels,
+        imports=imports,
+        exports=exports,
+        throughput_multipliers=throughput_multipliers,
+        pop_needs=pop_needs,
+    )
+    market = economy.solve(
+        levels,
+        method="market",
+        imports=imports,
+        exports=exports,
+        throughput_multipliers=throughput_multipliers,
+        pop_needs=pop_needs,
+    )
+
+    np.testing.assert_array_equal(market.building_levels, nominal.building_levels)
+    np.testing.assert_allclose(
+        market.building_goods_input, nominal.building_goods_input
+    )
+    np.testing.assert_allclose(
+        market.building_goods_output, nominal.building_goods_output
+    )
+    np.testing.assert_allclose(market.imports, nominal.imports)
+    np.testing.assert_allclose(market.exports, nominal.exports)
+    np.testing.assert_allclose(market.pops, nominal.pops)
+    np.testing.assert_allclose(market.pop_wealth, nominal.pop_wealth)
+    np.testing.assert_allclose(market.pop_balance, nominal.pop_balance)
+    np.testing.assert_allclose(market.pop_needs, nominal.pop_needs)
+    np.testing.assert_allclose(
+        market.market_prices,
+        economy.market_prices(nominal.buy_orders, nominal.sell_orders),
+    )
+
+
+def test_solve_market_rejects_invalid_derived_orders(economy: Economy):
+    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    invalid_imports = np.full(len(economy.goods_index()), -1.0, dtype=np.float64)
+
+    with pytest.raises(ValueError):
+        economy.solve(levels, method="market", imports=invalid_imports)
 
 
 def test_solve_rejects_misaligned_throughput_multipliers(economy):
@@ -353,9 +534,7 @@ def test_arable_land_consumption(economy: Economy):
     staple_crop_rows = np.flatnonzero(groups.to_numpy() == "bg_staple_crops")
     levels[staple_crop_rows[1]] = 2.0
 
-    excluded_row = np.flatnonzero(
-        ~groups.isin(tuple(arable_land_groups)).to_numpy()
-    )[0]
+    excluded_row = np.flatnonzero(~groups.isin(tuple(arable_land_groups)).to_numpy())[0]
     levels[excluded_row] = 100.0
 
     consumption = economy.arable_land_consumption(economy.solve(levels))
