@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import pytest
 
+from vic3_analysis import state_region_resource_limits
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
@@ -84,6 +86,37 @@ def test_solve_satisfies_building_limits(economy: Economy):
     state = NominalOptimizer(economy).solve(scenario)
     mask = (economy.df_production["building"] == "building_dye_plantation").to_numpy()
     assert float(state.building_levels[mask].sum()) == pytest.approx(0.0)
+
+
+def test_solve_satisfies_state_region_resource_limits(economy: Economy):
+    state_regions = pd.DataFrame(
+        {"key": ["STATE_TEST"], "resource_building_coal_mine": [1]}
+    )
+    limits = state_region_resource_limits(state_regions, ["STATE_TEST"])
+    scenario = Scenario(
+        produce=(("coal", 1.0),),
+        objective="construction_cost",
+        building_limits=tuple(limits.items()),
+    )
+
+    state = NominalOptimizer(economy).solve(scenario)
+
+    coal_mines = (
+        economy.df_production["building"] == "building_coal_mine"
+    ).to_numpy()
+    assert float(state.building_levels[coal_mines].sum()) <= 1.0 + 1e-6
+
+
+def test_solve_satisfies_arable_land_cap(economy: Economy):
+    scenario = Scenario(
+        produce=(("grain", 1.0),),
+        objective="construction_cost",
+        arable_land_cap=1.0,
+    )
+
+    state = NominalOptimizer(economy).solve(scenario)
+
+    assert economy.arable_land_consumption(state) <= 1.0 + 1e-6
 
 
 def test_solve_satisfies_urbanization_center(economy: Economy):

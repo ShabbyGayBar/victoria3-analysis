@@ -361,6 +361,10 @@ def test_arable_land_consumption(economy: Economy):
     consumption = economy.arable_land_consumption(economy.solve(levels))
 
     assert consumption == pytest.approx(float(len(arable_land_groups) + 2))
+    np.testing.assert_array_equal(
+        economy.arable_land_vector(),
+        groups.isin(tuple(arable_land_groups)).to_numpy(dtype=np.float64),
+    )
 
 
 def test_arable_land_consumption_rejects_misaligned_state(economy: Economy):

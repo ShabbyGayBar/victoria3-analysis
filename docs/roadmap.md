@@ -109,6 +109,6 @@ mirroring the `production_table()` + `examples/production_analysis.py` pattern.
 
 ## State-region resource constraints
 
-- [ ] Use `StateRegionsParser` resource columns (`resource_*`,
-  `discovered_amount_resource_*`) to cap building levels for resource-limited
-  buildings (gold, oil, iron, ...) in `NominalOptimizer`.
+- [x] Use `StateRegionsParser` total-potential `resource_*` columns to cap
+  building levels for resource-limited buildings (gold, oil, iron, ...) in
+  `NominalOptimizer`.

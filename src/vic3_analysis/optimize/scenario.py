@@ -9,11 +9,12 @@ matrices consumed by :class:`~vic3_analysis.optimize.nominal.NominalOptimizer`.
 
 The translation is deterministic and side-effect free: the constraint order is
 fixed (inequality: import cap, construction-cost cap, employment cap, produce
-basket, building limits, infrastructure floor; equality: era cap, banned PMs,
-banned building groups, urban-center tie), so duals can be mapped back to their
-meaning without inspecting solver internals.  Because the objective vector and
-constraints are derived in one pass from the scenario fields, throughput
-bonuses are reflected everywhere consistently (no call-ordering traps).
+basket, building limits, arable-land cap, infrastructure floor; equality: era
+cap, banned PMs, banned building groups, urban-center tie), so duals can be
+mapped back to their meaning without inspecting solver internals.  Because the
+objective vector and constraints are derived in one pass from the scenario
+fields, throughput bonuses are reflected everywhere consistently (no
+call-ordering traps).
 """
 
 import re
@@ -109,6 +110,8 @@ class Scenario:
             may have non-zero levels.
         construction_cost_cap: If not ``None``, cap total construction cost.
         employment_cap: If not ``None``, cap total employment.
+        arable_land_cap: If not ``None``, cap total arable land consumed by
+            agricultural, plantation, ranching, and subsistence buildings.
         min_infrastructure: If not ``None``, require total net infrastructure
             (per-configuration ``"infrastructure_usage_per_level"`` column
             summed over building levels) to be at least this value.
@@ -130,6 +133,7 @@ class Scenario:
     era_cap: int | None = None
     construction_cost_cap: float | None = None
     employment_cap: float | None = None
+    arable_land_cap: float | None = None
     min_infrastructure: float | None = None
     urbanization_per_center: float | None = None
     name: str | None = None
@@ -258,8 +262,8 @@ class Scenario:
         """Return the stacked inequality constraints ready for ``linprog``.
 
         Rows follow a fixed order — import cap, construction-cost cap,
-        employment cap, produce basket, building level limits, infrastructure
-        floor — with the import block leading whenever present, so
+        employment cap, produce basket, building level limits, arable-land cap,
+        infrastructure floor — with the import block leading whenever present, so
         :meth:`import_marginals` can slice its duals directly.
 
         Args:
@@ -365,6 +369,10 @@ class Scenario:
             ]
             limits = [limit for _building_key, limit in self.building_limits]
             constraints.append((np.vstack(rows), np.array(limits, dtype=np.float64)))
+        if self.arable_land_cap is not None:
+            constraints.append(
+                (economy.arable_land_vector(), np.array([self.arable_land_cap]))
+            )
         if self.min_infrastructure is not None:
             infrastructure = (
                 economy.df_production["infrastructure_usage_per_level"]

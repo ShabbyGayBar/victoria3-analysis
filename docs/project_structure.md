@@ -87,7 +87,9 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `map_data/state_regions`. `to_dataframe()` flattens scalar attributes and
   expands `resource`/`capped_resources` into `resource_*`,
   `undiscovered_amount_resource_*`, and `discovered_amount_resource_*`
-  columns.
+  columns. `state_region_resource_limits()` and
+  `state_region_arable_land_limit()` aggregate selected rows into caps suitable
+  for `Scenario`.
 
 ### `src/vic3_analysis/analysis/` — Economic Analysis
 
@@ -156,6 +158,7 @@ The script name maps 1:1 to the output table:
 | `state_regions.py` | `tables/state_regions.csv` |
 | `buy_packages.py` | `tables/buy_packages.csv` |
 | `pop_types.py` | `tables/pop_types.csv` |
+| `optimize_jap.py` | `tables/optimize_jap.csv` |
 
 Run any script with `uv run python -m examples.<name>` or directly. They are
 the canonical "how do I use this package" reference for non-developers.
@@ -172,6 +175,9 @@ the canonical "how do I use this package" reference for non-developers.
   script writes `tables/supply_chain_cangshulun.csv` with `annual_gdp`,
   `gdp_per_capita`, and per-employment building-level metrics.
   Runnable as `__main__` scripts; not collected by pytest.
+- `optimize_jap.py` — maximises an autarkic, era-5 Japanese economy across an
+  employment-cap sweep while enforcing the selected regions' extractive and
+  arable-land capacity; writes `tables/optimize_jap.csv`.
 
 ## `tables/` — Generated CSV Output
 

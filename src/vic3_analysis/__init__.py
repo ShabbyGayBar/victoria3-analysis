@@ -15,7 +15,11 @@ from vic3_analysis.parse.pop_needs import PopNeedsParser
 from vic3_analysis.parse.pop_types import PopTypesParser
 from vic3_analysis.parse.production_method_groups import production_method_groups
 from vic3_analysis.parse.production_methods import ProductionMethodParser
-from vic3_analysis.parse.state_regions import StateRegionsParser
+from vic3_analysis.parse.state_regions import (
+    StateRegionsParser,
+    state_region_arable_land_limit,
+    state_region_resource_limits,
+)
 from vic3_analysis.parse.technology import technology
 
 from vic3_analysis.analysis.production import production_table
@@ -44,6 +48,8 @@ __all__ = [
     "production_method_groups",
     "ProductionMethodParser",
     "StateRegionsParser",
+    "state_region_arable_land_limit",
+    "state_region_resource_limits",
     "technology",
     "production_table",
     "Economy",

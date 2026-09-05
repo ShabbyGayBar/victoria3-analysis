@@ -14,9 +14,32 @@ To perform a production optimisation, we must first acquire the following:
 
 + An `Economy` instance, which wraps the production table, goods table, and pop-types table parsed from the Victoria 3 game files.
 
-+ A `Scenario`, constructed from named fields. The `objective` accepts `"gdp"` (maximise gross GDP), `"employment"` (maximise total employment), `"automation"` (minimise employment, i.e. maximise automation) and `"construction_cost"` (minimise total construction cost). `produce` is a tuple of `(good, amount)` pairs, each of which must be produced with at least that net output per week. `import_limit=0.0` (the default) enforces autarky and `None` disables import caps. The remaining fields cover banned PMs / buildings / building groups, per-building level limits (a limit of `0` bans outright), throughput bonuses, era / construction-cost / employment caps, a minimum net-infrastructure floor, and the urban-center urbanization tie.
++ A `Scenario`, constructed from named fields. The `objective` accepts `"gdp"` (maximise gross GDP), `"employment"` (maximise total employment), `"automation"` (minimise employment, i.e. maximise automation) and `"construction_cost"` (minimise total construction cost). `produce` is a tuple of `(good, amount)` pairs, each of which must be produced with at least that net output per week. `import_limit=0.0` (the default) enforces autarky and `None` disables import caps. The remaining fields cover banned PMs / buildings / building groups, per-building level limits (a limit of `0` bans outright), throughput bonuses, era / construction-cost / employment / arable-land caps, a minimum net-infrastructure floor, and the urban-center urbanization tie.
 
-The scenario's translation is pure and deterministic: constraint order is fixed (inequality: import cap, construction-cost cap, employment cap, produce basket, building limits, infrastructure floor; equality: era cap, banned PMs, banned groups, urban-center tie), so throughput bonuses are reflected consistently everywhere and LP duals can be mapped back to their meaning without inspecting solver internals. `Scenario.linprog_args(economy)` returns the `c` / `A_ub` / `b_ub` / `A_eq` / `b_eq` keyword dict, so `scipy.optimize.linprog` can also be invoked directly (`opt.linprog(**scenario.linprog_args(economy))`) for solver options the wrapper does not expose.
+The scenario's translation is pure and deterministic: constraint order is fixed (inequality: import cap, construction-cost cap, employment cap, produce basket, building limits, arable-land cap, infrastructure floor; equality: era cap, banned PMs, banned groups, urban-center tie), so throughput bonuses are reflected consistently everywhere and LP duals can be mapped back to their meaning without inspecting solver internals. `Scenario.linprog_args(economy)` returns the `c` / `A_ub` / `b_ub` / `A_eq` / `b_eq` keyword dict, so `scipy.optimize.linprog` can also be invoked directly (`opt.linprog(**scenario.linprog_args(economy))`) for solver options the wrapper does not expose.
+
+State-region resource potential composes with the same building-limit interface.
+The helper uses total ``resource_*`` capacity across the selected regions,
+assigns zero to resources absent there, and treats discoverable gold fields as
+long-run gold-mine potential:
+
+```python
+from vic3_analysis import (
+    StateRegionsParser,
+    state_region_arable_land_limit,
+    state_region_resource_limits,
+)
+
+state_regions = StateRegionsParser().to_dataframe()
+resource_limits = state_region_resource_limits(state_regions, ("STATE_SHANXI",))
+arable_land_cap = state_region_arable_land_limit(state_regions, ("STATE_SHANXI",))
+scenario = Scenario(
+    produce=(("steel", 100),),
+    objective="construction_cost",
+    building_limits=tuple(resource_limits.items()),
+    arable_land_cap=arable_land_cap,
+)
+```
 
 Say you want to know what building combination can produce at least 100 units of steel with the least population:
 

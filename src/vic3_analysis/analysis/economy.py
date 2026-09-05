@@ -496,6 +496,22 @@ class Economy:
         """
         return float(np.dot(eco.building_levels, self.construction_cost_vector()))
 
+    def arable_land_vector(self) -> np.ndarray:
+        """Return arable-land consumption per production configuration.
+
+        Returns:
+            A float vector aligned to the production table, with ``1.0`` for
+            agricultural, plantation, ranching, and subsistence land-use
+            configurations and ``0.0`` otherwise.
+        """
+        if "building_group" not in self.df_production.columns:
+            return np.zeros(len(self.df_production), dtype=np.float64)
+        return (
+            self.df_production["building_group"]
+            .isin(tuple(_ARABLE_LAND_BUILDING_GROUPS))
+            .to_numpy(dtype=np.float64)
+        )
+
     def arable_land_consumption(self, state: EconomyState) -> float:
         """Return the total arable land consumed by an economy state.
 
@@ -519,13 +535,7 @@ class Economy:
                 "state.building_levels shape must match the production table."
             )
 
-        if "building_group" not in self.df_production.columns:
-            return 0.0
-
-        consumes_arable_land = self.df_production["building_group"].isin(
-            tuple(_ARABLE_LAND_BUILDING_GROUPS)
-        )
-        return float(np.sum(state.building_levels[consumes_arable_land.to_numpy()]))
+        return float(np.dot(state.building_levels, self.arable_land_vector()))
 
     def levels_per_building(self, state: EconomyState) -> dict[str, float]:
         """Return total levels per building across all PM configurations.

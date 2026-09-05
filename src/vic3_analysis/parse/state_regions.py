@@ -6,9 +6,11 @@ it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and state region look-ups.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from pyradox import Tree
 
@@ -23,6 +25,115 @@ _skip_keys = [
     "resource",
     "capped_resources",
 ]
+
+
+def _select_state_regions(
+    state_regions_df: pd.DataFrame, state_region_keys: Iterable[str]
+) -> pd.DataFrame:
+    """Return requested state-region rows after validating their keys."""
+    if "key" not in state_regions_df.columns:
+        raise ValueError("state_regions_df must contain a 'key' column.")
+
+    keys = tuple(dict.fromkeys(state_region_keys))
+    known_keys = set(state_regions_df["key"].astype(str))
+    unknown_keys = [key for key in keys if key not in known_keys]
+    if unknown_keys:
+        joined = ", ".join(repr(key) for key in unknown_keys)
+        raise ValueError(f"Unknown state-region key(s): {joined}.")
+    selected = state_regions_df[state_regions_df["key"].astype(str).isin(keys)]
+    if not isinstance(selected, pd.DataFrame):
+        raise TypeError("Expected state-region row selection to return a DataFrame.")
+    return selected
+
+
+def state_region_arable_land_limit(
+    state_regions_df: pd.DataFrame, state_region_keys: Iterable[str]
+) -> float:
+    """Return total arable land across selected state regions.
+
+    Args:
+        state_regions_df: Parsed state-region DataFrame.
+        state_region_keys: State-region keys to aggregate. Repeated keys are
+            counted once.
+
+    Returns:
+        The sum of the selected regions' ``arable_land`` values.
+
+    Raises:
+        ValueError: If required columns are missing or a requested key is
+            unknown.
+    """
+    selected = _select_state_regions(state_regions_df, state_region_keys)
+    if "arable_land" not in selected.columns:
+        raise ValueError("state_regions_df must contain an 'arable_land' column.")
+    values = selected["arable_land"]
+    if not isinstance(values, pd.Series):
+        raise TypeError("Expected unique column 'arable_land'.")
+    numeric = (
+        pd.to_numeric(values, errors="coerce")
+        .fillna(0)  # pyright: ignore[reportAttributeAccessIssue]
+        .to_numpy(dtype=np.float64)
+    )
+    return float(np.sum(numeric))
+
+
+def state_region_resource_limits(
+    state_regions_df: pd.DataFrame, state_region_keys: Iterable[str]
+) -> dict[str, float]:
+    """Aggregate state-region resource capacity into building-level limits.
+
+    The input is the flattened output of :meth:`StateRegionsParser.to_dataframe`.
+    Only total-potential ``resource_*`` columns are used; discovered and
+    undiscovered component columns and arable-land data are intentionally
+    excluded.  Every resource building represented by the DataFrame is returned,
+    including a zero limit when it is absent from the selected regions.
+
+    Gold fields are a discoverable precursor to gold mines.  For long-run
+    nominal optimisation their potential is added to ``building_gold_mine`` and
+    ``building_gold_field`` is assigned a zero limit.
+
+    Args:
+        state_regions_df: Parsed state-region DataFrame.
+        state_region_keys: State-region keys to aggregate. Repeated keys are
+            counted once.
+
+    Returns:
+        An insertion-ordered mapping suitable for
+        ``Scenario(building_limits=tuple(limits.items()))``.
+
+    Raises:
+        ValueError: If the DataFrame has no ``key`` column or a requested state
+            region is unknown.
+    """
+    selected = _select_state_regions(state_regions_df, state_region_keys)
+    resource_columns = [
+        column
+        for column in state_regions_df.columns
+        if isinstance(column, str) and column.startswith("resource_")
+    ]
+
+    limits: dict[str, float] = {}
+    for column in resource_columns:
+        building = column.removeprefix("resource_")
+        column_values = selected[column]
+        if not isinstance(column_values, pd.Series):
+            raise TypeError(f"Expected unique column {column!r}.")
+        values = (
+            pd.to_numeric(column_values, errors="coerce")
+            .fillna(0)  # pyright: ignore[reportAttributeAccessIssue]
+            .to_numpy(dtype=np.float64)
+        )
+        capacity = float(np.sum(values))
+        if building == "building_gold_field":
+            limits.setdefault("building_gold_field", 0.0)
+            limits["building_gold_mine"] = (
+                limits.get("building_gold_mine", 0.0) + capacity
+            )
+        elif building == "building_gold_mine":
+            limits[building] = limits.get(building, 0.0) + capacity
+        else:
+            limits[building] = capacity
+    return limits
 
 
 class StateRegionsParser(Tree):

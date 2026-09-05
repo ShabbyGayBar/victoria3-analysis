@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import pytest
 
+from vic3_analysis import state_region_resource_limits
 from vic3_analysis.analysis.economy import Economy
 from vic3_analysis.optimize.scenario import Scenario
 
@@ -24,6 +26,7 @@ def test_defaults():
     assert scenario.era_cap is None
     assert scenario.construction_cost_cap is None
     assert scenario.employment_cap is None
+    assert scenario.arable_land_cap is None
     assert scenario.min_infrastructure is None
     assert scenario.urbanization_per_center is None
     assert scenario.name is None
@@ -135,6 +138,7 @@ def test_inequality_constraints_order_and_content(economy: Economy):
         construction_cost_cap=5000.0,
         employment_cap=1000.0,
         building_limits=(("building_dye_plantation", 0.0),),
+        arable_land_cap=25.0,
         min_infrastructure=5.0,
     )
     A_ub, b_ub = scenario.inequality_constraints(economy)
@@ -144,9 +148,9 @@ def test_inequality_constraints_order_and_content(economy: Economy):
     n_goods = len(economy.goods_index())
     goods_index = economy.goods_index()
     # import (n_goods) + cost (1) + employment (1) + produce (2) + limits (1)
-    # + infra (1).
-    assert A_ub.shape == (n_goods + 6, n_b)
-    assert b_ub.shape == (n_goods + 6,)
+    # + arable land (1) + infra (1).
+    assert A_ub.shape == (n_goods + 7, n_b)
+    assert b_ub.shape == (n_goods + 7,)
     assert A_ub.dtype == np.float64
     assert b_ub.dtype == np.float64
 
@@ -175,6 +179,9 @@ def test_inequality_constraints_order_and_content(economy: Economy):
     np.testing.assert_array_equal(A_ub[offset], mask.astype(np.float64))
     assert b_ub[offset] == 0.0
     offset += 1
+    np.testing.assert_array_equal(A_ub[offset], economy.arable_land_vector())
+    assert b_ub[offset] == 25.0
+    offset += 1
     infrastructure = (
         economy.df_production["infrastructure_usage_per_level"]
         .fillna(0)
@@ -182,6 +189,39 @@ def test_inequality_constraints_order_and_content(economy: Economy):
     )
     np.testing.assert_array_equal(A_ub[offset], -infrastructure)
     assert b_ub[offset] == -5.0
+
+
+def test_state_region_limits_compose_with_building_limit_constraints(
+    economy: Economy,
+):
+    state_regions = pd.DataFrame(
+        {
+            "key": ["STATE_TEST"],
+            "resource_building_coal_mine": [2],
+            "resource_building_iron_mine": [3],
+        }
+    )
+    limits = state_region_resource_limits(state_regions, ["STATE_TEST"])
+    scenario = Scenario(
+        import_limit=None,
+        objective="construction_cost",
+        building_limits=tuple(limits.items()),
+    )
+
+    A_ub, b_ub = scenario.inequality_constraints(economy)
+
+    assert A_ub is not None
+    assert b_ub is not None
+    buildings = economy.df_production["building"].to_numpy()
+    np.testing.assert_array_equal(
+        A_ub[0], (buildings == "building_coal_mine").astype(np.float64)
+    )
+    np.testing.assert_array_equal(
+        A_ub[1], (buildings == "building_iron_mine").astype(np.float64)
+    )
+    np.testing.assert_array_equal(b_ub, np.array([2.0, 3.0]))
+    manufacturing = economy.df_production["building_group"].eq("bg_manufacturing")
+    assert not A_ub[:, manufacturing.to_numpy()].any()
 
 
 def test_inequality_constraints_none_when_absent(economy: Economy):
