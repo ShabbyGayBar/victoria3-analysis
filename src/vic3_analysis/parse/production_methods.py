@@ -9,9 +9,10 @@ combining building and production-method-group data with per-method
 attributes and appended employment, goods-flow and state-modifier columns.
 """
 
-from pathlib import Path
-from typing import Any, Iterator
 import re
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from pyradox import Tree

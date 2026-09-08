@@ -23,8 +23,8 @@ lives in `Scenario`.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Iterable, Iterator
 
 import numpy as np
 import pandas as pd
