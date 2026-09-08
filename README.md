@@ -1,5 +1,7 @@
 # Victoria 3 Analysis
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/71a4a3f3b6824b08a9e7c9fc8621f49a)](https://app.codacy.com/gh/ShabbyGayBar/victoria3-analysis?utm_source=github.com&utm_medium=referral&utm_content=ShabbyGayBar/victoria3-analysis&utm_campaign=Badge_Grade)
+
 This repository contains code and data for analyzing Victoria 3 game data. It is intended to parse game data into csv or other structured formats, and provide insights into the game's mechanics and player strategies, such as production optimization.
 
 ## Features
