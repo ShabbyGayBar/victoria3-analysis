@@ -1,0 +1,5 @@
+---
+engines:
+  bandit:
+    assert_used:
+      skips: ['**test.py', '*test**.py']
