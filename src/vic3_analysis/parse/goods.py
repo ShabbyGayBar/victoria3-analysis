@@ -37,7 +37,7 @@ def goods(game_dir: str | Path | None = None) -> pd.DataFrame:
     results: list[dict[str, Any]] = []
     for key, value in parse_tree.to_python().items():
         if not isinstance(value, dict):
-            raise ValueError(f"Expected dict for {key}, got {type(value)}")
+            raise TypeError(f"Expected dict for {key}, got {type(value)}")
         results.append(
             {
                 "key": key,

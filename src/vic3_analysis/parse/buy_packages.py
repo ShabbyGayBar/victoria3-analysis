@@ -63,7 +63,7 @@ def _parse_rows(tree: Tree) -> tuple[list[dict[str, Any]], list[str]]:
         political_strength = wealth_tree.find("political_strength")
         goods = wealth_tree.find("goods")
         if not isinstance(goods, Tree):
-            raise ValueError(f"Expected Tree for goods, got {type(goods).__name__}")
+            raise TypeError(f"Expected Tree for goods, got {type(goods).__name__}")
 
         row: dict[str, Any] = {
             "wealth": wealth_number,
