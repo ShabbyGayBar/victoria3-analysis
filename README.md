@@ -1,5 +1,11 @@
 # Victoria 3 Analysis
 
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FShabbyGayBar%2Fvictoria3-analysis%2Frefs%2Fheads%2Fmain%2Fpyproject.toml)
+
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ShabbyGayBar/victoria3-analysis/ci.yml)
+
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/71a4a3f3b6824b08a9e7c9fc8621f49a)](https://app.codacy.com/gh/ShabbyGayBar/victoria3-analysis/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 This repository contains code and data for analyzing Victoria 3 game data. It is intended to parse game data into csv or other structured formats, and provide insights into the game's mechanics and player strategies, such as production optimization.
 
 ## Features
