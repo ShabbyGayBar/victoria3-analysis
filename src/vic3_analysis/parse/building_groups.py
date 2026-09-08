@@ -2,7 +2,7 @@
 Parser for Victoria 3 building-group definitions.
 
 Reads building-group data from the game's ``common/building_groups`` directory
-and exposes it as a :class:`BuildingGroupParser` (a ``pyradox.Tree`` subclass)
+and exposes it as a `BuildingGroupParser` (a ``pyradox.Tree`` subclass)
 with helper methods for flat ``pandas.DataFrame`` conversion and for resolving
 attributes inherited along the ``parent_group`` chain.
 """
@@ -31,10 +31,10 @@ class BuildingGroupParser(Tree):
 
     On construction the parser reads all building-group ``.txt`` files from the
     game's ``common/building_groups`` directory.  Raw entries can be iterated
-    via :meth:`items` (inherited from ``Tree``); a flat per-group table is
-    built by :meth:`to_dataframe`; and a per-group attribute dict with
+    via `items` (inherited from ``Tree``); a flat per-group table is
+    built by `to_dataframe`; and a per-group attribute dict with
     ``land_usage`` and ``cash_reserves_max`` inheritance resolved is returned
-    by :meth:`resolved_attributes`.
+    by `resolved_attributes`.
     """
 
     def __init__(self, game_dir: str | Path | None = None):
@@ -43,7 +43,7 @@ class BuildingGroupParser(Tree):
         Args:
             game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
                 the directory is located automatically via
-                :func:`~vic3_analysis.utils.get_vic3_directory`.
+                `get_vic3_directory`.
         """
         super().__init__()
         self._python_cache: dict[str, dict[str, Any]] = {}
@@ -79,7 +79,7 @@ class BuildingGroupParser(Tree):
         columns, ``list`` values are concatenated into a ``+``-joined string,
         and nested ``Tree``/``dict`` values (such as ``should_auto_expand``
         trigger blocks) are omitted.  No parent-chain inheritance is applied
-        here — use :meth:`resolved_attributes` for inherited values.
+        here — use `resolved_attributes` for inherited values.
 
         Returns:
             A ``DataFrame`` with one row per building group (``"key"`` column)
@@ -156,7 +156,7 @@ def _inherit_attr(
     Args:
         group_key: The group to resolve *attr* for.
         raw: Mapping of group key → raw scalar attribute dict (as produced by
-            :meth:`BuildingGroupParser.resolved_attributes` before resolution).
+            `BuildingGroupParser.resolved_attributes` before resolution).
         attr: Attribute name to resolve.
         skip_zero: When ``True``, an explicit ``0`` on an ancestor is treated
             as "unset" and the walk continues further up the chain.
@@ -200,7 +200,7 @@ def _join_group_attrs(
     Args:
         building_rows: List of building row dicts (mutated in place).
         group_attrs: Mapping of group key → resolved attribute dict, as
-            returned by :meth:`BuildingGroupParser.resolved_attributes`.
+            returned by `BuildingGroupParser.resolved_attributes`.
     """
     for row in building_rows:
         group_key = row.get("building_group")

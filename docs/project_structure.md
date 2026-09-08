@@ -145,8 +145,9 @@ or expose a `pyradox.Tree` subclass with helper methods.
 ## `examples/` — Table-generation Scripts
 
 Standalone scripts that exercise the parsers and write CSVs into `tables/`.
-`__init__.py` defines `THIS_DIR` so each script can resolve the output path.
-The script name maps 1:1 to the output table:
+`__init__.py` defines the shared `TABLES_DIR` and `FIGURES_DIR` paths. Each
+generated artifact and its producing script is indexed in the
+[showcase](showcase/index.md).
 
 | Script | Output |
 |---|---|
@@ -156,9 +157,12 @@ The script name maps 1:1 to the output table:
 | `production_analysis.py` | `tables/production_table.csv` |
 | `technology.py` | `tables/technology.csv` |
 | `state_regions.py` | `tables/state_regions.csv` |
-| `buy_packages.py` | `tables/buy_packages.csv` |
+| `buy_packages.py` | `tables/buy_packages.csv`, `figures/buy_packages/*.svg` |
 | `pop_types.py` | `tables/pop_types.csv` |
 | `optimize_jap.py` | `tables/optimize_jap.csv` |
+| `supply_chain_trace.py` | `figures/supply_chain_recipe.mmd`, `figures/supply_chain_realised.mmd` |
+| `supply_chain_compare.py` | `tables/supply_chain_sweep.csv` |
+| `supply_chain_cangshulun.py` | `tables/supply_chain_cangshulun.csv` |
 
 Run any script with `uv run python -m examples.<name>` or directly. They are
 the canonical "how do I use this package" reference for non-developers.
@@ -192,11 +196,9 @@ named production-method variants.
 ## `figures/` — Generated Visualisation Output
 
 Committed visualisation artefacts produced by the `examples/` scripts.
-Includes Mermaid flowchart files (`.mmd`) from `supply_chain_trace.py` and
-matplotlib PNG charts from `supply_chain_optimize.py` (building levels, net
-goods, value-added by good, bottleneck) and `supply_chain_sweep.py`
-(construction cost and GDP efficiency by terminal good). Tracked in git so
-the docs and readme can reference them without a local game install.
+Includes Mermaid flowchart files (`.mmd`) from `supply_chain_trace.py` and SVG
+charts from `buy_packages.py`. Tracked in git so the documentation can render
+them without a local game install.
 
 ## `tests/` — Test Suite
 
@@ -227,18 +229,23 @@ game directory.
 
 Source for the MkDocs Material site (`uv run mkdocs serve`).
 
-- `index.md` — Home page; embeds `README.md` via a snippet include.
-- `api.md` — Auto-generated API reference rendered by `mkdocstrings` from the
-  package docstrings (`# ::: vic3_analysis`).
+- `index.md` — Purpose-built landing page with separate paths for Python users
+  and readers browsing generated results.
+- `tutorial.md` — Reproducible steel-optimization quickstart using committed
+  CSV snapshots.
+- `api/` — Public API reference grouped into parsing, economy, optimization,
+  and supply-chain pages and rendered from source docstrings by `mkdocstrings`.
+- `guides/` — Task-focused parsing, economy/optimization, and supply-chain
+  explanations.
+- `showcase/` — Curated previews and downloads for every tracked table and
+  figure, plus the artifact-to-example registry used by documentation tests.
+- `hooks.py` — Adds repository-level artifacts to the site and expands CSV
+  preview directives during builds.
+- `stylesheets/extra.css` — Responsive gallery and table-preview styling.
 - `license.md` — License page.
 - `project_structure.md` — This document.
 - `roadmap.md` — Roadmap placeholder (currently empty; see `AGENTS.md` for
   priority guidance).
-- `usage/parse.md` — Guide to the pre-generated `tables/*.csv` and how to run
-  the `examples/` scripts.
-- `usage/analysis.md` — Guide to production optimisation with
-  `NominalOptimizer`, including the objective-vector / constraint model and
-  a worked steel example.
 
 ## `agents/` — Agent Instructions
 

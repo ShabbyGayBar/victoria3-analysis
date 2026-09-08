@@ -20,7 +20,7 @@ def production_method_groups(
     Args:
         game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
             directory is located automatically via
-            :func:`~vic3_analysis.utils.get_vic3_directory`.
+            `get_vic3_directory`.
 
     Returns:
         A dict mapping each production-method-group key to its ordered list of

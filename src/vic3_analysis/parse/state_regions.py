@@ -82,7 +82,7 @@ def state_region_resource_limits(
 ) -> dict[str, float]:
     """Aggregate state-region resource capacity into building-level limits.
 
-    The input is the flattened output of :meth:`StateRegionsParser.to_dataframe`.
+    The input is the flattened output of `StateRegionsParser.to_dataframe`.
     Only total-potential ``resource_*`` columns are used; discovered and
     undiscovered component columns and arable-land data are intentionally
     excluded.  Every resource building represented by the DataFrame is returned,
@@ -151,7 +151,7 @@ class StateRegionsParser(Tree):
         Args:
             game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
                 the directory is located automatically via
-                :func:`~vic3_analysis.utils.get_vic3_directory`.
+                `get_vic3_directory`.
         """
         super().__init__()
         if game_dir is None:

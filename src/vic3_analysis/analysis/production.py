@@ -84,7 +84,7 @@ def production_table(
             and ``unlocking_technologies`` columns. Optional
             ``economy_of_scale`` and ``is_subsistence`` columns determine
             economy-of-scale eligibility; missing columns default to false.
-        df_goods: Goods table (:func:`~vic3_analysis.goods` or
+        df_goods: Goods table (`goods` or
             ``tables/goods.csv``) with ``key`` and ``cost`` columns.  Its row
             order fixes the ``goods_<good>`` column order of the result.
         df_pm: Production-methods table
@@ -95,7 +95,7 @@ def production_table(
             ``employment_<profession>``, ``state_infrastructure_add``, and
             ``goods_<good>`` columns (the state-infrastructure column is
             zero-filled with a warning when absent).
-        df_tech: Technology table (:func:`~vic3_analysis.technology` or
+        df_tech: Technology table (`technology` or
             ``tables/technology.csv``) with ``key`` and ``era`` columns.
 
     Returns:

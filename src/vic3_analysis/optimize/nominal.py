@@ -1,14 +1,14 @@
 """
 Nominal linear-programming solver for Victoria 3 economies.
 
-:class:`NominalOptimizer` is solely a solver: it wraps
-:func:`scipy.optimize.linprog` and solves
-:class:`~vic3_analysis.optimize.scenario.Scenario` formulations over an
-:class:`~vic3_analysis.analysis.economy.Economy`, returning an
-:class:`~vic3_analysis.analysis.economy.EconomyState`.
+`NominalOptimizer` is solely a solver: it wraps
+`scipy.optimize.linprog` and solves
+`Scenario` formulations over an
+`Economy`, returning an
+`EconomyState`.
 
 All problem definition (objectives, constraints, throughput bonuses) lives in
-:class:`~vic3_analysis.optimize.scenario.Scenario`; this module only delegates
+`Scenario`; this module only delegates
 to scipy with the scenario's ready-made ``linprog_args``.
 """
 
@@ -20,19 +20,19 @@ from vic3_analysis.optimize.scenario import Scenario
 
 
 class NominalOptimizer:
-    """Solver for :class:`Scenario` formulations over an :class:`Economy`.
+    """Solver for `Scenario` formulations over an `Economy`.
 
     Example::
 
         state = NominalOptimizer(economy).solve(scenario)
 
     Attributes:
-        model: The wrapped :class:`Economy`.
-        result: The :class:`scipy.optimize.OptimizeResult` from the most recent
-            :meth:`solve` call (``None`` until solved).  Exposed so downstream
+        model: The wrapped `Economy`.
+        result: The `scipy.optimize.OptimizeResult` from the most recent
+            `solve` call (``None`` until solved).  Exposed so downstream
             tooling can read constraint marginals (shadow prices); callers
             should not mutate it.
-        scenario: The :class:`Scenario` from the most recent :meth:`solve` call
+        scenario: The `Scenario` from the most recent `solve` call
             (``None`` until solved).
     """
 
@@ -44,33 +44,33 @@ class NominalOptimizer:
         """Initialise the solver.
 
         Args:
-            model: The :class:`Economy` to solve scenarios on.
+            model: The `Economy` to solve scenarios on.
         """
         self.model = model
         self.result = None
         self.scenario = None
 
     def solve(self, scenario: Scenario) -> EconomyState:
-        """Solve a scenario and return the resulting :class:`EconomyState`.
+        """Solve a scenario and return the resulting `EconomyState`.
 
-        Delegates to :func:`scipy.optimize.linprog` with the scenario's
-        :meth:`~vic3_analysis.optimize.scenario.Scenario.linprog_args` keyword
+        Delegates to `scipy.optimize.linprog` with the scenario's
+        `linprog_args` keyword
         arguments.
 
         Args:
-            scenario: The :class:`Scenario` formulation to solve.
+            scenario: The `Scenario` formulation to solve.
 
         Returns:
-            An :class:`EconomyState` (via :meth:`Economy.solve`) built from the
+            An `EconomyState` (via `Economy.solve`) built from the
             optimal building-level vector.  The underlying
-            :class:`scipy.optimize.OptimizeResult` is also stored on
-            :attr:`result` (and the scenario on :attr:`scenario`) for
+            `scipy.optimize.OptimizeResult` is also stored on
+            `result` (and the scenario on `scenario`) for
             marginal inspection. Economy of scale is disabled because its
             level-dependent throughput is nonlinear and is not represented in
             the linear programme.
 
         Raises:
-            ValueError: If :func:`scipy.optimize.linprog` reports that the
+            ValueError: If `scipy.optimize.linprog` reports that the
                 optimisation failed (infeasible or unbounded).
         """
         res = opt.linprog(**scenario.linprog_args(self.model))

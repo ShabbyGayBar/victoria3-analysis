@@ -18,6 +18,12 @@ class PopNeedsParser(Tree):
     """Parser for Victoria 3 pop need definitions."""
 
     def __init__(self, game_dir: str | Path | None = None):
+        """Initialise and populate the pop-needs tree.
+
+        Args:
+            game_dir: Path to the Victoria 3 ``game`` directory. If ``None``,
+                locate the directory automatically.
+        """
         super().__init__()
 
         if game_dir is None:

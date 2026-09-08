@@ -2,7 +2,7 @@
 Parser for Victoria 3 production-method definitions.
 
 Reads all ``.txt`` files under ``common/production_methods`` and exposes them
-as a :class:`ProductionMethodParser` (a ``pyradox.Tree`` subclass) that
+as a `ProductionMethodParser` (a ``pyradox.Tree`` subclass) that
 supports raw per-method iteration, per-profession employment look-ups,
 per-method state-modifier look-ups, and flat ``pandas.DataFrame`` conversion
 combining building and production-method-group data with per-method
@@ -30,12 +30,12 @@ class ProductionMethodParser(Tree):
 
     On construction the parser reads all production-method ``.txt`` files from
     the game's ``common/production_methods`` directory.  Raw entries can be
-    iterated via :meth:`items` (inherited from ``Tree``); per-method employment
-    (total and broken down by profession) is available via :meth:`employment`;
-    per-method state modifiers are available via :meth:`state_modifiers`; and
+    iterated via `items` (inherited from ``Tree``); per-method employment
+    (total and broken down by profession) is available via `employment`;
+    per-method state modifiers are available via `state_modifiers`; and
     a flat per-configuration table of production-method attributes plus
     appended employment, goods-flow and state-modifier columns is built by
-    :meth:`to_dataframe`.
+    `to_dataframe`.
     """
 
     def __init__(self, game_dir: str | Path | None = None):
@@ -44,7 +44,7 @@ class ProductionMethodParser(Tree):
         Args:
             game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
                 the directory is located automatically via
-                :func:`~vic3_analysis.utils.get_vic3_directory`.
+                `get_vic3_directory`.
         """
         super().__init__()
         self._python_cache: dict[str, dict[str, Any]] = {}
@@ -229,7 +229,7 @@ class ProductionMethodParser(Tree):
             ``"state_infrastructure_add"``) columns.  Employment, goods and
             state-modifier columns are zero-filled; scalar-attribute columns
             are left missing (``NaN``) when a method does not define them,
-            matching :meth:`BuildingsParser.to_dataframe`.
+            matching `BuildingsParser.to_dataframe`.
 
         Raises:
             ValueError: If a goods modifier string cannot be classified as

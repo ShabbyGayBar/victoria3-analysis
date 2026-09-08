@@ -1,24 +1,24 @@
 """
 Supply-chain analysis for the nominal Victoria 3 economy.
 
-Builds on :class:`~vic3_analysis.analysis.economy.Economy` and
-:class:`~vic3_analysis.optimize.nominal.NominalOptimizer` to provide:
+Builds on `Economy` and
+`NominalOptimizer` to provide:
 
-* :func:`optimize_chain` - solve a
-  :class:`~vic3_analysis.optimize.scenario.Scenario` and return the resulting
-  :class:`~vic3_analysis.analysis.economy.EconomyState`.
-* :class:`SupplyChainNode` / :class:`ProducerNode` - the upstream dependency
+* `optimize_chain` - solve a
+  `Scenario` and return the resulting
+  `EconomyState`.
+* `SupplyChainNode` / `ProducerNode` - the upstream dependency
   graph with traversal, chain-metric, and Mermaid-serialisation methods.
-* :func:`upstream_tree` - the structured upstream dependency graph of a good
+* `upstream_tree` - the structured upstream dependency graph of a good
   (recipe or realised view).
-* :func:`value_added_breakdown` - per-config or per-good attribution of GDP,
+* `value_added_breakdown` - per-config or per-good attribution of GDP,
   employment, and construction cost (chain-scoped or whole-economy).
-* :func:`bottleneck` - rank input goods by cost share and, when available,
+* `bottleneck` - rank input goods by cost share and, when available,
   report LP shadow prices for the import caps.
-* :func:`compare_scenarios` - run multiple scenarios and tabulate metrics.
+* `compare_scenarios` - run multiple scenarios and tabulate metrics.
 
 Scenario formulation (objectives, constraints, throughput bonuses as data)
-lives in :class:`~vic3_analysis.optimize.scenario.Scenario`.
+lives in `Scenario`.
 """
 
 from __future__ import annotations
@@ -47,17 +47,17 @@ _RESOURCE_LIMITED_BUILDING_GROUPS: frozenset[str] = frozenset(
 
 
 def optimize_chain(economy: Economy, scenario: Scenario) -> EconomyState:
-    """Solve a scenario and return the resulting :class:`EconomyState`.
+    """Solve a scenario and return the resulting `EconomyState`.
 
     Equivalent to ``NominalOptimizer(economy).solve(scenario)``.
 
     Args:
-        economy: The :class:`Economy` to optimise over.
-        scenario: The :class:`~vic3_analysis.optimize.scenario.Scenario`
+        economy: The `Economy` to optimise over.
+        scenario: The `Scenario`
             formulation to solve.
 
     Returns:
-        The optimal :class:`EconomyState`.
+        The optimal `EconomyState`.
     """
     return NominalOptimizer(economy).solve(scenario)
 
@@ -113,19 +113,19 @@ class SupplyChainNode:
     is_raw: bool
 
     def iter_producers(self) -> Iterator[ProducerNode]:
-        """Yield every :class:`ProducerNode` reachable from this node, depth-first.
+        """Yield every `ProducerNode` reachable from this node, depth-first.
 
-        Each :class:`SupplyChainNode` is visited once (tracked by identity), so
+        Each `SupplyChainNode` is visited once (tracked by identity), so
         traversal is linear in the number of distinct good-nodes rather than
         exponential in the chain depth.  Victoria 3 has genuine good-level
         cycles (e.g. ``steel`` <-> ``tools``), so a visited guard is required
         to avoid re-traversing shared or cyclic intermediates.  Callers
         aggregating metrics should still de-duplicate by
-        :attr:`ProducerNode.config` if a configuration appears under several
+        `ProducerNode.config` if a configuration appears under several
         goods.
 
         Yields:
-            Each :class:`ProducerNode` reachable from this node.
+            Each `ProducerNode` reachable from this node.
         """
         visited: set[int] = set()
         stack: list[SupplyChainNode] = [self]
@@ -144,7 +144,7 @@ class SupplyChainNode:
 
         Returns:
             A dict mapping each distinct ``"building+production_method"``
-            configuration key to its :class:`ProducerNode`.
+            configuration key to its `ProducerNode`.
         """
         result: dict[str, ProducerNode] = {}
         for producer in self.iter_producers():
@@ -161,7 +161,7 @@ class SupplyChainNode:
         exponential re-traversal of shared DAG subtrees.
 
         Returns:
-            A dict mapping each good key to its :class:`SupplyChainNode`.
+            A dict mapping each good key to its `SupplyChainNode`.
         """
         result: dict[str, SupplyChainNode] = {}
         visited: set[int] = set()
@@ -340,7 +340,7 @@ def upstream_tree(
     economy's raw matrices are used.
 
     Args:
-        economy: The :class:`Economy` whose production table is traced.
+        economy: The `Economy` whose production table is traced.
         good: The terminal good key to trace upstream from.
         state: Optional solved state for the realised view.
         scenario: Optional solved scenario providing throughput-adjusted
@@ -348,7 +348,7 @@ def upstream_tree(
         max_depth: Recursion guard against pathological deep graphs.
 
     Returns:
-        The :class:`SupplyChainNode` rooted at *good*.
+        The `SupplyChainNode` rooted at *good*.
 
     Raises:
         ValueError: If *good* is not present in the goods index.
@@ -453,8 +453,8 @@ def value_added_breakdown(
     economy's raw matrices are used.
 
     Args:
-        economy: The :class:`Economy` *state* was solved on.
-        state: A solved :class:`EconomyState`.
+        economy: The `Economy` *state* was solved on.
+        state: A solved `EconomyState`.
         good: If given, restrict to the realised upstream chain of *good*
             (configs with non-zero level feeding it).  If ``None``, cover every
             active config in the economy.
@@ -592,8 +592,8 @@ def bottleneck(
     available, so the ranking is consistent with the solved GDP.
 
     Args:
-        economy: The :class:`Economy` *state* was solved on.
-        state: A solved :class:`EconomyState`.
+        economy: The `Economy` *state* was solved on.
+        state: A solved `EconomyState`.
         good: If given, restrict to the realised upstream chain of *good*.
         optimizer: Optional solver that has solved a scenario on *economy*; its
             retained scenario and LP result are read for adjusted flows and
@@ -680,8 +680,8 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
     aborted by a single infeasible recipe.
 
     Args:
-        economy: The :class:`Economy` to optimise over.
-        scenarios: Iterable of :class:`Scenario` objects.
+        economy: The `Economy` to optimise over.
+        scenarios: Iterable of `Scenario` objects.
 
     Returns:
         A ``DataFrame`` with one row per scenario and columns ``name``,

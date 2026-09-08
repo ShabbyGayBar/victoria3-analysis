@@ -39,7 +39,7 @@ class BuildingsParser(Tree):
         Args:
             game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
                 the directory is located automatically via
-                :func:`~vic3_analysis.utils.get_vic3_directory`.
+                `get_vic3_directory`.
         """
         super().__init__()
         self._python_cache: dict[str, dict[str, Any]] = {}
@@ -89,9 +89,9 @@ class BuildingsParser(Tree):
     def _resolved_group_attrs(self) -> dict[str, dict[str, Any]]:
         """Return resolved building-group attributes, building them lazily.
 
-        Constructs a :class:`BuildingGroupParser` from the same game directory
-        and caches its :meth:`~BuildingGroupParser.resolved_attributes` result
-        so repeated :meth:`to_dataframe` calls do not re-parse the
+        Constructs a `BuildingGroupParser` from the same game directory
+        and caches its `resolved_attributes` result
+        so repeated `to_dataframe` calls do not re-parse the
         ``common/building_groups`` directory.
         """
         if self._group_attrs_cache is None:

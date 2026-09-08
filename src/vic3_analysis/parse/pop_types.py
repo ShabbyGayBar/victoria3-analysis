@@ -28,7 +28,7 @@ class PopTypesParser(Tree):
         Args:
             game_dir: Path to the Victoria 3 ``game`` directory. If ``None``
                 the directory is located automatically via
-                :func:`~vic3_analysis.utils.get_vic3_directory`.
+                `get_vic3_directory`.
         """
         super().__init__()
         self._python_cache: dict[str, dict[str, Any]] = {}

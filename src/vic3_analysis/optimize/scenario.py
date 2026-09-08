@@ -1,11 +1,11 @@
 """
 Scenario formulation for nominal Victoria 3 linear programmes.
 
-Defines :class:`Scenario`, a frozen dataclass that captures an optimisation
+Defines `Scenario`, a frozen dataclass that captures an optimisation
 recipe (objective, production basket, import policy, banned production methods
 / buildings, throughput bonuses, caps) as data, and translates it — via pure,
 economy-parameterised methods — into the objective vector and constraint
-matrices consumed by :class:`~vic3_analysis.optimize.nominal.NominalOptimizer`.
+matrices consumed by `NominalOptimizer`.
 
 The translation is deterministic and side-effect free: the constraint order is
 fixed (inequality: import cap, construction-cost cap, employment cap, produce
@@ -30,7 +30,7 @@ _OBJECTIVES = ("gdp", "employment", "automation", "construction_cost")
 
 
 class LinprogArgs(TypedDict):
-    """Keyword arguments for :func:`scipy.optimize.linprog`.
+    """Keyword arguments for `scipy.optimize.linprog`.
 
     Attributes:
         c: The objective vector to minimise, of shape ``(n_buildings,)``.
@@ -81,8 +81,8 @@ class Scenario:
 
     The translation methods are pure functions of ``(self, economy)``: nothing
     is mutated, results are recomputed on each call, and the constraint order
-    is fixed (see :meth:`inequality_constraints` and
-    :meth:`equality_constraints`).
+    is fixed (see `inequality_constraints` and
+    `equality_constraints`).
 
     Attributes:
         produce: Sequence of ``(good_key, amount)`` pairs; each good must be
@@ -142,7 +142,7 @@ class Scenario:
         """Validate the objective name at construction time.
 
         Raises:
-            ValueError: If :attr:`objective` is not one of the named
+            ValueError: If `objective` is not one of the named
                 objectives.
         """
         if self.objective not in _OBJECTIVES:
@@ -152,7 +152,7 @@ class Scenario:
         """Return the scenario name, falling back to the produce basket.
 
         Returns:
-            :attr:`name` if set, otherwise the produce-basket good keys joined
+            `name` if set, otherwise the produce-basket good keys joined
             with ``"+"``, or ``"unnamed"`` when the basket is empty.
         """
         if self.name is not None:
@@ -165,7 +165,7 @@ class Scenario:
         """Return per-configuration goods-flow multipliers from bonuses.
 
         Args:
-            economy: The :class:`Economy` whose production table is scaled.
+            economy: The `Economy` whose production table is scaled.
 
         Returns:
             A 1-D array of shape ``(n_buildings,)`` where each entry is the
@@ -182,7 +182,7 @@ class Scenario:
         """Return the throughput-adjusted goods input matrix.
 
         Args:
-            economy: The :class:`Economy` whose production table is scaled.
+            economy: The `Economy` whose production table is scaled.
 
         Returns:
             The ``(n_buildings, n_goods)`` input matrix with the rows of
@@ -196,7 +196,7 @@ class Scenario:
         """Return the throughput-adjusted goods output matrix.
 
         Args:
-            economy: The :class:`Economy` whose production table is scaled.
+            economy: The `Economy` whose production table is scaled.
 
         Returns:
             The ``(n_buildings, n_goods)`` output matrix with the rows of
@@ -210,7 +210,7 @@ class Scenario:
         """Return the throughput-adjusted net goods matrix (output - input).
 
         Args:
-            economy: The :class:`Economy` whose production table is scaled.
+            economy: The `Economy` whose production table is scaled.
 
         Returns:
             The ``(n_buildings, n_goods)`` net goods matrix reflecting
@@ -222,7 +222,7 @@ class Scenario:
         """Return gross-GDP value per building level at base prices.
 
         Args:
-            economy: The :class:`Economy` providing prices and flows.
+            economy: The `Economy` providing prices and flows.
 
         Returns:
             A 1-D array of shape ``(n_buildings,)`` computed as
@@ -237,13 +237,13 @@ class Scenario:
         negated.
 
         Args:
-            economy: The :class:`Economy` providing the derived vectors.
+            economy: The `Economy` providing the derived vectors.
 
         Returns:
             The objective vector of shape ``(n_buildings,)``.
 
         Raises:
-            ValueError: If :attr:`objective` is not recognised (only possible
+            ValueError: If `objective` is not recognised (only possible
                 when the dataclass was constructed bypassing validation).
         """
         if self.objective == "gdp":
@@ -264,10 +264,10 @@ class Scenario:
         Rows follow a fixed order — import cap, construction-cost cap,
         employment cap, produce basket, building level limits, arable-land cap,
         infrastructure floor — with the import block leading whenever present, so
-        :meth:`import_marginals` can slice its duals directly.
+        `import_marginals` can slice its duals directly.
 
         Args:
-            economy: The :class:`Economy` providing the derived vectors.
+            economy: The `Economy` providing the derived vectors.
 
         Returns:
             A ``(A_ub, b_ub)`` tuple enforcing ``A_ub @ x <= b_ub``, of shapes
@@ -275,7 +275,7 @@ class Scenario:
             when the scenario has no inequality constraints.
 
         Raises:
-            ValueError: If a :attr:`produce` good is not in the goods index.
+            ValueError: If a `produce` good is not in the goods index.
         """
         return _stack(self._inequality_pairs(economy))
 
@@ -288,7 +288,7 @@ class Scenario:
         groups, urban-center tie.
 
         Args:
-            economy: The :class:`Economy` providing the production table.
+            economy: The `Economy` providing the production table.
 
         Returns:
             A ``(A_eq, b_eq)`` tuple enforcing ``A_eq @ x == b_eq``, of shapes
@@ -298,24 +298,24 @@ class Scenario:
         return _stack(self._equality_pairs(economy))
 
     def linprog_args(self, economy: Economy) -> LinprogArgs:
-        """Return keyword arguments ready for :func:`scipy.optimize.linprog`.
+        """Return keyword arguments ready for `scipy.optimize.linprog`.
 
-        Bundles :meth:`objective_vector`, :meth:`inequality_constraints`, and
-        :meth:`equality_constraints` so the LP can be invoked directly::
+        Bundles `objective_vector`, `inequality_constraints`, and
+        `equality_constraints` so the LP can be invoked directly::
 
             opt.linprog(**scenario.linprog_args(economy))
 
         Args:
-            economy: The :class:`Economy` providing the derived vectors.
+            economy: The `Economy` providing the derived vectors.
 
         Returns:
-            A :class:`LinprogArgs` ``TypedDict`` (a plain ``dict`` at runtime)
+            A `LinprogArgs` ``TypedDict`` (a plain ``dict`` at runtime)
             with keys ``"c"``, ``"A_ub"``, ``"b_ub"``, ``"A_eq"`` and
             ``"b_eq"``; constraint entries are ``None`` when the scenario has
             no such constraints.
 
         Raises:
-            ValueError: If a :attr:`produce` good is not in the goods index.
+            ValueError: If a `produce` good is not in the goods index.
         """
         A_ub, b_ub = self.inequality_constraints(economy)
         A_eq, b_eq = self.equality_constraints(economy)
@@ -429,15 +429,13 @@ class Scenario:
         """Return the import-cap shadow prices from a solved LP result.
 
         The import block is the first inequality block (see
-        :meth:`inequality_constraints`), so its marginals are the leading
+        `inequality_constraints`), so its marginals are the leading
         ``n_goods`` entries of the inequality marginals.
 
         Args:
-            economy: The :class:`Economy` the scenario was solved on.
-            result: The :class:`scipy.optimize.OptimizeResult` stored by
-                :meth:`NominalOptimizer.solve
-                <vic3_analysis.optimize.nominal.NominalOptimizer.solve>`, or
-                ``None``.
+            economy: The `Economy` the scenario was solved on.
+            result: The `scipy.optimize.OptimizeResult` stored by
+                `NominalOptimizer.solve`, or ``None``.
 
         Returns:
             Import-cap marginal values of length ``n_goods``, or ``None`` when

@@ -19,7 +19,7 @@ def goods(game_dir: str | Path | None = None) -> pd.DataFrame:
     Args:
         game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
             directory is located automatically via
-            :func:`~vic3_analysis.utils.get_vic3_directory`.
+            `get_vic3_directory`.
 
     Returns:
         A ``DataFrame`` with one row per tradeable good, where the ``"key"``
