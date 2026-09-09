@@ -2,7 +2,7 @@
 
 ## Type Safety
 
-- **Enforcement runs via `uv run pyright`** (configured in `[tool.pyright]`, `basic` mode, covering `src` and `tests`). The `if not isinstance(...): raise TypeError(...)` pattern below is what keeps this command clean.
+- **Enforcement runs via `uv run pyright`** (configured in `[tool.pyright]`, `standard` mode, covering `src`, `tests`, `examples`, and `docs/hooks.py`). The `if not isinstance(...): raise TypeError(...)` pattern below is what keeps this command clean.
 - **Targeted `# pyright: ignore[reportXxx]` is permitted ONLY for pandas-stub false positives.** Pyright uses Pylance's bundled pandas stubs, which pessimistically type `df["col"]` as `Series | DataFrame` (guarding duplicate-column DataFrames). This cascades into false positives on runtime-scalar operations: `df[mask].sort_values(...)`, `int(df["col"].median())`, `df[cols]` returns, `.fillna` on the widened union, and `assert series.any()`. When adding such an ignore, pin the specific rule (e.g. `# pyright: ignore[reportCallIssue]`) and do not broaden it. Never use a bare `# type: ignore` and never use ignores for `pyradox` — pyradox stays narrowed via `if not isinstance(...): raise TypeError(...)` (see below).
 
 ## Type Narrowing for Untyped Libraries

@@ -13,7 +13,8 @@ purpose of each directory, and the key modules/files within them.
   dependencies (`numpy`, `pandas`,   `pillow`, `pyradox-txt-parser`, `scipy`, `matplotlib`) and
   dev dependencies (`mkdocs-material`, `mkdocstrings[python]`, `pytest`,
   `pytest-cov`, `ruff`, `pyright`). Configures pytest test paths and coverage,
-  and `[tool.pyright]` (basic mode, covering `src` and `tests`).
+  and `[tool.pyright]` (standard mode, covering `src`, `tests`, `examples`, and
+  `docs/hooks.py`).
 - `uv.lock` — Lockfile for the `uv` toolchain, pinning transitive dependencies.
 - `.python-version` — Pins the project Python version (3.13) for `uv`/`pyenv`.
 - `mkdocs.yml` — MkDocs Material configuration. Builds the API reference from
