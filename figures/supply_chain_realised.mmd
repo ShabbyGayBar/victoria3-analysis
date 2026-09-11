@@ -1,0 +1,111 @@
+flowchart LR
+    %% Realised: automobiles (1/wk, autarky)
+    g_automobiles(("automobiles"))
+    g_coal(("coal"))
+    g_dye(("dye"))
+    g_electricity(("electricity"))
+    g_engines(("engines"))
+    g_explosives(("explosives"))
+    g_fertilizer(("fertilizer"))
+    g_iron(("iron"))
+    g_oil(("oil"))
+    g_paper(("paper"))
+    g_rubber(("rubber"))
+    g_steel(("steel"))
+    g_sulfur(("sulfur"))
+    g_tools(("tools"))
+    g_transportation(("transportation"))
+    g_wood(("wood"))
+    p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry["building_automotive_industry<br/>lvl=0.02"]
+    p_building_power_plant_pm_oil_fired_plant["building_power_plant<br/>lvl=0.001926"]
+    p_building_oil_rig_pm_combustion_derricks_pm_tanker_cars["building_oil_rig<br/>lvl=0.005197"]
+    p_building_railway_pm_diesel_trains_principle_transport_3_pm_no_passenger_trains["building_railway<br/>lvl=0.001541"]
+    p_building_motor_industry_pm_diesel_engines_pm_assembly_lines_building_motor_industry["building_motor_industry<br/>lvl=0.002488"]
+    p_building_steel_mill_pm_electric_arc_process_pm_rotary_valve_engine_building_steel_mill["building_steel_mill<br/>lvl=0.001091"]
+    p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine["building_coal_mine<br/>lvl=0.0004387"]
+    p_building_tooling_workshop_pm_rubber_grips_pm_assembly_lines_building_tooling_workshop["building_tooling_workshop<br/>lvl=0.001309"]
+    p_building_rubber_plantation_automatic_irrigation_building_rubber_plantation_slave_exploitation_rubber_pm_steam_rail_transport["building_rubber_plantation<br/>lvl=0.003278"]
+    p_building_explosives_factory_pm_brine_electrolysis["building_explosives_factory<br/>lvl=0.0001149"]
+    p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill["building_paper_mill<br/>lvl=3.446e-05"]
+    p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts["building_logging_camp<br/>lvl=1.034e-05"]
+    p_building_synthetics_plant_pm_dye_production_pm_no_artificial_fibers["building_synthetics_plant<br/>lvl=4.308e-06"]
+    p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine["building_sulfur_mine<br/>lvl=6.2e-05"]
+    p_building_chemical_plant_pm_nitrogen_fixation["building_chemical_plant<br/>lvl=2.936e-05"]
+    p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine["building_iron_mine<br/>lvl=0.001222"]
+    g_electricity --> p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry
+    g_engines --> p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry
+    g_oil --> p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry
+    g_rubber --> p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry
+    g_tools --> p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry
+    p_building_automotive_industry_pm_mass_automobile_production_pm_no_aeroplane_production_pm_no_tank_production_pm_assembly_lines_building_automotive_industry --> g_automobiles
+    g_engines --> p_building_power_plant_pm_oil_fired_plant
+    g_oil --> p_building_power_plant_pm_oil_fired_plant
+    p_building_power_plant_pm_oil_fired_plant --> g_electricity
+    g_engines --> p_building_oil_rig_pm_combustion_derricks_pm_tanker_cars
+    g_transportation --> p_building_oil_rig_pm_combustion_derricks_pm_tanker_cars
+    p_building_oil_rig_pm_combustion_derricks_pm_tanker_cars --> g_oil
+    g_engines --> p_building_railway_pm_diesel_trains_principle_transport_3_pm_no_passenger_trains
+    g_oil --> p_building_railway_pm_diesel_trains_principle_transport_3_pm_no_passenger_trains
+    p_building_railway_pm_diesel_trains_principle_transport_3_pm_no_passenger_trains --> g_transportation
+    g_electricity --> p_building_motor_industry_pm_diesel_engines_pm_assembly_lines_building_motor_industry
+    g_oil --> p_building_motor_industry_pm_diesel_engines_pm_assembly_lines_building_motor_industry
+    g_steel --> p_building_motor_industry_pm_diesel_engines_pm_assembly_lines_building_motor_industry
+    g_tools --> p_building_motor_industry_pm_diesel_engines_pm_assembly_lines_building_motor_industry
+    p_building_motor_industry_pm_diesel_engines_pm_assembly_lines_building_motor_industry --> g_engines
+    g_coal --> p_building_steel_mill_pm_electric_arc_process_pm_rotary_valve_engine_building_steel_mill
+    g_electricity --> p_building_steel_mill_pm_electric_arc_process_pm_rotary_valve_engine_building_steel_mill
+    g_iron --> p_building_steel_mill_pm_electric_arc_process_pm_rotary_valve_engine_building_steel_mill
+    g_tools --> p_building_steel_mill_pm_electric_arc_process_pm_rotary_valve_engine_building_steel_mill
+    p_building_steel_mill_pm_electric_arc_process_pm_rotary_valve_engine_building_steel_mill --> g_steel
+    g_engines --> p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine
+    g_explosives --> p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine
+    g_oil --> p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine
+    g_tools --> p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine
+    g_transportation --> p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine
+    p_building_coal_mine_pm_diesel_pump_building_coal_mine_pm_dynamite_building_coal_mine_pm_steam_donkey_building_coal_mine_pm_rail_transport_mine --> g_coal
+    g_electricity --> p_building_tooling_workshop_pm_rubber_grips_pm_assembly_lines_building_tooling_workshop
+    g_oil --> p_building_tooling_workshop_pm_rubber_grips_pm_assembly_lines_building_tooling_workshop
+    g_rubber --> p_building_tooling_workshop_pm_rubber_grips_pm_assembly_lines_building_tooling_workshop
+    g_steel --> p_building_tooling_workshop_pm_rubber_grips_pm_assembly_lines_building_tooling_workshop
+    p_building_tooling_workshop_pm_rubber_grips_pm_assembly_lines_building_tooling_workshop --> g_tools
+    g_engines --> p_building_rubber_plantation_automatic_irrigation_building_rubber_plantation_slave_exploitation_rubber_pm_steam_rail_transport
+    g_transportation --> p_building_rubber_plantation_automatic_irrigation_building_rubber_plantation_slave_exploitation_rubber_pm_steam_rail_transport
+    p_building_rubber_plantation_automatic_irrigation_building_rubber_plantation_slave_exploitation_rubber_pm_steam_rail_transport --> g_rubber
+    g_electricity --> p_building_explosives_factory_pm_brine_electrolysis
+    g_fertilizer --> p_building_explosives_factory_pm_brine_electrolysis
+    g_paper --> p_building_explosives_factory_pm_brine_electrolysis
+    g_sulfur --> p_building_explosives_factory_pm_brine_electrolysis
+    p_building_explosives_factory_pm_brine_electrolysis --> g_explosives
+    g_coal --> p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill
+    g_dye --> p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill
+    g_sulfur --> p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill
+    g_tools --> p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill
+    g_wood --> p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill
+    p_building_paper_mill_pm_bleached_paper_pm_rotary_valve_engine_building_paper_mill --> g_paper
+    g_electricity --> p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts
+    g_engines --> p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts
+    g_oil --> p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts
+    g_tools --> p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts
+    g_transportation --> p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts
+    p_building_logging_camp_pm_electric_saw_mills_pm_no_hardwood_pm_chainsaws_pm_log_carts --> g_wood
+    g_fertilizer --> p_building_synthetics_plant_pm_dye_production_pm_no_artificial_fibers
+    g_sulfur --> p_building_synthetics_plant_pm_dye_production_pm_no_artificial_fibers
+    p_building_synthetics_plant_pm_dye_production_pm_no_artificial_fibers --> g_dye
+    g_coal --> p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_engines --> p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_explosives --> p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_oil --> p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_tools --> p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_transportation --> p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    p_building_sulfur_mine_pm_diesel_pump_building_sulfur_mine_pm_dynamite_building_sulfur_mine_pm_steam_donkey_mine_pm_rail_transport_mine --> g_sulfur
+    g_iron --> p_building_chemical_plant_pm_nitrogen_fixation
+    g_oil --> p_building_chemical_plant_pm_nitrogen_fixation
+    g_sulfur --> p_building_chemical_plant_pm_nitrogen_fixation
+    p_building_chemical_plant_pm_nitrogen_fixation --> g_fertilizer
+    g_coal --> p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_engines --> p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_explosives --> p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_oil --> p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_tools --> p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    g_transportation --> p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine
+    p_building_iron_mine_pm_diesel_pump_building_iron_mine_pm_dynamite_building_iron_mine_pm_steam_donkey_mine_pm_rail_transport_mine --> g_iron
