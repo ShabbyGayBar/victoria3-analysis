@@ -43,6 +43,7 @@ objectives are:
 | Objective | Direction | Meaning |
 | --- | --- | --- |
 | `gdp` | maximize | Gross GDP valued at base prices |
+| `gdp_per_capita` | maximize | Market-price GDP per employed person |
 | `employment` | maximize | Total employed population |
 | `automation` | minimize | Employment required by the scenario |
 | `construction_cost` | minimize | Construction cost required by the scenario |
@@ -65,6 +66,26 @@ buildings, or resource availability; ban building groups; apply fixed
 throughput bonuses; and enforce infrastructure or urban-center relationships.
 The optimizer disables economy of scale because level-dependent flows are not
 linear.
+
+For endogenous national prices, use `MarketOptimizer`. It supports `gdp` and
+`gdp_per_capita`, requires `import_limit=None`, and treats `imports`, `exports`,
+and `pop_needs` as fixed market orders that affect prices rather than goods
+balance constraints. Its SLSQP solve is local and requires a bounded scenario.
+The model excludes shortages, MAPI and local prices, wealth feedback,
+endogenous demand, and economy-of-scale bonuses.
+
+```python
+from vic3_analysis import MarketOptimizer, Scenario
+
+scenario = Scenario(
+    produce=(("automobiles", 100.0),),
+    objective="gdp_per_capita",
+    import_limit=None,
+    exports=(("automobiles", 100.0),),
+    employment_cap=1_000_000.0,
+)
+state = MarketOptimizer(economy).solve(scenario)
+```
 
 ## State-region limits
 

@@ -67,3 +67,16 @@ capita, resource-building levels, and employment-normalized levels.
 ```bash
 uv run python -m examples.supply_chain_cangshulun
 ```
+
+## Automobile market optimization
+
+`examples/supply_chain_market_automobiles.py` solves a bounded automobile
+supply chain with 100 weekly automobile export orders, no imports, and the
+`gdp_per_capita` market-price objective. It prints the same fixed summary
+columns used by the cangshulun report without writing a generated artifact.
+
+[:fontawesome-brands-github: View `examples/supply_chain_market_automobiles.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/supply_chain_market_automobiles.py)
+
+```bash
+uv run python -m examples.supply_chain_market_automobiles
+```

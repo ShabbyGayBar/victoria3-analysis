@@ -65,6 +65,7 @@
 - [x] Implement the `Economy` class as a solver state for iterative equilibrium computation.
 - [x] Implement the solver method for nominal price
 - [x] Implement the solver method with market price mechanics
+- [x] Implement `MarketOptimizer` for bounded endogenous-price GDP and GDP-per-capita scenarios
 - [ ] Implement the solver method with population composition and wealth levels
 
 ## Supply chain analysis (nominal)

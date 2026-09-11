@@ -54,6 +54,11 @@ page = "showcase/supply-chains.md"
 artifacts = ["tables/supply_chain_cangshulun.csv"]
 
 [[collection]]
+script = "examples/supply_chain_market_automobiles.py"
+page = "showcase/supply-chains.md"
+artifacts = []
+
+[[collection]]
 script = "examples/supply_chain_trace.py"
 page = "showcase/supply-chains.md"
 artifacts = ["figures/supply_chain_recipe.mmd", "figures/supply_chain_realised.mmd"]

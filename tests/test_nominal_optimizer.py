@@ -77,6 +77,21 @@ def test_solve_state_reflects_throughput_bonuses(economy: Economy):
     )
 
 
+def test_solve_propagates_fixed_market_context(economy: Economy):
+    scenario = Scenario(
+        objective="construction_cost",
+        import_limit=None,
+        imports=(("tools", 2.0),),
+        exports=(("coal", 3.0),),
+        pop_needs=(("grain", 4.0),),
+    )
+    state = NominalOptimizer(economy).solve(scenario)
+    goods = economy.goods_index()
+    assert state.imports[goods.index("tools")] == pytest.approx(2.0)
+    assert state.exports[goods.index("coal")] == pytest.approx(3.0)
+    assert state.pop_needs[goods.index("grain")] == pytest.approx(4.0)
+
+
 def test_solve_satisfies_building_limits(economy: Economy):
     scenario = Scenario(
         produce=((TERMINAL_GOOD, 1.0),),
@@ -138,6 +153,12 @@ def test_solve_satisfies_urbanization_center(economy: Economy):
 def test_solve_unbounded_raises(economy: Economy):
     scenario = Scenario(produce=((TERMINAL_GOOD, 1.0),), objective="gdp")
     with pytest.raises(ValueError, match="Optimization failed"):
+        NominalOptimizer(economy).solve(scenario)
+
+
+def test_solve_rejects_gdp_per_capita(economy: Economy):
+    scenario = Scenario(objective="gdp_per_capita", import_limit=None)
+    with pytest.raises(ValueError, match="MarketOptimizer"):
         NominalOptimizer(economy).solve(scenario)
 
 

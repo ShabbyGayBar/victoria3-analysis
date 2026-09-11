@@ -142,6 +142,9 @@ or expose a `pyradox.Tree` subclass with helper methods.
   scenario are retained on the `result` / `scenario` attributes so downstream
   tooling (e.g. `supply_chain.bottleneck`) can read constraint marginals
   (shadow prices).
+- `market.py` — `MarketOptimizer`, a bounded nonlinear SLSQP solver for GDP
+  and GDP per capita with endogenous national market prices and fixed Scenario
+  import, export, and population-needs orders.
 
 ## `examples/` — Table-generation Scripts
 
@@ -164,6 +167,7 @@ generated artifact and its producing script is indexed in the
 | `supply_chain_trace.py` | `figures/supply_chain_recipe.mmd`, `figures/supply_chain_realised.mmd` |
 | `supply_chain_compare.py` | `tables/supply_chain_sweep.csv` |
 | `supply_chain_cangshulun.py` | `tables/supply_chain_cangshulun.csv` |
+| `supply_chain_market_automobiles.py` | Prints automobile market metrics |
 
 Run any script with `uv run python -m examples.<name>` or directly. They are
 the canonical "how do I use this package" reference for non-developers.
@@ -180,6 +184,9 @@ the canonical "how do I use this package" reference for non-developers.
   script writes `tables/supply_chain_cangshulun.csv` with `annual_gdp`,
   `gdp_per_capita`, and per-employment building-level metrics.
   Runnable as `__main__` scripts; not collected by pytest.
+- `supply_chain_market_automobiles.py` — maximizes market-price GDP per capita
+  for a bounded automobile supply chain with 100 weekly automobile export
+  orders and prints the cangshulun fixed-column metrics.
 - `optimize_jap.py` — maximises an autarkic, era-5 Japanese economy across an
   employment-cap sweep while enforcing the selected regions' extractive and
   arable-land capacity; writes `tables/optimize_jap.csv`.

@@ -26,6 +26,7 @@ from vic3_analysis.analysis.production import production_table
 from vic3_analysis.analysis.economy import Economy
 from vic3_analysis.optimize.scenario import Scenario
 from vic3_analysis.optimize.nominal import NominalOptimizer
+from vic3_analysis.optimize.market import MarketOptimizer
 from vic3_analysis.analysis.supply_chain import (
     SupplyChainNode,
     ProducerNode,
@@ -55,6 +56,7 @@ __all__ = [
     "Economy",
     "Scenario",
     "NominalOptimizer",
+    "MarketOptimizer",
     "SupplyChainNode",
     "ProducerNode",
     "upstream_tree",

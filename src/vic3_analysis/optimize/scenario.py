@@ -26,7 +26,13 @@ from scipy.optimize import OptimizeResult
 
 from vic3_analysis.analysis.economy import Economy
 
-_OBJECTIVES = ("gdp", "employment", "automation", "construction_cost")
+_OBJECTIVES = (
+    "gdp",
+    "gdp_per_capita",
+    "employment",
+    "automation",
+    "construction_cost",
+)
 
 
 class LinprogArgs(TypedDict):
@@ -89,7 +95,8 @@ class Scenario:
             produced with at least *amount* net output per week.  Empty means
             no production requirement.
         objective: Named objective. One of ``"gdp"`` (maximise gross GDP),
-            ``"employment"`` (maximise total employment), ``"automation"``
+            ``"gdp_per_capita"`` (maximise GDP per employed person with
+            `MarketOptimizer`), ``"employment"`` (maximise total employment), ``"automation"``
             (minimise total employment, i.e. maximise automation) or
             ``"construction_cost"`` (minimise total construction cost).
         import_limit: Maximum net import allowed per good; ``0.0`` (the
@@ -121,6 +128,10 @@ class Scenario:
             (vanilla uses ``100``).
         name: Optional display name; defaults to the joined produce-basket
             goods when ``None``.
+        imports: Fixed imported goods as ``(good_key, amount)`` pairs.
+        exports: Fixed exported goods as ``(good_key, amount)`` pairs.
+        pop_needs: Fixed population-needs demand as ``(good_key, amount)``
+            pairs.
     """
 
     produce: tuple[tuple[str, float], ...] = ()
@@ -137,6 +148,9 @@ class Scenario:
     min_infrastructure: float | None = None
     urbanization_per_center: float | None = None
     name: str | None = None
+    imports: tuple[tuple[str, float], ...] = ()
+    exports: tuple[tuple[str, float], ...] = ()
+    pop_needs: tuple[tuple[str, float], ...] = ()
 
     def __post_init__(self) -> None:
         """Validate the objective name at construction time.
@@ -160,6 +174,51 @@ class Scenario:
         if self.produce:
             return "+".join(good for good, _amount in self.produce)
         return "unnamed"
+
+    def _goods_context_vector(
+        self, economy: Economy, entries: tuple[tuple[str, float], ...], name: str
+    ) -> np.ndarray:
+        """Translate named fixed market context into a goods-aligned vector."""
+        goods_index = economy.goods_index()
+        positions = {good: i for i, good in enumerate(goods_index)}
+        vector = np.zeros(len(goods_index), dtype=np.float64)
+        for entry in entries:
+            if not isinstance(entry, tuple) or len(entry) != 2:
+                raise ValueError(f"{name} entries must be (good, amount) pairs.")
+            good, amount = entry
+            if not isinstance(good, str):
+                raise ValueError(f"{name} good keys must be strings.")
+            if good not in positions:
+                raise ValueError(
+                    f"Good '{good}' in {name} was not found in goods index."
+                )
+            try:
+                value = float(amount)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"{name} amounts must be finite non-negative numbers."
+                ) from exc
+            if not np.isfinite(value) or value < 0:
+                raise ValueError(
+                    f"{name} amounts must be finite non-negative numbers."
+                )
+            position = positions[good]
+            if value > np.finfo(np.float64).max - vector[position]:
+                raise ValueError(f"{name} totals must remain finite.")
+            vector[position] += value
+        return vector
+
+    def imports_vector(self, economy: Economy) -> np.ndarray:
+        """Return fixed imports aligned to ``economy.goods_index()``."""
+        return self._goods_context_vector(economy, self.imports, "imports")
+
+    def exports_vector(self, economy: Economy) -> np.ndarray:
+        """Return fixed exports aligned to ``economy.goods_index()``."""
+        return self._goods_context_vector(economy, self.exports, "exports")
+
+    def pop_needs_vector(self, economy: Economy) -> np.ndarray:
+        """Return fixed population needs aligned to ``economy.goods_index()``."""
+        return self._goods_context_vector(economy, self.pop_needs, "pop_needs")
 
     def throughput_multipliers(self, economy: Economy) -> np.ndarray:
         """Return per-configuration goods-flow multipliers from bonuses.
@@ -248,6 +307,10 @@ class Scenario:
         """
         if self.objective == "gdp":
             return -self.gdp_vector(economy)
+        if self.objective == "gdp_per_capita":
+            raise ValueError(
+                "gdp_per_capita is nonlinear and requires MarketOptimizer."
+            )
         if self.objective == "employment":
             return -economy.employment_vector()
         if self.objective == "automation":

@@ -29,12 +29,21 @@ def test_defaults():
     assert scenario.arable_land_cap is None
     assert scenario.min_infrastructure is None
     assert scenario.urbanization_per_center is None
+    assert scenario.imports == ()
+    assert scenario.exports == ()
+    assert scenario.pop_needs == ()
     assert scenario.name is None
 
 
 def test_invalid_objective_raises_at_construction():
     with pytest.raises(ValueError, match="Unknown objective"):
         Scenario(objective="bogus")
+
+
+def test_gdp_per_capita_is_a_market_only_objective(economy: Economy):
+    scenario = Scenario(objective="gdp_per_capita")
+    with pytest.raises(ValueError, match="MarketOptimizer"):
+        scenario.objective_vector(economy)
 
 
 def test_frozen():
@@ -266,6 +275,41 @@ def test_default_scenario_constraints(economy: Economy):
 def test_produce_unknown_good(economy: Economy):
     with pytest.raises(ValueError, match="not found in goods index"):
         Scenario(produce=(("not_a_real_good", 1.0),)).inequality_constraints(economy)
+
+
+def test_market_context_vectors_sum_duplicate_goods(economy: Economy):
+    scenario = Scenario(
+        imports=(("tools", 2.0), ("tools", 3.0)),
+        exports=(("coal", 4.0),),
+        pop_needs=(("grain", 5.0),),
+    )
+    goods = economy.goods_index()
+    imports = scenario.imports_vector(economy)
+    exports = scenario.exports_vector(economy)
+    pop_needs = scenario.pop_needs_vector(economy)
+    assert imports[goods.index("tools")] == pytest.approx(5.0)
+    assert exports[goods.index("coal")] == pytest.approx(4.0)
+    assert pop_needs[goods.index("grain")] == pytest.approx(5.0)
+
+
+def test_market_context_vectors_reject_invalid_entries(economy: Economy):
+    invalid_good = (
+        Scenario(imports=(("not_a_real_good", 1.0),)),
+        Scenario(exports=(("not_a_real_good", 1.0),)),
+        Scenario(pop_needs=(("not_a_real_good", 1.0),)),
+    )
+    invalid_amount = (
+        Scenario(imports=(("tools", -1.0),)),
+        Scenario(exports=(("tools", -1.0),)),
+        Scenario(pop_needs=(("tools", -1.0),)),
+    )
+    vector_methods = ("imports_vector", "exports_vector", "pop_needs_vector")
+    for scenario, method_name in zip(invalid_good, vector_methods, strict=True):
+        with pytest.raises(ValueError, match="not found in goods index"):
+            getattr(scenario, method_name)(economy)
+    for scenario, method_name in zip(invalid_amount, vector_methods, strict=True):
+        with pytest.raises(ValueError, match="finite non-negative"):
+            getattr(scenario, method_name)(economy)
 
 
 def test_equality_constraints_order_and_content(economy: Economy):

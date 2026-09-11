@@ -1,6 +1,6 @@
 ---
 title: Optimization API
-description: Scenario formulation and nominal linear optimization APIs.
+description: Scenario formulation and linear and market-price optimization APIs.
 ---
 
 # Optimization API
@@ -12,3 +12,5 @@ and [supply-chain examples](../showcase/supply-chains.md).
 ::: vic3_analysis.Scenario
 
 ::: vic3_analysis.NominalOptimizer
+
+::: vic3_analysis.MarketOptimizer

@@ -73,6 +73,11 @@ class NominalOptimizer:
             ValueError: If `scipy.optimize.linprog` reports that the
                 optimisation failed (infeasible or unbounded).
         """
+        if scenario.objective == "gdp_per_capita":
+            raise ValueError(
+                "NominalOptimizer does not support the nonlinear "
+                "gdp_per_capita objective; use MarketOptimizer."
+            )
         res = opt.linprog(**scenario.linprog_args(self.model))
         if not res.success:
             raise ValueError(f"Optimization failed: {res.message}")
@@ -80,6 +85,9 @@ class NominalOptimizer:
         self.scenario = scenario
         return self.model.solve(
             res.x,
+            imports=scenario.imports_vector(self.model),
+            exports=scenario.exports_vector(self.model),
             throughput_multipliers=scenario.throughput_multipliers(self.model),
+            pop_needs=scenario.pop_needs_vector(self.model),
             economy_of_scale_level_cap=0.0,
         )
