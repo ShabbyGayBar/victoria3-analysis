@@ -1,4 +1,4 @@
-# Python Usage Rules for Fall of Titans
+# Python Usage Rules for Victoria 3 Analysis
 
 ## Type Safety
 
@@ -106,7 +106,7 @@ state.append("create_state", cs)
 
 ### Serialization
 
-`str(tree)` and `tree.prettyprint(level=0, indent_string='    ', include_comments=True)` produce canonical Paradox `.txt` output with 4-space indentation and preserved comments. Victoria 3 mod files typically use **tab** indentation, so when writing mod output, prefer a custom `serialize()` walker that iterates `tree._data` directly (see `scripts/generate_states.py:112` for the reference implementation) and emits `\t` indentation. Custom walkers must handle the `in_group` flag to reconstruct `{ a b c }` one-line groups.
+`str(tree)` and `tree.prettyprint(level=0, indent_string='    ', include_comments=True)` produce canonical Paradox `.txt` output with 4-space indentation and preserved comments. Victoria 3 mod files typically use **tab** indentation, so when writing mod output, use a custom `serialize()` walker that iterates `tree._data` directly and emits `\t` indentation. Custom walkers must handle the `in_group` flag to reconstruct `{ a b c }` one-line groups.
 
 ```python
 def serialize(tree, level=0, indent="\t"):
@@ -144,4 +144,4 @@ def serialize(tree, level=0, indent="\t"):
 
 ## Rationale
 
-These rules keep the codebase statically typed end-to-end without stubs, while preserving runtime safety. They were adopted during the `scripts/generate_states.py` migration to `pyradox`, which remains the canonical reference for parsing, mutating, and serializing Victoria 3 `.txt` files in this repo.
+These rules keep the codebase statically typed end-to-end without stubs while preserving runtime safety and Victoria 3 file compatibility.

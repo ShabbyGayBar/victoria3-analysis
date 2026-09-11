@@ -55,3 +55,4 @@ Tests require a local Victoria 3 installation.
 - Work only on assigned features.
 - Do NOT `git add` or `git commit` files.
 - Before writing Python scripts, read `@agents/rules/python.md` and follow its rules (type safety, `uv` toolchain, `utf-8-sig` encoding, `pyradox` for game file parsing).
+- Before writing or modifying tests, read `@agents/rules/tests.md` and follow its test conventions.
