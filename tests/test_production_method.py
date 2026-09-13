@@ -5,7 +5,21 @@ from vic3_analysis import ProductionMethodParser
 
 def test_production_method() -> None:
     parser = ProductionMethodParser()
-    parser.to_dataframe()
+    frame = parser.to_dataframe(language="english")
+    expected = [
+        "building",
+        "building_localization",
+        "production_method_group",
+        "production_method_group_localization",
+        "production_method",
+        "production_method_localization",
+    ]
+    assert list(frame.columns[:6]) == expected
+    for column in expected[1::2]:
+        assert str(frame[column].dtype) == "string"
+    row = frame[frame["production_method"] == "pm_bakery"].iloc[0]
+    assert row["building_localization"] == "Food Industries"
+    assert row["production_method_localization"] == "Bakeries"
 
 
 def test_state_modifiers() -> None:

@@ -156,6 +156,39 @@ def production_table(
         key: int(era) for key, era in zip(df_tech["key"], df_tech["era"])
     }
 
+    def localization_map(frame: pd.DataFrame, key: str, value: str) -> dict[str, str]:
+        if key not in frame or value not in frame:
+            return {}
+        return {
+            str(item_key): item_value
+            for item_key, item_value in zip(frame[key], frame[value])
+            if isinstance(item_value, str)
+        }
+
+    building_localizations = localization_map(df_buildings, "key", "key_localization")
+    has_building_localization = "key_localization" in df_buildings.columns
+    building_group_localizations = localization_map(
+        df_buildings, "building_group", "building_group_localization"
+    )
+    has_building_group_localization = (
+        "building_group_localization" in df_buildings.columns
+    )
+    pm_localizations = localization_map(
+        df_pm, "production_method", "production_method_localization"
+    )
+    has_pm_localization = "production_method_localization" in df_pm.columns
+    tech_localizations = localization_map(df_tech, "key", "key_localization")
+    has_tech_localization = "key_localization" in df_tech.columns
+
+    def localize_compound(value: str, values: dict[str, str]) -> object:
+        keys = [key for key in value.split("+") if key]
+        if not keys:
+            return pd.NA
+        localized = [values.get(key) for key in keys]
+        if any(item is None for item in localized):
+            return pd.NA
+        return "+".join(item for item in localized if item is not None)
+
     pm_keys = df_pm["production_method"].tolist()
     pm_techs = [_tech_keys(value) for value in df_pm["unlocking_technologies"]]
     pm_eras = [_era_of_techs(techs, era_by_tech) for techs in pm_techs]
@@ -256,17 +289,38 @@ def production_table(
                     "construction_cost": int(construction_cost),
                 }
             )
+            if has_building_localization:
+                combo_rows[-1]["building_localization"] = building_localizations.get(
+                    str(building), pd.NA
+                )
+            if has_pm_localization:
+                pm_value = "+".join(pm_keys[position] for position in positions)
+                combo_rows[-1]["production_method_localization"] = localize_compound(
+                    pm_value, pm_localizations
+                )
+            if has_building_group_localization:
+                combo_rows[-1]["building_group_localization"] = (
+                    building_group_localizations.get(str(building_group), pd.NA)
+                )
+            if has_tech_localization:
+                combo_rows[-1]["unlocking_tech_localization"] = localize_compound(
+                    "+".join(dict.fromkeys(techs)), tech_localizations
+                )
             membership.extend((combo_id, position) for position in positions)
 
     column_order = [
         "building",
+        *(["building_localization"] if has_building_localization else []),
         "production_method",
+        *(["production_method_localization"] if has_pm_localization else []),
         "building_group",
+        *(["building_group_localization"] if has_building_group_localization else []),
         "economy_of_scale",
         "urbanization",
         "infrastructure_usage_per_level",
         "era",
         "unlocking_tech",
+        *(["unlocking_tech_localization"] if has_tech_localization else []),
         "employment",
         "construction_cost",
         "value_goods_inputs_nominal",
@@ -279,7 +333,11 @@ def production_table(
         *profession_cols,
     ]
     if not combo_rows:
-        return pd.DataFrame(columns=column_order)
+        empty = pd.DataFrame(columns=column_order)
+        for column in column_order:
+            if column.endswith("_localization"):
+                empty[column] = empty[column].astype("string")
+        return empty
 
     member_positions = [position for _, position in membership]
     combo_ids = [combo_id for combo_id, _ in membership]
@@ -313,4 +371,8 @@ def production_table(
         result["profit_nominal"] / result["construction_cost"]
     )
 
-    return result.reindex(columns=column_order)
+    result = result.reindex(columns=column_order)
+    for column in column_order:
+        if column.endswith("_localization"):
+            result[column] = result[column].astype("string")
+    return result

@@ -15,6 +15,10 @@ import pandas as pd
 from pyradox import Tree
 
 from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 #: Attributes that are inherited from the parent building group when unset on a
 #: child. Each entry maps the attribute name to whether an explicit ``0`` value
@@ -49,8 +53,9 @@ class BuildingGroupParser(Tree):
         self._python_cache: dict[str, dict[str, Any]] = {}
         if game_dir is None:
             game_dir = get_vic3_directory()
+        self._game_dir = Path(game_dir)
 
-        parse_dir = Path(game_dir) / "common" / "building_groups"
+        parse_dir = self._game_dir / "common" / "building_groups"
         parse_tree = parse_merge(parse_dir)
         self.update(parse_tree)
 
@@ -72,7 +77,7 @@ class BuildingGroupParser(Tree):
             return group_values
         return {}
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, *, language: str | None = None) -> pd.DataFrame:
         """Convert the building-groups tree to a flat ``pandas.DataFrame``.
 
         Each row is one building group; scalar attributes are preserved as
@@ -80,6 +85,10 @@ class BuildingGroupParser(Tree):
         and nested ``Tree``/``dict`` values (such as ``should_auto_expand``
         trigger blocks) are omitted.  No parent-chain inheritance is applied
         here — use `resolved_attributes` for inherited values.
+
+        Args:
+            language: Optional Victoria 3 internal language name. When
+                provided, adds a nullable ``key_localization`` column.
 
         Returns:
             A ``DataFrame`` with one row per building group (``"key"`` column)
@@ -97,7 +106,15 @@ class BuildingGroupParser(Tree):
                 else:
                     row[attribute_key] = attribute_value
             results.append(row)
-        return pd.DataFrame(results)
+        frame = pd.DataFrame(results)
+        if language is not None:
+            _insert_localization_column(
+                frame,
+                "key",
+                "key_localization",
+                _localization_values(language, self._game_dir),
+            )
+        return frame
 
     def resolved_attributes(self) -> dict[str, dict[str, Any]]:
         """Return per-group attribute dicts with inherited attrs resolved.

@@ -12,6 +12,19 @@ types. Building-level vectors align with production-table rows; goods vectors
 align with goods-table rows. Use `building_index()`, `goods_index()`, and the
 model's matrix methods to preserve that contract.
 
+To display names while keeping the model's key-based alignment, request a
+language when parsing the internal tables:
+
+```python
+from vic3_analysis import Economy
+
+economy = Economy(language="english")
+```
+
+Localization is added only to internally parsed DataFrames. If `df_production`,
+`df_goods`, or `df_pop_types` is supplied explicitly, that DataFrame is used as
+provided.
+
 ```python
 inputs = economy.goods_input_matrix()
 outputs = economy.goods_output_matrix()

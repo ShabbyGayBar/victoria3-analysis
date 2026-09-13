@@ -10,7 +10,11 @@ from vic3_analysis import (
 
 def test_buildings():
     parser = StateRegionsParser()
-    parser.to_dataframe()
+    frame = parser.to_dataframe(language="english")
+    assert list(frame.columns[:2]) == ["key", "key_localization"]
+    assert str(frame["key_localization"].dtype) == "string"
+    row = frame[frame["key"] == "STATE_BEIJING"].iloc[0]
+    assert row["key_localization"] == "Beijing"
 
 
 @pytest.fixture

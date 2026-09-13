@@ -15,6 +15,10 @@ from pyradox import Tree
 
 from vic3_analysis import get_vic3_directory, parse_merge
 from vic3_analysis.parse.building_groups import BuildingGroupParser, _join_group_attrs
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 
 class BuildingsParser(Tree):
@@ -100,7 +104,7 @@ class BuildingsParser(Tree):
             ).resolved_attributes()
         return self._group_attrs_cache
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, *, language: str | None = None) -> pd.DataFrame:
         """Convert the buildings tree to a flat ``pandas.DataFrame``.
 
         Scalar attributes of each building are preserved as columns; nested
@@ -114,6 +118,11 @@ class BuildingsParser(Tree):
         verbatim.  Group-attribute columns share the group attribute's name
         unless that name collides with an existing building-level column, in
         which case the ``building_group_`` prefix is applied.
+
+        Args:
+            language: Optional Victoria 3 internal language name. When
+                provided, adds nullable localization columns for the building
+                and its building group.
 
         Returns:
             A ``DataFrame`` with one row per building and one column per scalar
@@ -132,7 +141,17 @@ class BuildingsParser(Tree):
                     row[attribute_key] = attribute_value
             results.append(row)
         _join_group_attrs(results, self._resolved_group_attrs())
-        return pd.DataFrame(results)
+        frame = pd.DataFrame(results)
+        if language is not None:
+            labels = _localization_values(language, self._game_dir)
+            _insert_localization_column(frame, "key", "key_localization", labels)
+            _insert_localization_column(
+                frame,
+                "building_group",
+                "building_group_localization",
+                labels,
+            )
+        return frame
 
     def _building_to_python(
         self, building_key: str, building_values: Any

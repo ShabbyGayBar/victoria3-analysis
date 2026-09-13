@@ -9,6 +9,8 @@ Used throughout the [parsed-data showcase](../showcase/parsed-data.md).
 
 ::: vic3_analysis.get_vic3_directory
 
+::: vic3_analysis.localization
+
 ::: vic3_analysis.parse_merge
 
 ::: vic3_analysis.buy_packages

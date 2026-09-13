@@ -66,5 +66,29 @@ production = production_table()
 print(production[["building", "production_method", "profit_nominal"]].head())
 ```
 
+## Add localization
+
+Localization is opt-in. Pass Victoria 3's internal language name to a parser to
+add a nullable localization column beside each identifier, while retaining the
+original script keys for joins and analysis:
+
+```python
+from vic3_analysis import BuildingsParser, goods
+
+goods_df = goods(language="english")
+buildings_df = BuildingsParser().to_dataframe(language="english")
+```
+
+The localized values are the raw strings from the game files: references,
+formatting, icons, and localization functions are preserved. Missing entries
+are `pd.NA`; no fallback language is applied. Use `localization("english")`
+for the complete catalog, including related keys such as technology/building
+descriptions and lens-option suffixes.
+
+`production_table()` propagates localization columns when its input tables
+contain them. `Economy(language="english")` applies the same option only to
+tables it parses internally; explicitly supplied DataFrames remain unchanged.
+The default no-language behavior and committed CSV snapshots are unchanged.
+
 See the [parsing API](../api/parsing.md) for constructor parameters, return
 values, and exceptions.

@@ -127,6 +127,28 @@ def test_init_with_explicit_dataframes(economy):
     assert eco2.df_pop_types is economy.df_pop_types
 
 
+def test_explicit_dataframes_are_authoritative_with_language(economy):
+    eco2 = Economy(
+        df_production=economy.df_production,
+        df_goods=economy.df_goods,
+        df_pop_types=economy.df_pop_types,
+        language="english",
+    )
+    assert eco2.df_production is economy.df_production
+    assert eco2.df_goods is economy.df_goods
+    assert eco2.df_pop_types is economy.df_pop_types
+
+
+def test_language_localizes_internally_parsed_tables():
+    localized = Economy(language="english")
+    assert "building_localization" in localized.df_production.columns
+    assert "production_method_localization" in localized.df_production.columns
+    assert "building_group_localization" in localized.df_production.columns
+    assert "unlocking_tech_localization" in localized.df_production.columns
+    assert "key_localization" in localized.df_goods.columns
+    assert "key_localization" in localized.df_pop_types.columns
+
+
 def test_indices_consistent(economy):
     buildings = economy.building_index()
     goods_idx = economy.goods_index()

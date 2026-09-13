@@ -15,6 +15,10 @@ import pandas as pd
 from pyradox import Tree
 
 from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 _skip_keys = [
     "provinces",
@@ -156,16 +160,21 @@ class StateRegionsParser(Tree):
         super().__init__()
         if game_dir is None:
             game_dir = get_vic3_directory()
+        self._game_dir = Path(game_dir)
 
-        parse_dir = Path(game_dir) / "map_data" / "state_regions"
+        parse_dir = self._game_dir / "map_data" / "state_regions"
         parse_tree = parse_merge(parse_dir)
         self.update(parse_tree)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, *, language: str | None = None) -> pd.DataFrame:
         """Convert the state regions tree to a flat ``pandas.DataFrame``.
 
         Scalar attributes of each state region are preserved as columns; nested
         ``Tree``, ``list``, and ``dict`` values are omitted.
+
+        Args:
+            language: Optional Victoria 3 internal language name. When
+                provided, adds a nullable ``key_localization`` column.
 
         Returns:
             A ``DataFrame`` with one row per state region and one column per scalar
@@ -217,6 +226,13 @@ class StateRegionsParser(Tree):
                 state_region[attribute_key] = attribute_value
             results.append(state_region)
         df = pd.DataFrame(results)
+        if language is not None:
+            _insert_localization_column(
+                df,
+                "key",
+                "key_localization",
+                _localization_values(language, self._game_dir),
+            )
         # For every column whose name starts with "resource_" or "undiscovered_amount_resource_" or "discovered_amount_resource_",
         # convert the column to numeric, coercing errors to NaN, and then fill NaN values with 0
         for column in df.columns:

@@ -11,15 +11,23 @@ from typing import Any
 import pandas as pd
 
 from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 
-def goods(game_dir: str | Path | None = None) -> pd.DataFrame:
+def goods(
+    game_dir: str | Path | None = None, *, language: str | None = None
+) -> pd.DataFrame:
     """Parse Victoria 3 goods definitions and return them as a DataFrame.
 
     Args:
         game_dir: Path to the Victoria 3 ``game`` directory.  If ``None`` the
             directory is located automatically via
             `get_vic3_directory`.
+        language: Optional Victoria 3 internal language name. When provided,
+            adds a nullable ``key_localization`` column.
 
     Returns:
         A ``DataFrame`` with one row per tradeable good, where the ``"key"``
@@ -44,4 +52,12 @@ def goods(game_dir: str | Path | None = None) -> pd.DataFrame:
                 **value,
             }
         )
-    return pd.DataFrame(results)
+    frame = pd.DataFrame(results)
+    if language is not None:
+        _insert_localization_column(
+            frame,
+            "key",
+            "key_localization",
+            _localization_values(language, game_dir),
+        )
+    return frame

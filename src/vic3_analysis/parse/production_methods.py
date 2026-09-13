@@ -24,6 +24,10 @@ from vic3_analysis import (
     goods,
     production_method_groups,
 )
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 
 class ProductionMethodParser(Tree):
@@ -205,6 +209,8 @@ class ProductionMethodParser(Tree):
         df_goods: pd.DataFrame | None = None,
         df_buildings: pd.DataFrame | None = None,
         pmg_dict: dict[str, list[str]] | None = None,
+        *,
+        language: str | None = None,
     ) -> pd.DataFrame:
         """Build a flat DataFrame of per-configuration production-method stats.
 
@@ -220,6 +226,14 @@ class ProductionMethodParser(Tree):
         attribute columns.  State modifiers (flattened across the
         ``state_modifiers`` scaling blocks, e.g. ``state_infrastructure_add``)
         are appended after the goods columns.
+
+        Args:
+            df_goods: Optional pre-parsed goods table.
+            df_buildings: Optional pre-parsed buildings table.
+            pmg_dict: Optional production-method-group mapping.
+            language: Optional Victoria 3 internal language name. When
+                provided, adds nullable localization columns for the building,
+                production-method group, and production method.
 
         Returns:
             A ``DataFrame`` with ``"building"``,
@@ -240,7 +254,6 @@ class ProductionMethodParser(Tree):
                 production-method-group referenced by a building is not found.
         """
         game_dir = self._game_dir
-
         if df_goods is None:
             df_goods = goods(game_dir)
         goods_keys = set(df_goods["key"].tolist())
@@ -317,5 +330,13 @@ class ProductionMethodParser(Tree):
                         **{k: state_mods.get(k, 0) for k in state_modifier_keys},
                     }
                     data.append(row)
-
-        return pd.DataFrame(data)
+        frame = pd.DataFrame(data)
+        if language is not None and not frame.empty:
+            labels = _localization_values(language, game_dir)
+            for source, target in (
+                ("building", "building_localization"),
+                ("production_method_group", "production_method_group_localization"),
+                ("production_method", "production_method_localization"),
+            ):
+                _insert_localization_column(frame, source, target, labels)
+        return frame

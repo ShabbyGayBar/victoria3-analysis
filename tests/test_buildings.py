@@ -3,7 +3,12 @@ from vic3_analysis import BuildingsParser
 
 def test_buildings():
     parser = BuildingsParser()
-    parser.to_dataframe()
+    frame = parser.to_dataframe(language="english")
+    assert list(frame.columns[:2]) == ["key", "key_localization"]
+    assert str(frame["key_localization"].dtype) == "string"
+    row = frame[frame["key"] == "building_food_industry"].iloc[0]
+    assert row["key_localization"] == "Food Industries"
+    assert row["building_group_localization"] == "Light Industries"
     parser.building_groups()
 
 

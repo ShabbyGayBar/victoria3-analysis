@@ -468,3 +468,71 @@ def test_empty_buildings_returns_empty_frame() -> None:
 
     assert result.empty
     assert list(result.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
+
+
+def test_localization_columns_propagate_without_changing_flows() -> None:
+    buildings = _buildings_frame()
+    buildings["key_localization"] = ["Building A", "Building B"]
+    buildings["building_group_localization"] = ["Group A", "Group A"]
+    pm = _pm_frame()
+    pm["production_method_localization"] = [
+        "Method A1",
+        "Method A2",
+        "Method M1",
+        "Method M2",
+        "Method B1",
+    ]
+    tech = _tech_frame()
+    tech["key_localization"] = ["Technology 1", "Technology 2"]
+
+    plain = production_table(
+        _buildings_frame(), _goods_frame(), _pm_frame(), _tech_frame()
+    )
+    localized = production_table(buildings, _goods_frame(), pm, tech)
+
+    expected_prefix = [
+        "building",
+        "building_localization",
+        "production_method",
+        "production_method_localization",
+        "building_group",
+        "building_group_localization",
+        "economy_of_scale",
+        "urbanization",
+        "infrastructure_usage_per_level",
+        "era",
+        "unlocking_tech",
+        "unlocking_tech_localization",
+    ]
+    assert list(localized.columns[: len(expected_prefix)]) == expected_prefix
+    pd.testing.assert_frame_equal(
+        localized.drop(
+            columns=[
+                "building_localization",
+                "production_method_localization",
+                "building_group_localization",
+                "unlocking_tech_localization",
+            ]
+        ),
+        plain,
+    )
+    row = localized.iloc[0]
+    assert row["building_localization"] == "Building A"
+    assert row["production_method_localization"] == "Method A1+Method M1"
+    assert row["unlocking_tech_localization"] == "Technology 1"
+
+
+def test_localization_compound_missing_member_is_na() -> None:
+    buildings = _buildings_frame()
+    buildings["key_localization"] = ["Building A", "Building B"]
+    buildings["building_group_localization"] = ["Group A", "Group A"]
+    pm = _pm_frame()
+    pm["production_method_localization"] = ["A1", "A2", "M1", None, "B1"]
+    tech = _tech_frame()
+    tech["key_localization"] = ["Technology 1", None]
+
+    result = production_table(buildings, _goods_frame(), pm, tech)
+    missing_pm = result["production_method"].eq("pm_a1+pm_m2")
+    assert result.loc[missing_pm, "production_method_localization"].isna().all()
+    missing_tech = result["unlocking_tech"].eq("tech_1+tech_2")
+    assert result.loc[missing_tech, "unlocking_tech_localization"].isna().all()

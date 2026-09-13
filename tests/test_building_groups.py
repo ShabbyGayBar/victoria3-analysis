@@ -7,8 +7,10 @@ from vic3_analysis.parse.building_groups import _inherit_attr, _join_group_attrs
 
 def test_building_groups_to_dataframe():
     parser = BuildingGroupParser()
-    df = parser.to_dataframe()
+    df = parser.to_dataframe(language="english")
     assert "key" in df.columns
+    assert list(df.columns[:2]) == ["key", "key_localization"]
+    assert str(df["key_localization"].dtype) == "string"
     for col in (
         "category",
         "land_usage",
@@ -19,6 +21,7 @@ def test_building_groups_to_dataframe():
         assert col in df.columns
     # bg_manufacturing is a top-level group with several scalar attrs
     row = df[df["key"] == "bg_manufacturing"].iloc[0]
+    assert row["key_localization"] == "Manufacturing Industries"
     assert row["category"] == "urban"
     assert row["economy_of_scale"] is True
     assert row["cash_reserves_max"] == 25000

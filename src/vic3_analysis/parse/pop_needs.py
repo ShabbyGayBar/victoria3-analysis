@@ -12,6 +12,10 @@ import pandas as pd
 from pyradox import Tree
 
 from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 
 class PopNeedsParser(Tree):
@@ -28,14 +32,19 @@ class PopNeedsParser(Tree):
 
         if game_dir is None:
             game_dir = get_vic3_directory()
+        self._game_dir = Path(game_dir)
 
-        parse_dir = Path(game_dir) / "common" / "pop_needs"
+        parse_dir = self._game_dir / "common" / "pop_needs"
         parse_tree = parse_merge(parse_dir)
 
         self.update(parse_tree)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, *, language: str | None = None) -> pd.DataFrame:
         """Convert the pop-needs tree to a flat ``pandas.DataFrame``.
+
+        Args:
+            language: Optional Victoria 3 internal language name. When
+                provided, adds a nullable ``key_localization`` column.
 
         Returns:
             A ``DataFrame`` with one row per pop need entry.  Columns include
@@ -44,7 +53,6 @@ class PopNeedsParser(Tree):
         """
 
         results: list[dict[str, Any]] = []
-
         for pop_need_type, pop_need_values in self.items():
             if isinstance(pop_need_values, Tree):
                 py = pop_need_values.to_python()
@@ -81,7 +89,7 @@ class PopNeedsParser(Tree):
                     }
                 )
 
-        return pd.DataFrame(
+        frame = pd.DataFrame(
             results,
             columns=[
                 "key",
@@ -92,3 +100,11 @@ class PopNeedsParser(Tree):
                 "is_default",
             ],
         )
+        if language is not None:
+            _insert_localization_column(
+                frame,
+                "key",
+                "key_localization",
+                _localization_values(language, self._game_dir),
+            )
+        return frame

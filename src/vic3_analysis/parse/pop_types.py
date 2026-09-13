@@ -13,6 +13,10 @@ import pandas as pd
 from pyradox import Tree
 
 from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.parse.localization import (
+    _insert_localization_column,
+    _localization_values,
+)
 
 
 class PopTypesParser(Tree):
@@ -34,17 +38,22 @@ class PopTypesParser(Tree):
         self._python_cache: dict[str, dict[str, Any]] = {}
         if game_dir is None:
             game_dir = get_vic3_directory()
+        self._game_dir = Path(game_dir)
 
-        parse_dir = Path(game_dir) / "common" / "pop_types"
+        parse_dir = self._game_dir / "common" / "pop_types"
         parse_tree = parse_merge(parse_dir)
         self.update(parse_tree)
 
-    def to_dataframe(self) -> pd.DataFrame:
+    def to_dataframe(self, *, language: str | None = None) -> pd.DataFrame:
         """Convert the pop-types tree to a flat ``pandas.DataFrame``.
 
         Scalar attributes of each pop type are preserved as columns; nested
         ``Tree`` and ``dict`` values are omitted, and ``list`` values are
         concatenated into a ``+``-joined string.
+
+        Args:
+            language: Optional Victoria 3 internal language name. When
+                provided, adds a nullable ``key_localization`` column.
 
         Returns:
             A ``DataFrame`` with one row per pop type and one column per scalar
@@ -62,7 +71,15 @@ class PopTypesParser(Tree):
                 else:
                     row[attribute_key] = attribute_value
             results.append(row)
-        return pd.DataFrame(results)
+        frame = pd.DataFrame(results)
+        if language is not None:
+            _insert_localization_column(
+                frame,
+                "key",
+                "key_localization",
+                _localization_values(language, self._game_dir),
+            )
+        return frame
 
     def _pop_type_to_python(
         self, pop_type_key: str, pop_type_values: Any

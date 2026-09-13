@@ -11,6 +11,7 @@ from vic3_analysis.parse.buy_packages import buy_packages
 from vic3_analysis.parse.building_groups import BuildingGroupParser
 from vic3_analysis.parse.buildings import BuildingsParser
 from vic3_analysis.parse.goods import goods
+from vic3_analysis.parse.localization import localization
 from vic3_analysis.parse.pop_needs import PopNeedsParser
 from vic3_analysis.parse.pop_types import PopTypesParser
 from vic3_analysis.parse.production_method_groups import production_method_groups
@@ -44,6 +45,7 @@ __all__ = [
     "BuildingsParser",
     "BuildingGroupParser",
     "goods",
+    "localization",
     "PopNeedsParser",
     "PopTypesParser",
     "production_method_groups",
