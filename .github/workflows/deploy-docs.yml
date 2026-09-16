@@ -1,4 +1,4 @@
-name: ci 
+name: Deploy documentation
 on:
   push:
     branches:
@@ -18,10 +18,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV 
+      - id: cache_key
+        run: echo "cache_id=$(date --utc '+%V')" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
         with:
-          key: mkdocs-material-${{ env.cache_id }}
+          key: mkdocs-material-${{ steps.cache_key.outputs.cache_id }}
           path: ~/.cache 
           restore-keys: |
             mkdocs-material-
