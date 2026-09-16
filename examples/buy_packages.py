@@ -24,5 +24,10 @@ for column in data.columns:
     ax.set_title(f"{column} vs wealth")
     fig.tight_layout()
     fig.savefig(str(BUY_PACKAGES_FIGURES_DIR / f"{column}.svg"))
-    plt.close(fig)
     print(f"Saved figures/buy_packages/{column}.svg")
+
+    ax.set_yscale("log")
+    fig.savefig(str(BUY_PACKAGES_FIGURES_DIR / f"{column}_log.svg"))
+    print(f"Saved figures/buy_packages/{column}_log.svg")
+
+    plt.close(fig)
