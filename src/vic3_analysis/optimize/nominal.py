@@ -1,93 +1,72 @@
-"""
-Nominal linear-programming solver for Victoria 3 economies.
+"""Nominal linear-programming compilation and solving."""
 
-`NominalOptimizer` is solely a solver: it wraps
-`scipy.optimize.linprog` and solves
-`Scenario` formulations over an
-`Economy`, returning an
-`EconomyState`.
-
-All problem definition (objectives, constraints, throughput bonuses) lives in
-`Scenario`; this module only delegates
-to scipy with the scenario's ready-made ``linprog_args``.
-"""
-
+import numpy as np
 import scipy.optimize as opt
-from scipy.optimize import OptimizeResult
 
-from vic3_analysis.analysis.economy import Economy, EconomyState
+from vic3_analysis.analysis.economy import EconomyState
+from vic3_analysis.optimize.base import BaseOptimizer, LinearProblem
 from vic3_analysis.optimize.scenario import Scenario
 
 
-class NominalOptimizer:
-    """Solver for `Scenario` formulations over an `Economy`.
+class NominalOptimizer(BaseOptimizer[LinearProblem]):
+    """Compile and solve nominal-price scenarios as linear programmes."""
 
-    Example::
-
-        state = NominalOptimizer(economy).solve(scenario)
-
-    Attributes:
-        model: The wrapped `Economy`.
-        result: The `scipy.optimize.OptimizeResult` from the most recent
-            `solve` call (``None`` until solved).  Exposed so downstream
-            tooling can read constraint marginals (shadow prices); callers
-            should not mutate it.
-        scenario: The `Scenario` from the most recent `solve` call
-            (``None`` until solved).
-    """
-
-    model: Economy
-    result: OptimizeResult | None
-    scenario: Scenario | None
-
-    def __init__(self, model: Economy) -> None:
-        """Initialise the solver.
-
-        Args:
-            model: The `Economy` to solve scenarios on.
-        """
-        self.model = model
-        self.result = None
-        self.scenario = None
-
-    def solve(self, scenario: Scenario) -> EconomyState:
-        """Solve a scenario and return the resulting `EconomyState`.
-
-        Delegates to `scipy.optimize.linprog` with the scenario's
-        `linprog_args` keyword
-        arguments.
-
-        Args:
-            scenario: The `Scenario` formulation to solve.
-
-        Returns:
-            An `EconomyState` (via `Economy.solve`) built from the
-            optimal building-level vector.  The underlying
-            `scipy.optimize.OptimizeResult` is also stored on
-            `result` (and the scenario on `scenario`) for
-            marginal inspection. Economy of scale is disabled because its
-            level-dependent throughput is nonlinear and is not represented in
-            the linear programme.
-
-        Raises:
-            ValueError: If `scipy.optimize.linprog` reports that the
-                optimisation failed (infeasible or unbounded).
-        """
+    def compile(self, scenario: Scenario) -> LinearProblem:
+        """Compile *scenario* into an inspectable linear problem."""
         if scenario.objective == "gdp_per_capita":
             raise ValueError(
                 "NominalOptimizer does not support the nonlinear "
                 "gdp_per_capita objective; use MarketOptimizer."
             )
-        res = opt.linprog(**scenario.linprog_args(self.model))
-        if not res.success:
-            raise ValueError(f"Optimization failed: {res.message}")
-        self.result = res
-        self.scenario = scenario
-        return self.model.solve(
-            res.x,
-            imports=scenario.imports_vector(self.model),
-            exports=scenario.exports_vector(self.model),
-            throughput_multipliers=scenario.throughput_multipliers(self.model),
-            pop_needs=scenario.pop_needs_vector(self.model),
-            economy_of_scale_level_cap=0.0,
+        data = self._compile_common(scenario)
+        if scenario.objective == "gdp":
+            objective = -data.gdp_vector
+        elif scenario.objective == "employment":
+            objective = -self.model.employment_vector()
+        elif scenario.objective == "automation":
+            objective = self.model.employment_vector()
+        elif scenario.objective == "construction_cost":
+            objective = self.model.construction_cost_vector()
+        else:
+            raise ValueError(f"Unknown objective: {scenario.objective!r}")
+        problem = self._linear_problem(data, objective)
+        self._bind_problem(problem)
+        return problem
+
+    def solve(self, scenario: Scenario) -> EconomyState:
+        """Compile and solve *scenario*, returning its optimal economy state."""
+        return self.solve_problem(self.compile(scenario))
+
+    def solve_problem(self, problem: LinearProblem) -> EconomyState:
+        """Solve a previously compiled linear problem."""
+        self._bind_problem(problem)
+        result = opt.linprog(
+            **problem.linprog_args(),
+            bounds=problem.bounds,
+            method="highs",
         )
+        if not result.success:
+            raise ValueError(f"Optimization failed: {result.message}")
+        self.result = result
+        return self._state_from_levels(problem, np.asarray(result.x, dtype=np.float64))
+
+    def import_marginals(self) -> np.ndarray | None:
+        """Return import-cap shadow prices from the latest successful solve."""
+        problem = self.problem
+        result = self.result
+        if problem is None or result is None:
+            return None
+        row_slice = problem.inequality_slices.get("import_limit")
+        if row_slice is None:
+            return None
+        ineqlin = getattr(result, "ineqlin", None)
+        if ineqlin is None:
+            return None
+        marginals = getattr(ineqlin, "marginals", None)
+        if marginals is None:
+            return None
+        values = np.asarray(marginals, dtype=np.float64)
+        stop = row_slice.stop
+        if stop is None or values.shape[0] < stop:
+            return None
+        return values[row_slice]

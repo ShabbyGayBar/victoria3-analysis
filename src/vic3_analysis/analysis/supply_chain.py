@@ -17,8 +17,8 @@ Builds on `Economy` and
   report LP shadow prices for the import caps.
 * `compare_scenarios` - run multiple scenarios and tabulate metrics.
 
-Scenario formulation (objectives, constraints, throughput bonuses as data)
-lives in `Scenario`.
+Scenarios contain configuration only; optimizers compile their mathematical
+formulations and expose the adjusted flows used by these analyses.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
+from vic3_analysis.optimize.base import BaseOptimizer
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
 
@@ -60,6 +61,17 @@ def optimize_chain(economy: Economy, scenario: Scenario) -> EconomyState:
         The optimal `EconomyState`.
     """
     return NominalOptimizer(economy).solve(scenario)
+
+
+def _flow_matrices(
+    economy: Economy, optimizer: BaseOptimizer | None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return raw or compiled input/output matrices for analysis."""
+    if optimizer is None:
+        return economy.goods_input_matrix(), economy.goods_output_matrix()
+    if optimizer.model is not economy:
+        raise ValueError("Optimizer belongs to a different Economy.")
+    return optimizer.goods_input_matrix, optimizer.goods_output_matrix
 
 
 @dataclass(frozen=True)
@@ -314,7 +326,7 @@ def upstream_tree(
     economy: Economy,
     good: str,
     state: EconomyState | None = None,
-    scenario: Scenario | None = None,
+    optimizer: BaseOptimizer | None = None,
     max_depth: int = 64,
 ) -> SupplyChainNode:
     """Build the upstream dependency graph of *good*.
@@ -335,15 +347,16 @@ def upstream_tree(
     rendering the repeat as a raw leaf; a depth guard does the same past
     *max_depth*.
 
-    When *scenario* is given, flows use its throughput-adjusted matrices so the
-    realised view is consistent with the scenario's solved GDP; otherwise the
-    economy's raw matrices are used.
+    When *optimizer* is given, flows use its retained compiled problem so the
+    realised view is consistent with the solved GDP. The optimizer must have
+    compiled or solved a scenario. Otherwise the economy's raw matrices are
+    used.
 
     Args:
         economy: The `Economy` whose production table is traced.
         good: The terminal good key to trace upstream from.
         state: Optional solved state for the realised view.
-        scenario: Optional solved scenario providing throughput-adjusted
+        optimizer: Optional compiled or solved optimizer providing adjusted
             flows.
         max_depth: Recursion guard against pathological deep graphs.
 
@@ -358,12 +371,7 @@ def upstream_tree(
         raise ValueError(f"Good '{good}' not found in goods index.")
     good_to_col = {g: j for j, g in enumerate(goods_index)}
 
-    if scenario is not None:
-        out_mat = scenario.goods_output_matrix(economy)
-        in_mat = scenario.goods_input_matrix(economy)
-    else:
-        out_mat = economy.goods_output_matrix()
-        in_mat = economy.goods_input_matrix()
+    in_mat, out_mat = _flow_matrices(economy, optimizer)
     df = economy.df_production
     n_configs = len(df)
     buildings = df["building"].to_numpy()
@@ -444,13 +452,12 @@ def value_added_breakdown(
     state: EconomyState,
     good: str | None = None,
     by: str = "config",
-    scenario: Scenario | None = None,
+    optimizer: BaseOptimizer | None = None,
 ) -> pd.DataFrame:
     """Attribute GDP, employment, and construction cost across the economy.
 
-    When *scenario* is given, goods flows use its throughput-adjusted matrices
-    so the GDP totals match ``scenario.gdp_vector(economy)``; otherwise the
-    economy's raw matrices are used.
+    When *optimizer* is given, goods flows use its retained compiled problem;
+    otherwise the economy's raw matrices are used.
 
     Args:
         economy: The `Economy` *state* was solved on.
@@ -461,7 +468,7 @@ def value_added_breakdown(
         by: Aggregation level.  ``"config"`` (default) yields one row per active
             building configuration; ``"good"`` aggregates each config's metrics
             across its output goods, allocated by output-value share.
-        scenario: Optional solved scenario providing throughput-adjusted
+        optimizer: Optional compiled or solved optimizer providing adjusted
             flows.
 
     Returns:
@@ -478,12 +485,7 @@ def value_added_breakdown(
     if by not in ("config", "good"):
         raise ValueError(f"by must be 'config' or 'good', got {by!r}")
     prices = economy.base_prices()
-    if scenario is not None:
-        in_mat = scenario.goods_input_matrix(economy)
-        out_mat = scenario.goods_output_matrix(economy)
-    else:
-        in_mat = economy.goods_input_matrix()
-        out_mat = economy.goods_output_matrix()
+    in_mat, out_mat = _flow_matrices(economy, optimizer)
     levels = state.building_levels
     emp_vec = economy.employment_vector()
     cost_vec = economy.construction_cost_vector()
@@ -494,7 +496,7 @@ def value_added_breakdown(
     if good is not None:
         if good not in goods_index:
             raise ValueError(f"Good '{good}' not found in goods index.")
-        tree = upstream_tree(economy, good, state, scenario)
+        tree = upstream_tree(economy, good, state, optimizer)
         selected = tree.collect_producers()
         idxs = [key_to_i[k] for k in selected]
     else:
@@ -585,8 +587,8 @@ def bottleneck(
 
     The primary signal is cost share: each input good's share of total input
     cost (valued at base prices).  When *optimizer* has been solved on the same
-    economy and its scenario has import caps, the LP shadow price (marginal) of
-    each good's import cap is also reported - the most negative marginal
+    economy and its compiled problem has import caps, the LP shadow price
+    (marginal) of each good's import cap is also reported - the most negative marginal
     identifies the input whose relaxation would most reduce the objective.
     Flows use the solved scenario's throughput-adjusted matrices when
     available, so the ranking is consistent with the solved GDP.
@@ -596,8 +598,8 @@ def bottleneck(
         state: A solved `EconomyState`.
         good: If given, restrict to the realised upstream chain of *good*.
         optimizer: Optional solver that has solved a scenario on *economy*; its
-            retained scenario and LP result are read for adjusted flows and
-            shadow prices.
+            retained compiled problem and LP result are read for adjusted
+            flows and shadow prices.
 
     Returns:
         A ``DataFrame`` with columns ``good``, ``input_cost``, ``cost_share``,
@@ -609,13 +611,7 @@ def bottleneck(
         ValueError: If *good* is not in the goods index.
     """
     prices = economy.base_prices()
-    scenario = optimizer.scenario if optimizer is not None else None
-    if scenario is not None:
-        in_mat = scenario.goods_input_matrix(economy)
-        out_mat = scenario.goods_output_matrix(economy)
-    else:
-        in_mat = economy.goods_input_matrix()
-        out_mat = economy.goods_output_matrix()
+    in_mat, out_mat = _flow_matrices(economy, optimizer)
     levels = state.building_levels
     goods_index = economy.goods_index()
     config_keys = economy.building_index()
@@ -624,7 +620,7 @@ def bottleneck(
     if good is not None:
         if good not in goods_index:
             raise ValueError(f"Good '{good}' not found in goods index.")
-        tree = upstream_tree(economy, good, state, scenario)
+        tree = upstream_tree(economy, good, state, optimizer)
         selected = tree.collect_producers()
         idxs = [key_to_i[k] for k in selected]
     else:
@@ -639,8 +635,8 @@ def bottleneck(
     total_input = float(input_cost.sum())
 
     marginals: np.ndarray | None = None
-    if optimizer is not None and scenario is not None:
-        marginals = scenario.import_marginals(economy, optimizer.result)
+    if optimizer is not None:
+        marginals = optimizer.import_marginals()
     rows: list[dict[str, object]] = []
     for j, g in enumerate(goods_index):
         if input_cost[j] <= _TOL:
@@ -735,9 +731,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
         }
         try:
             state = solver.solve(scenario)
-            annual_gdp = (
-                float(np.dot(state.building_levels, scenario.gdp_vector(economy))) * 52
-            )
+            annual_gdp = float(np.dot(state.building_levels, solver.gdp_vector)) * 52
             employment = float(np.sum(state.pops))
             construction_cost = economy.construction_cost(state)
             row["annual_gdp"] = annual_gdp
@@ -754,7 +748,7 @@ def compare_scenarios(economy: Economy, scenarios: Iterable[Scenario]) -> pd.Dat
                 annual_gdp / construction_cost if construction_cost > 0 else 0.0
             )
             if primary_good is not None:
-                tree = upstream_tree(economy, primary_good, state, scenario)
+                tree = upstream_tree(economy, primary_good, state, solver)
                 row["n_active_buildings"] = len(tree.collect_producers())
                 row["chain_depth"] = tree.chain_depth()
                 row["n_raw_inputs"] = tree.count_raw_inputs()

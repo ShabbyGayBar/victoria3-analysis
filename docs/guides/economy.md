@@ -80,6 +80,11 @@ throughput bonuses; and enforce infrastructure or urban-center relationships.
 The optimizer disables economy of scale because level-dependent flows are not
 linear.
 
+Use `optimizer.compile(scenario)` to inspect the resulting `LinearProblem`
+before solving it, or `optimizer.solve_problem(problem)` to solve an already
+compiled problem. Shared context and constraints are compiled by
+`BaseOptimizer`; `Scenario` remains configuration-only.
+
 For endogenous national prices, use `MarketOptimizer`. It supports `gdp` and
 `gdp_per_capita`, requires `import_limit=None`, and treats `imports`, `exports`,
 and `pop_needs` as fixed market orders that affect prices rather than goods

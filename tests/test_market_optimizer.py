@@ -1,10 +1,18 @@
 """Acceptance tests for the nonlinear market-price optimizer."""
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
+from scipy.optimize import OptimizeResult
 
-from vic3_analysis import MarketOptimizer as ExportedMarketOptimizer
+from vic3_analysis import (
+    BaseOptimizer,
+    LinearProblem,
+    MarketOptimizer as ExportedMarketOptimizer,
+    MarketProblem,
+)
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.optimize.market import MarketOptimizer
 from vic3_analysis.optimize.nominal import NominalOptimizer
@@ -38,6 +46,7 @@ def toy_economy() -> Economy:
 
 def test_market_optimizer_is_exported_from_package_root():
     assert ExportedMarketOptimizer is MarketOptimizer
+    assert issubclass(MarketOptimizer, BaseOptimizer)
 
 
 def test_market_optimizer_finds_closed_form_interior_optimum(
@@ -56,6 +65,7 @@ def test_market_optimizer_finds_closed_form_interior_optimum(
     assert isinstance(state, EconomyState)
     assert optimizer.result is not None
     assert optimizer.scenario is scenario
+    assert isinstance(optimizer.problem, MarketProblem)
     # With one unit of fixed demand, GDP is x * (1.75 - .75x) for
     # 1 <= x <= 2, whose maximum is x = 7/6.
     np.testing.assert_allclose(state.building_levels, [7.0 / 6.0], atol=2e-5)
@@ -198,9 +208,7 @@ def test_market_optimizer_rejects_infeasible_and_unbounded_regions(
         MarketOptimizer(toy_economy).solve(infeasible)
 
     with pytest.raises(ValueError, match="bounded"):
-        MarketOptimizer(toy_economy).solve(
-            Scenario(objective="gdp", import_limit=None)
-        )
+        MarketOptimizer(toy_economy).solve(Scenario(objective="gdp", import_limit=None))
 
 
 def test_market_objective_gradient_matches_finite_difference(
@@ -212,6 +220,7 @@ def test_market_objective_gradient_matches_finite_difference(
     outputs = np.array([[1.0]])
     levels = np.array([1.2])
     value, gradient = optimizer._value_and_gradient(
+        toy_economy,
         levels,
         inputs,
         outputs,
@@ -225,6 +234,7 @@ def test_market_objective_gradient_matches_finite_difference(
 
     epsilon = 1e-6
     plus = optimizer._value_and_gradient(
+        toy_economy,
         levels + epsilon,
         inputs,
         outputs,
@@ -235,6 +245,7 @@ def test_market_objective_gradient_matches_finite_difference(
         base,
     )[0]
     minus = optimizer._value_and_gradient(
+        toy_economy,
         levels - epsilon,
         inputs,
         outputs,
@@ -261,6 +272,7 @@ def test_gdp_per_capita_gradient_matches_finite_difference(
 
     def value_and_gradient(levels: np.ndarray) -> tuple[float, np.ndarray]:
         gdp, gdp_gradient = optimizer._value_and_gradient(
+            toy_economy,
             levels,
             inputs,
             outputs,
@@ -371,7 +383,7 @@ def test_market_optimizer_rejects_x0_for_fixed_zero_configuration():
         MarketOptimizer(economy).solve(scenario, x0=np.array([1.0, 0.1]))
 
 
-def test_market_optimizer_failure_preserves_last_success(toy_economy: Economy):
+def test_market_optimizer_compile_clears_stale_result(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
         import_limit=None,
@@ -380,11 +392,161 @@ def test_market_optimizer_failure_preserves_last_success(toy_economy: Economy):
     )
     optimizer = MarketOptimizer(toy_economy)
     optimizer.solve(scenario)
-    previous_result = optimizer.result
-    previous_scenario = optimizer.scenario
-
     with pytest.raises(ValueError, match="Market optimization failed"):
         optimizer.solve(scenario, x0=np.array([1.0]), options={"maxiter": 1})
 
-    assert optimizer.result is previous_result
-    assert optimizer.scenario is previous_scenario
+    assert optimizer.result is None
+    assert optimizer.scenario is scenario
+    assert isinstance(optimizer.problem, MarketProblem)
+
+
+def test_market_compile_and_solve_problem(toy_economy: Economy):
+    scenario = Scenario(
+        objective="gdp",
+        import_limit=None,
+        building_limits=(("building_test", 1.5),),
+        pop_needs=(("test_good", 1.0),),
+    )
+    optimizer = MarketOptimizer(toy_economy)
+    problem = optimizer.compile(scenario)
+    assert isinstance(problem, MarketProblem)
+    assert isinstance(problem.warm_start, LinearProblem)
+    assert optimizer.result is None
+
+    state = optimizer.solve_problem(problem)
+
+    np.testing.assert_allclose(state.building_levels, [7.0 / 6.0], atol=2e-5)
+    assert optimizer.problem is problem
+    assert optimizer.result is not None
+
+
+def test_market_solve_problem_rejects_other_economy(toy_economy: Economy):
+    scenario = Scenario(
+        objective="gdp",
+        import_limit=None,
+        building_limits=(("building_test", 1.5),),
+        pop_needs=(("test_good", 1.0),),
+    )
+    problem = MarketOptimizer(toy_economy).compile(scenario)
+    other = Economy(
+        df_production=toy_economy.df_production.copy(),
+        df_goods=toy_economy.df_goods.copy(),
+        df_pop_types=toy_economy.df_pop_types.copy(),
+    )
+    with pytest.raises(ValueError, match="different Economy"):
+        MarketOptimizer(other).solve_problem(problem)
+
+
+def test_market_solve_problem_applies_remaining_equalities(
+    toy_economy: Economy,
+):
+    optimizer = MarketOptimizer(toy_economy)
+    problem = optimizer.compile(
+        Scenario(
+            objective="gdp",
+            import_limit=None,
+            building_limits=(("building_test", 1.5),),
+            pop_needs=(("test_good", 1.0),),
+        )
+    )
+    constrained = replace(
+        problem,
+        A_eq=np.array([[1.0]]),
+        b_eq=np.array([1.0]),
+    )
+
+    state = optimizer.solve_problem(constrained, x0=np.array([1.0]))
+
+    np.testing.assert_allclose(state.building_levels, [1.0])
+
+
+def test_retained_slices_remaps_partially_removed_blocks():
+    retained = MarketOptimizer._retained_slices(
+        {"removed": slice(None, 1), "kept": slice(1, None)},
+        np.array([False, True]),
+    )
+    assert "removed" not in retained
+    assert retained["kept"] == slice(0, 1)
+
+
+def test_market_preflight_reports_other_solver_failures(
+    toy_economy: Economy, monkeypatch: pytest.MonkeyPatch
+):
+    problem = (
+        MarketOptimizer(toy_economy)
+        .compile(
+            Scenario(
+                objective="gdp",
+                import_limit=None,
+                building_limits=(("building_test", 1.5),),
+            )
+        )
+        .warm_start
+    )
+    monkeypatch.setattr(
+        "vic3_analysis.optimize.market.opt.linprog",
+        lambda *args, **kwargs: OptimizeResult(
+            success=False, status=4, message="numerical failure"
+        ),
+    )
+    with pytest.raises(ValueError, match="preflight failed"):
+        MarketOptimizer._check_feasibility_and_boundedness(problem)
+
+
+def test_market_reports_warm_start_failure(
+    toy_economy: Economy, monkeypatch: pytest.MonkeyPatch
+):
+    optimizer = MarketOptimizer(toy_economy)
+    problem = optimizer.compile(
+        Scenario(
+            objective="gdp",
+            import_limit=None,
+            building_limits=(("building_test", 1.5),),
+        )
+    )
+    calls = 0
+
+    def fake_linprog(*args: object, **kwargs: object) -> OptimizeResult:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return OptimizeResult(success=True)
+        return OptimizeResult(success=False, message="warm start failed")
+
+    monkeypatch.setattr("vic3_analysis.optimize.market.opt.linprog", fake_linprog)
+    with pytest.raises(ValueError, match="Nominal warm-start failed"):
+        optimizer.solve_problem(problem)
+
+
+def test_market_rejects_misaligned_initial_point(toy_economy: Economy):
+    scenario = Scenario(
+        objective="gdp",
+        import_limit=None,
+        building_limits=(("building_test", 1.5),),
+    )
+    with pytest.raises(ValueError, match="1-D vector"):
+        MarketOptimizer(toy_economy).solve(scenario, x0=np.zeros((1, 1)))
+
+
+def test_market_rejects_initial_point_violating_equality():
+    with pytest.raises(ValueError, match="equality constraints"):
+        MarketOptimizer._validate_initial_point(
+            np.array([0.0]),
+            None,
+            None,
+            np.array([[1.0]]),
+            np.array([1.0]),
+            ((0.0, None),),
+            1,
+        )
+
+
+def test_per_capita_terms_at_zero_population():
+    value, gradient = MarketOptimizer._per_capita_value_and_gradient(
+        2.0,
+        np.array([3.0]),
+        np.array([0.0]),
+        np.array([1.0]),
+    )
+    assert value == 0.0
+    np.testing.assert_array_equal(gradient, [0.0])

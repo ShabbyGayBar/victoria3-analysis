@@ -1,71 +1,31 @@
-"""Nonlinear market-price optimisation for Victoria 3 economies.
-
-The market solver keeps the scenario's linear production constraints, but
-prices are derived from the resulting buy and sell orders.  SLSQP is used for
-the resulting piecewise-smooth GDP objective.
-"""
+"""Nonlinear market-price optimization compilation and solving."""
 
 from collections.abc import Mapping
+from dataclasses import replace
+from types import MappingProxyType
 from typing import Any, cast
 
 import numpy as np
 import scipy.optimize as opt
-from scipy.optimize import OptimizeResult
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
-from vic3_analysis.optimize.scenario import LinprogArgs, Scenario
+from vic3_analysis.optimize.base import (
+    BaseOptimizer,
+    ConstraintSlices,
+    LinearProblem,
+    MarketProblem,
+)
+from vic3_analysis.optimize.scenario import Scenario
 
 
 _FEASIBILITY_TOLERANCE = 1e-7
 
 
-class MarketOptimizer:
-    """Maximise market-price GDP or GDP per capita for a :class:`Scenario`.
+class MarketOptimizer(BaseOptimizer[MarketProblem]):
+    """Compile and solve scenarios with endogenous national market prices."""
 
-    ``MarketOptimizer`` deliberately keeps the economy-of-scale effect out of
-    the optimisation.  Scenario throughput bonuses are fixed and are included
-    in the goods-flow matrices used by both the objective and final state.
-    Imports, exports, and population needs are exogenous order context: they
-    shift prices but are not included in ``EconomyState.gdp_weekly``'s net
-    building output.
-    """
-
-    model: Economy
-    result: OptimizeResult | None
-    scenario: Scenario | None
-
-    def __init__(self, model: Economy) -> None:
-        """Initialise the solver for *model*."""
-        self.model = model
-        self.result = None
-        self.scenario = None
-
-    def solve(
-        self,
-        scenario: Scenario,
-        *,
-        x0: np.ndarray | None = None,
-        options: Mapping[str, object] | None = None,
-    ) -> EconomyState:
-        """Solve *scenario* with endogenous national market prices.
-
-        Args:
-            scenario: The scenario to optimise. Its objective must be
-                ``"gdp"`` or ``"gdp_per_capita"`` and its import limit must
-                be ``None``; the latter leaves imports as explicit
-                price-context orders.
-            x0: Optional feasible initial building-level vector.  When
-                omitted, a nominal GDP LP solution is used as a warm start.
-            options: Optional options passed to SciPy's SLSQP implementation.
-
-        Returns:
-            The final market-price :class:`EconomyState`.
-
-        Raises:
-            ValueError: If the scenario is unsupported, the linear feasible
-                region is infeasible or unbounded, the initial point is
-                invalid, or SLSQP does not report success.
-        """
+    def compile(self, scenario: Scenario) -> MarketProblem:
+        """Compile *scenario* into an inspectable nonlinear market problem."""
         if scenario.objective not in ("gdp", "gdp_per_capita"):
             raise ValueError(
                 "MarketOptimizer requires objective='gdp' or "
@@ -74,66 +34,29 @@ class MarketOptimizer:
         if scenario.import_limit is not None:
             raise ValueError("MarketOptimizer requires scenario.import_limit=None.")
 
-        n_buildings = len(self.model.building_index())
-        if scenario.objective == "gdp":
-            lp_args = scenario.linprog_args(self.model)
-        else:
-            A_ub, b_ub = scenario.inequality_constraints(self.model)
-            A_eq, b_eq = scenario.equality_constraints(self.model)
-            warm_start_objective = (
-                self.model.employment_vector()
-                if scenario.produce
-                else -scenario.gdp_vector(self.model)
-            )
-            lp_args = LinprogArgs(
-                c=warm_start_objective,
-                A_ub=A_ub,
-                b_ub=b_ub,
-                A_eq=A_eq,
-                b_eq=b_eq,
-            )
-        lp_args, bounds = self._extract_fixed_zero_bounds(lp_args, n_buildings)
-        self._check_feasibility_and_boundedness(lp_args, bounds, n_buildings)
-
-        if x0 is None:
-            warm_start = opt.linprog(
-                **lp_args,
-                bounds=bounds,
-                method="highs",
-            )
-            if not warm_start.success:
-                raise ValueError(f"Nominal warm-start failed: {warm_start.message}")
-            initial = np.asarray(warm_start.x, dtype=np.float64)
-        else:
-            initial = self._validate_initial_point(
-                x0,
-                lp_args["A_ub"],
-                lp_args["b_ub"],
-                lp_args["A_eq"],
-                lp_args["b_eq"],
-                bounds,
-                n_buildings,
-            )
-
-        input_matrix = scenario.goods_input_matrix(self.model)
-        output_matrix = scenario.goods_output_matrix(self.model)
-        net_matrix = output_matrix - input_matrix
-        imports = scenario.imports_vector(self.model)
-        exports = scenario.exports_vector(self.model)
-        pop_needs = scenario.pop_needs_vector(self.model)
-        base_prices = self.model.base_prices()
+        data = self._compile_common(scenario)
+        warm_start_objective = (
+            self.model.employment_vector()
+            if scenario.objective == "gdp_per_capita" and scenario.produce
+            else -data.gdp_vector
+        )
+        warm_start = self._extract_fixed_zero_bounds(
+            self._linear_problem(data, warm_start_objective)
+        )
         employment = self.model.employment_vector()
+        economy = self.model
 
         def objective_terms(levels: np.ndarray) -> tuple[float, np.ndarray]:
             value, gradient = self._value_and_gradient(
+                economy,
                 levels,
-                input_matrix,
-                output_matrix,
-                net_matrix,
-                imports,
-                exports,
-                pop_needs,
-                base_prices,
+                data.input_matrix,
+                data.output_matrix,
+                data.net_matrix,
+                data.imports,
+                data.exports,
+                data.pop_needs,
+                economy.base_prices(),
             )
             if scenario.objective == "gdp_per_capita":
                 return self._per_capita_value_and_gradient(
@@ -149,24 +72,90 @@ class MarketOptimizer:
             _value, gradient = objective_terms(levels)
             return -gradient
 
-        constraints: list[opt.LinearConstraint] = []
-        if lp_args["A_ub"] is not None and lp_args["b_ub"] is not None:
-            linear_constraint = cast(Any, opt.LinearConstraint)
-            constraints.append(
-                linear_constraint(lp_args["A_ub"], -np.inf, lp_args["b_ub"])
+        problem = MarketProblem(
+            economy=data.economy,
+            scenario=scenario,
+            throughput_multipliers=data.throughput_multipliers,
+            input_matrix=data.input_matrix,
+            output_matrix=data.output_matrix,
+            net_matrix=data.net_matrix,
+            gdp_vector=data.gdp_vector,
+            imports=data.imports,
+            exports=data.exports,
+            pop_needs=data.pop_needs,
+            A_ub=warm_start.A_ub,
+            b_ub=warm_start.b_ub,
+            A_eq=warm_start.A_eq,
+            b_eq=warm_start.b_eq,
+            bounds=warm_start.bounds,
+            inequality_slices=warm_start.inequality_slices,
+            equality_slices=warm_start.equality_slices,
+            objective=objective,
+            jacobian=jacobian,
+            warm_start=warm_start,
+        )
+        self._bind_problem(problem)
+        return problem
+
+    def solve(
+        self,
+        scenario: Scenario,
+        *,
+        x0: np.ndarray | None = None,
+        options: Mapping[str, object] | None = None,
+    ) -> EconomyState:
+        """Compile and solve *scenario* with endogenous market prices."""
+        return self.solve_problem(self.compile(scenario), x0=x0, options=options)
+
+    def solve_problem(
+        self,
+        problem: MarketProblem,
+        *,
+        x0: np.ndarray | None = None,
+        options: Mapping[str, object] | None = None,
+    ) -> EconomyState:
+        """Solve a previously compiled market problem."""
+        self._bind_problem(problem)
+        warm_start_problem = problem.warm_start
+        self._check_feasibility_and_boundedness(warm_start_problem)
+        n_buildings = len(self.model.building_index())
+
+        if x0 is None:
+            warm_start = opt.linprog(
+                **warm_start_problem.linprog_args(),
+                bounds=warm_start_problem.bounds,
+                method="highs",
             )
-        if lp_args["A_eq"] is not None and lp_args["b_eq"] is not None:
+            if not warm_start.success:
+                raise ValueError(f"Nominal warm-start failed: {warm_start.message}")
+            initial = np.asarray(warm_start.x, dtype=np.float64)
+        else:
+            initial = self._validate_initial_point(
+                x0,
+                problem.A_ub,
+                problem.b_ub,
+                problem.A_eq,
+                problem.b_eq,
+                problem.bounds,
+                n_buildings,
+            )
+
+        constraints: list[opt.LinearConstraint] = []
+        if problem.A_ub is not None and problem.b_ub is not None:
+            linear_constraint = cast(Any, opt.LinearConstraint)
+            constraints.append(linear_constraint(problem.A_ub, -np.inf, problem.b_ub))
+        if problem.A_eq is not None and problem.b_eq is not None:
             linear_constraint = cast(Any, opt.LinearConstraint)
             constraints.append(
-                linear_constraint(lp_args["A_eq"], lp_args["b_eq"], lp_args["b_eq"])
+                linear_constraint(problem.A_eq, problem.b_eq, problem.b_eq)
             )
 
         result = opt.minimize(
-            objective,
+            problem.objective,
             initial,
-            jac=jacobian,
+            jac=problem.jacobian,
             method="SLSQP",
-            bounds=bounds,
+            bounds=problem.bounds,
             constraints=constraints,
             options=dict(options) if options is not None else None,
         )
@@ -174,31 +163,22 @@ class MarketOptimizer:
             raise ValueError(f"Market optimization failed: {result.message}")
 
         self.result = result
-        self.scenario = scenario
-        return self.model.solve(
+        return self._state_from_levels(
+            problem,
             np.asarray(result.x, dtype=np.float64),
             method="market",
-            imports=imports,
-            exports=exports,
-            throughput_multipliers=scenario.throughput_multipliers(self.model),
-            pop_needs=pop_needs,
-            economy_of_scale_level_cap=0.0,
         )
 
     @staticmethod
-    def _extract_fixed_zero_bounds(
-        lp_args: LinprogArgs,
-        n_buildings: int,
-    ) -> tuple[LinprogArgs, list[tuple[float, float | None]]]:
+    def _extract_fixed_zero_bounds(problem: LinearProblem) -> LinearProblem:
         """Turn non-negative zero-sum equalities into fixed-zero bounds."""
-        bounds: list[tuple[float, float | None]] = [(0.0, None)] * n_buildings
-        A_eq = lp_args["A_eq"]
-        b_eq = lp_args["b_eq"]
-        if A_eq is None or b_eq is None:
-            return lp_args, bounds
-
-        keep = np.ones(len(b_eq), dtype=bool)
-        for row_index, (row, rhs) in enumerate(zip(A_eq, b_eq)):
+        if problem.A_eq is None or problem.b_eq is None:
+            return problem
+        bounds = list(problem.bounds)
+        keep = np.ones(len(problem.b_eq), dtype=bool)
+        for row_index, (row, rhs) in enumerate(
+            zip(problem.A_eq, problem.b_eq, strict=True)
+        ):
             nonzero = np.flatnonzero(row)
             same_sign = (row[nonzero] > 0).all() or (row[nonzero] < 0).all()
             if abs(rhs) <= _FEASIBILITY_TOLERANCE and len(nonzero) > 0 and same_sign:
@@ -206,31 +186,45 @@ class MarketOptimizer:
                     bounds[int(variable)] = (0.0, 0.0)
                 keep[row_index] = False
 
-        remaining_A_eq = A_eq[keep]
-        remaining_b_eq = b_eq[keep]
-        reduced = LinprogArgs(
-            c=lp_args["c"],
-            A_ub=lp_args["A_ub"],
-            b_ub=lp_args["b_ub"],
+        remaining_A_eq = problem.A_eq[keep]
+        remaining_b_eq = problem.b_eq[keep]
+        slices = MarketOptimizer._retained_slices(problem.equality_slices, keep)
+        return replace(
+            problem,
             A_eq=remaining_A_eq if len(remaining_A_eq) > 0 else None,
             b_eq=remaining_b_eq if len(remaining_b_eq) > 0 else None,
+            bounds=tuple(bounds),
+            equality_slices=slices,
         )
-        return reduced, bounds
 
     @staticmethod
-    def _check_feasibility_and_boundedness(
-        lp_args: LinprogArgs,
-        bounds: list[tuple[float, float | None]],
-        n_buildings: int,
-    ) -> None:
+    def _retained_slices(
+        slices: ConstraintSlices, keep: np.ndarray
+    ) -> ConstraintSlices:
+        """Map named equality slices after fixed-zero rows are removed."""
+        retained: dict[str, slice] = {}
+        for name, row_slice in slices.items():
+            start = 0 if row_slice.start is None else row_slice.start
+            stop = len(keep) if row_slice.stop is None else row_slice.stop
+            block_keep = keep[start:stop]
+            count = int(block_keep.sum())
+            if count == 0:
+                continue
+            new_start = int(keep[:start].sum())
+            retained[name] = slice(new_start, new_start + count)
+        return MappingProxyType(retained)
+
+    @staticmethod
+    def _check_feasibility_and_boundedness(problem: LinearProblem) -> None:
         """Reject infeasible or unbounded linear scenario regions."""
+        n_buildings = len(problem.bounds)
         boundedness = opt.linprog(
             -np.ones(n_buildings, dtype=np.float64),
-            A_ub=lp_args["A_ub"],
-            b_ub=lp_args["b_ub"],
-            A_eq=lp_args["A_eq"],
-            b_eq=lp_args["b_eq"],
-            bounds=bounds,
+            A_ub=problem.A_ub,
+            b_ub=problem.b_ub,
+            A_eq=problem.A_eq,
+            b_eq=problem.b_eq,
+            bounds=problem.bounds,
             method="highs",
         )
         if boundedness.success:
@@ -253,7 +247,7 @@ class MarketOptimizer:
         b_ub: np.ndarray | None,
         A_eq: np.ndarray | None,
         b_eq: np.ndarray | None,
-        bounds: list[tuple[float, float | None]],
+        bounds: tuple[tuple[float, float | None], ...],
         n_buildings: int,
     ) -> np.ndarray:
         """Validate and copy a user-provided feasible initial point."""
@@ -281,8 +275,9 @@ class MarketOptimizer:
                 raise ValueError("x0 violates scenario equality constraints.")
         return initial.copy()
 
+    @staticmethod
     def _value_and_gradient(
-        self,
+        economy: Economy,
         levels: np.ndarray,
         input_matrix: np.ndarray,
         output_matrix: np.ndarray,
@@ -297,7 +292,7 @@ class MarketOptimizer:
         building_outputs = levels @ output_matrix
         buy_orders = building_inputs + exports + pop_needs
         sell_orders = building_outputs + imports
-        prices = self.model.market_prices(buy_orders, sell_orders)
+        prices = economy.market_prices(buy_orders, sell_orders)
         dp_buy, dp_sell = MarketOptimizer._price_derivatives(
             base_prices, buy_orders, sell_orders
         )
@@ -320,20 +315,16 @@ class MarketOptimizer:
         if population <= 0:
             return 0.0, np.zeros_like(gdp_gradient)
         value = gdp / population
-        gradient = (
-            gdp_gradient * population - gdp * employment
-        ) / population**2
+        gradient = (gdp_gradient * population - gdp * employment) / population**2
         return value, gradient
 
     @staticmethod
     def _price_derivatives(
-        base_prices: np.ndarray, buy_orders: np.ndarray, sell_orders: np.ndarray
+        base_prices: np.ndarray,
+        buy_orders: np.ndarray,
+        sell_orders: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Return deterministic piecewise derivatives of market prices.
-
-        At clipping boundaries and at the discontinuous ``(0, 0)`` branch,
-        the capped-side/zero derivative is selected for numerical stability.
-        """
+        """Return deterministic piecewise derivatives of market prices."""
         dp_buy = np.zeros_like(base_prices)
         dp_sell = np.zeros_like(base_prices)
         positive = (buy_orders > 0) & (sell_orders > 0)

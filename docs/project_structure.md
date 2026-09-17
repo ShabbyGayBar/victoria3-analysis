@@ -36,7 +36,9 @@ production_table, ...` directly.
   `BuildingsParser`, `BuildingGroupParser`, `goods`, `PopNeedsParser`,
   `PopTypesParser`, `production_method_groups`, `ProductionMethodParser`,
   `StateRegionsParser`, `technology`), the analysis helpers
-  (`production_table`, `Economy`), and the optimiser (`NominalOptimizer`).
+  (`production_table`, `Economy`), and the optimization API (`Scenario`,
+  `BaseOptimizer`, `LinearProblem`, `NominalOptimizer`, `MarketProblem`, and
+  `MarketOptimizer`).
 - `utils.py` — Shared helpers:
   - `get_vic3_directory()` auto-detects the `Victoria 3/game` install across
     common Steam library paths on Windows/Linux/macOS.
@@ -114,11 +116,11 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `chain_depth()`, `count_raw_inputs()`, and `to_mermaid()` methods), and
   composable functions: `optimize_chain` (solve a `Scenario` via
   `NominalOptimizer`), `upstream_tree` (memoised recipe/realised trace, with
-  an optional `scenario` for throughput-adjusted flows),
+  an optional compiled optimizer for throughput-adjusted flows),
   `value_added_breakdown` (per-config or per-good GDP/employment/
-  construction-cost attribution, likewise `scenario`-aware), `bottleneck`
+  construction-cost attribution, likewise optimizer-aware), `bottleneck`
   (input cost-share ranking plus LP import-cap marginals read from the solved
-  scenario), and `compare_scenarios` (multi-scenario metric table with chain
+  optimizer), and `compare_scenarios` (multi-scenario metric table with chain
   characteristics). `Economy.producible_goods()` lists goods with at least one
   producer configuration.
 
@@ -128,23 +130,19 @@ or expose a `pyradox.Tree` subclass with helper methods.
   optimisation recipe as data (produce basket, objective, import limit, banned
   PMs / buildings / building groups, per-building level limits, throughput
   bonuses, era / construction-cost / employment caps, infrastructure floor,
-  urban-center tie). Its economy-parameterised translation methods are pure
-  and deterministic: `goods_input_matrix` / `goods_output_matrix` /
-  `goods_matrix` (throughput-adjusted flows), `gdp_vector`,
-  `objective_vector`, `inequality_constraints` / `equality_constraints`
-  (stacked linprog-ready `(A, b)` arrays in fixed block order, `None` when
-  absent), `linprog_args` (the bundled `c` / `A_ub` / `b_ub` / `A_eq` / `b_eq`
-  keyword `LinprogArgs` TypedDict for `scipy.optimize.linprog`), and
-  `import_marginals` (interprets its own duals from a solved LP result).
-- `nominal.py` — `NominalOptimizer`, solely a solver: `solve(scenario)`
-  delegates to `scipy.optimize.linprog` with the scenario's `linprog_args`,
-  returning an `EconomyState`. The underlying `OptimizeResult` and the solved
-  scenario are retained on the `result` / `scenario` attributes so downstream
-  tooling (e.g. `supply_chain.bottleneck`) can read constraint marginals
-  (shadow prices).
-- `market.py` — `MarketOptimizer`, a bounded nonlinear SLSQP solver for GDP
-  and GDP per capita with endogenous national market prices and fixed Scenario
-  import, export, and population-needs orders.
+  urban-center tie). It has no economy- or solver-dependent methods.
+- `base.py` — public abstract `BaseOptimizer` plus immutable `LinearProblem`
+  and `MarketProblem` compiled types. The base compiles fixed market context,
+  throughput-adjusted matrices, shared constraints with named row slices, and
+  solution-state context for both concrete optimizers.
+- `nominal.py` — `NominalOptimizer.compile()` attaches the fixed-price linear
+  objective; `solve()` and `solve_problem()` call HiGHS through
+  `scipy.optimize.linprog`. `import_marginals()` maps LP duals through the
+  compiled problem's named import constraint slice.
+- `market.py` — `MarketOptimizer.compile()` builds the nonlinear objective,
+  Jacobian, linear feasible region, bounds, and nominal warm-start problem;
+  `solve()` and `solve_problem()` use SLSQP for endogenous-price GDP or GDP per
+  capita.
 
 ## `examples/` — Table-generation Scripts
 
@@ -221,13 +219,19 @@ game directory.
   smoke tests that instantiate each parser and call its primary method.
 - `test_economy.py` — exercises `Economy` and `EconomyState` end-to-end
   (matrices, derived vectors, solve, DataFrames, GDP/wealth).
-- `test_scenario.py` — exercises the `Scenario` formulation (objective
-  validation, throughput-adjusted matrices, objective-vector signs, constraint
-  order and content per field, `import_marginals` guards).
-- `test_nominal_optimizer.py` — exercises the solver-only `NominalOptimizer`
+- `test_scenario.py` — exercises the immutable `Scenario` configuration
+  (defaults, objective validation, frozen behavior, and display names).
+- `test_base.py` — exercises shared optimizer compilation (context vectors,
+  throughput-adjusted matrices, constraint families and named row slices),
+  lifecycle bookkeeping, and pre-compilation access guards.
+- `test_nominal_optimizer.py` — exercises `NominalOptimizer` compilation and solving
   (`solve` returns a state satisfying produce / import / building-limit /
   urbanization constraints, unbounded and infeasible scenarios raise, the
-  `result` / `scenario` attributes, marginal access after solve).
+  retained problem/result/scenario state, cross-economy rejection, and import
+  marginals after solve).
+- `test_market_optimizer.py` — exercises nonlinear market compilation,
+  fixed-zero bounds, warm starts, objective/Jacobian behavior, solve entry
+  points, market validation, and cross-economy rejection.
 - `test_supply_chain.py` — exercises the supply-chain toolkit end-to-end
   (`optimize_chain`, `upstream_tree` recipe/realised/bonus-consistent views,
   Mermaid serialisation, chain metrics, `value_added_breakdown`,

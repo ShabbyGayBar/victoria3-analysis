@@ -58,11 +58,14 @@ scenario = Scenario(
     objective="construction_cost",
     import_limit=0.0,
 )
-state = NominalOptimizer(economy).solve(scenario)
+optimizer = NominalOptimizer(economy)
+problem = optimizer.compile(scenario)
+state = optimizer.solve_problem(problem)
 ```
 
-`Scenario` owns the problem definition. `NominalOptimizer` only translates it
-to a linear program and returns an `EconomyState`.
+`Scenario` contains only the experiment configuration. `NominalOptimizer`
+compiles it to an inspectable `LinearProblem` and returns an `EconomyState`.
+For the common one-step form, use `optimizer.solve(scenario)`.
 
 ## 4. Inspect the result
 

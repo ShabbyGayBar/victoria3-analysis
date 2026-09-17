@@ -55,11 +55,10 @@ def test_optimize_chain_returns_state(economy: Economy, automation_scenario: Sce
 def test_optimize_chain_satisfies_produce(
     economy: Economy, automation_scenario: Scenario
 ):
-    state = optimize_chain(economy, automation_scenario)
+    optimizer = NominalOptimizer(economy)
+    state = optimizer.solve(automation_scenario)
     idx = economy.goods_index().index(TERMINAL_GOOD)
-    net = float(
-        state.building_levels @ automation_scenario.goods_matrix(economy)[:, idx]
-    )
+    net = float(state.building_levels @ optimizer.goods_matrix[:, idx])
     assert net >= automation_scenario.produce[0][1] - 1e-6
 
 
@@ -133,9 +132,10 @@ def test_upstream_tree_scenario_bonus_consistent(economy: Economy):
         objective="automation",
         throughput_bonuses=(("building_automotive_industry", 2.0),),
     )
-    state = optimize_chain(economy, scenario)
-    tree = upstream_tree(economy, TERMINAL_GOOD, state, scenario)
-    out_mat = scenario.goods_output_matrix(economy)
+    optimizer = NominalOptimizer(economy)
+    state = optimizer.solve(scenario)
+    tree = upstream_tree(economy, TERMINAL_GOOD, state, optimizer)
+    out_mat = optimizer.goods_output_matrix
     goods_index = economy.goods_index()
     key_to_i = {k: i for i, k in enumerate(economy.building_index())}
     for producer in tree.iter_producers():
@@ -144,7 +144,7 @@ def test_upstream_tree_scenario_bonus_consistent(economy: Economy):
         for good, amount in producer.outputs.items():
             j = goods_index.index(good)
             assert amount == pytest.approx(out_mat[i, j] * level)
-    # without the scenario the same state renders unscaled flows, so the
+    # without the optimizer the same state renders unscaled flows, so the
     # bonused building's outputs differ by the bonus multiplier.
     raw_tree = upstream_tree(economy, TERMINAL_GOOD, state)
     adjusted = tree.collect_producers()
@@ -340,10 +340,11 @@ def test_value_added_breakdown_scenario_bonus_consistent(economy: Economy):
         objective="automation",
         throughput_bonuses=(("building_automotive_industry", 2.0),),
     )
-    state = optimize_chain(economy, scenario)
-    # with the scenario, GDP totals match the bonus-adjusted objective vector.
-    df = value_added_breakdown(economy, state, scenario=scenario)
-    adjusted = float(np.dot(state.building_levels, scenario.gdp_vector(economy)))
+    optimizer = NominalOptimizer(economy)
+    state = optimizer.solve(scenario)
+    # with the optimizer, GDP totals match the bonus-adjusted objective vector.
+    df = value_added_breakdown(economy, state, optimizer=optimizer)
+    adjusted = float(np.dot(state.building_levels, optimizer.gdp_vector))
     assert df["gdp"].sum() == pytest.approx(adjusted, rel=1e-6)
     # without it, totals match the raw matrices instead (and differ).
     df_raw = value_added_breakdown(economy, state)
@@ -356,6 +357,27 @@ def test_value_added_breakdown_scenario_bonus_consistent(economy: Economy):
     )
     assert df_raw["gdp"].sum() == pytest.approx(raw, rel=1e-6)
     assert not np.isclose(adjusted, raw, rtol=1e-6)
+
+
+def test_analysis_rejects_uncompiled_optimizer(economy: Economy):
+    with pytest.raises(ValueError, match="not compiled or solved"):
+        upstream_tree(
+            economy,
+            TERMINAL_GOOD,
+            optimizer=NominalOptimizer(economy),
+        )
+
+
+def test_analysis_rejects_optimizer_for_other_economy(economy: Economy):
+    other = Economy(
+        df_production=economy.df_production.copy(),
+        df_goods=economy.df_goods.copy(),
+        df_pop_types=economy.df_pop_types.copy(),
+    )
+    optimizer = NominalOptimizer(other)
+    optimizer.compile(Scenario(objective="construction_cost", import_limit=None))
+    with pytest.raises(ValueError, match="different Economy"):
+        upstream_tree(economy, TERMINAL_GOOD, optimizer=optimizer)
 
 
 def test_bottleneck_columns(economy: Economy, solved):

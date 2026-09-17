@@ -18,19 +18,20 @@ The supply-chain helpers build on `Economy`, `Scenario`, and
   configurations, scaled by their solved levels.
 
 ```python
-from vic3_analysis import Scenario, optimize_chain, upstream_tree
+from vic3_analysis import NominalOptimizer, Scenario, upstream_tree
 
 scenario = Scenario(produce=(("automobiles", 1.0),), objective="automation")
-state = optimize_chain(economy, scenario)
+optimizer = NominalOptimizer(economy)
+state = optimizer.solve(scenario)
 
 recipe = upstream_tree(economy, "automobiles")
-realized = upstream_tree(economy, "automobiles", state, scenario)
+realized = upstream_tree(economy, "automobiles", state, optimizer)
 print(recipe.to_mermaid())
 print(realized.to_mermaid(realized=True))
 ```
 
-Pass the scenario with a realized state so fixed throughput bonuses are applied
-consistently. Cyclic good dependencies are represented as back-edges rather
+Pass the compiled optimizer with a realized state so fixed throughput bonuses
+are applied consistently. Cyclic good dependencies are represented as back-edges rather
 than expanded forever.
 
 ## Attribute value and inspect bottlenecks
@@ -42,7 +43,7 @@ optimizer = NominalOptimizer(economy)
 state = optimizer.solve(scenario)
 
 by_good = value_added_breakdown(
-    economy, state, good="automobiles", by="good", scenario=scenario
+    economy, state, good="automobiles", by="good", optimizer=optimizer
 )
 constraints = bottleneck(
     economy, state, good="automobiles", optimizer=optimizer

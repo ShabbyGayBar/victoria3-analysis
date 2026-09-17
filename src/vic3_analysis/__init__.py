@@ -25,6 +25,7 @@ from vic3_analysis.parse.technology import technology
 
 from vic3_analysis.analysis.production import production_table
 from vic3_analysis.analysis.economy import Economy
+from vic3_analysis.optimize.base import BaseOptimizer, LinearProblem, MarketProblem
 from vic3_analysis.optimize.scenario import Scenario
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.market import MarketOptimizer
@@ -56,6 +57,9 @@ __all__ = [
     "technology",
     "production_table",
     "Economy",
+    "BaseOptimizer",
+    "LinearProblem",
+    "MarketProblem",
     "Scenario",
     "NominalOptimizer",
     "MarketOptimizer",
