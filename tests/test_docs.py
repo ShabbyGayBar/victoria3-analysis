@@ -91,7 +91,7 @@ def test_artifact_registry_covers_outputs_and_examples() -> None:
         path.relative_to(ROOT).as_posix()
         for directory in (ROOT / "tables", ROOT / "figures")
         for path in directory.rglob("*")
-        if path.is_file()
+        if path.is_file() and not path.name.startswith(".")
     }
     assert set(matches) == expected_artifacts
     assert all(len(producers) == 1 for producers in matches.values())

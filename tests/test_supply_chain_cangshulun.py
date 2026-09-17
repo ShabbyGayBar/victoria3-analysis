@@ -11,19 +11,13 @@ TABLE_PATH = (
 )
 
 VARIANT_NAMES = {
-    "transportation_railway_era3",
-    "glass_pure",
     "glass_bone_china",
-    "furniture_pure",
     "luxury_furniture",
-    "logging_wood",
     "logging_hardwood",
-    "groceries_pure",
     "groceries_with_liquor",
-    "clothes_pure",
     "luxury_clothes",
-    "grain_wheat_no_secondary",
-    "services_urban_center",
+    "urban_center_transportation",
+    "coal_fired_plant",
 }
 
 

@@ -380,13 +380,11 @@ def test_solve_nominal(economy):
     assert np.all(state.pop_needs == 0)
     np.testing.assert_allclose(
         state.building_goods_input,
-        levels
-        @ economy.goods_input_matrix(1.0 + economy.economy_of_scale_bonuses(levels)),
+        levels @ economy.goods_input_matrix(),
     )
     np.testing.assert_allclose(
         state.building_goods_output,
-        levels
-        @ economy.goods_output_matrix(1.0 + economy.economy_of_scale_bonuses(levels)),
+        levels @ economy.goods_output_matrix(),
     )
     np.testing.assert_allclose(
         state.pops, levels[:, None] * economy.employment_matrix()
@@ -456,14 +454,13 @@ def test_solve_with_throughput_multipliers(economy):
     levels = _first_producing_levels(economy)
     multipliers = np.full(len(economy.building_index()), 2.0, dtype=np.float64)
     state = economy.solve(levels, throughput_multipliers=multipliers)
-    combined = multipliers + economy.economy_of_scale_bonuses(levels)
     np.testing.assert_allclose(
         state.building_goods_input,
-        levels @ economy.goods_input_matrix(combined),
+        levels @ economy.goods_input_matrix(multipliers),
     )
     np.testing.assert_allclose(
         state.building_goods_output,
-        levels @ economy.goods_output_matrix(combined),
+        levels @ economy.goods_output_matrix(multipliers),
     )
 
 

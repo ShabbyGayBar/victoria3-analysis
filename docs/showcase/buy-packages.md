@@ -7,7 +7,7 @@ description: Explore wealth-level political strength and population-need demand 
 
 Buy packages describe political strength and the amount assigned to each
 population-need category at every wealth level. The script writes one table and
-one SVG chart for every non-wealth column.
+both linear- and log-scale SVG charts for every non-wealth column.
 
 [:fontawesome-brands-github: View `examples/buy_packages.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/buy_packages.py)
 
@@ -47,3 +47,26 @@ Select a figure to open or download the full SVG.
 <figure class="figure-card"><a href="../../figures/buy_packages/popneed_standard_clothing.svg"><img src="../../figures/buy_packages/popneed_standard_clothing.svg" alt="Standard clothing need by wealth"></a><figcaption><code>figures/buy_packages/popneed_standard_clothing.svg</code><br>Standard clothing</figcaption></figure>
 <figure class="figure-card"><a href="../../figures/buy_packages/popneed_stimulants.svg"><img src="../../figures/buy_packages/popneed_stimulants.svg" alt="Stimulants need by wealth"></a><figcaption><code>figures/buy_packages/popneed_stimulants.svg</code><br>Stimulants</figcaption></figure>
 </div>
+
+## Log-scale figures
+
+Log-scale versions make changes across the full range of wealth levels easier
+to compare:
+
+- [`figures/buy_packages/political_strength_log.svg`](../../figures/buy_packages/political_strength_log.svg)
+- [`figures/buy_packages/total_popneeds_log.svg`](../../figures/buy_packages/total_popneeds_log.svg)
+- [`figures/buy_packages/popneed_basic_food_log.svg`](../../figures/buy_packages/popneed_basic_food_log.svg)
+- [`figures/buy_packages/popneed_communication_log.svg`](../../figures/buy_packages/popneed_communication_log.svg)
+- [`figures/buy_packages/popneed_crude_items_log.svg`](../../figures/buy_packages/popneed_crude_items_log.svg)
+- [`figures/buy_packages/popneed_free_movement_log.svg`](../../figures/buy_packages/popneed_free_movement_log.svg)
+- [`figures/buy_packages/popneed_heating_log.svg`](../../figures/buy_packages/popneed_heating_log.svg)
+- [`figures/buy_packages/popneed_household_items_log.svg`](../../figures/buy_packages/popneed_household_items_log.svg)
+- [`figures/buy_packages/popneed_intoxicants_log.svg`](../../figures/buy_packages/popneed_intoxicants_log.svg)
+- [`figures/buy_packages/popneed_leisure_log.svg`](../../figures/buy_packages/popneed_leisure_log.svg)
+- [`figures/buy_packages/popneed_luxury_drinks_log.svg`](../../figures/buy_packages/popneed_luxury_drinks_log.svg)
+- [`figures/buy_packages/popneed_luxury_food_log.svg`](../../figures/buy_packages/popneed_luxury_food_log.svg)
+- [`figures/buy_packages/popneed_luxury_items_log.svg`](../../figures/buy_packages/popneed_luxury_items_log.svg)
+- [`figures/buy_packages/popneed_services_log.svg`](../../figures/buy_packages/popneed_services_log.svg)
+- [`figures/buy_packages/popneed_simple_clothing_log.svg`](../../figures/buy_packages/popneed_simple_clothing_log.svg)
+- [`figures/buy_packages/popneed_standard_clothing_log.svg`](../../figures/buy_packages/popneed_standard_clothing_log.svg)
+- [`figures/buy_packages/popneed_stimulants_log.svg`](../../figures/buy_packages/popneed_stimulants_log.svg)
