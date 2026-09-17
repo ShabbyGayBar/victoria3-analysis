@@ -106,7 +106,7 @@ def _insert_localization_column(
 ) -> None:
     """Insert a nullable localization column after its identifier column."""
     localized = pd.Series(
-        (values.get(str(item), pd.NA) for item in frame[source]),
+        [values.get(str(item), pd.NA) for item in frame[source]],
         index=frame.index,
         dtype="string",
     )
