@@ -145,7 +145,9 @@ def test_unlocking_tech_semantics(
     df_tech: pd.DataFrame,
 ) -> None:
     split = df_production["unlocking_tech"].str.split("+")
-    assert not split.map(lambda keys: len(keys) != len(set(keys))).any()
+    assert not split.map(
+        lambda keys: len(keys) != len(set(keys))  # pyright: ignore[reportArgumentType]
+    ).any()
 
     era_by_tech = dict(zip(df_tech["key"], df_tech["era"]))
 

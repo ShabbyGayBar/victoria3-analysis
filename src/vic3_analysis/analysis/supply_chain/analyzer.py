@@ -20,7 +20,7 @@ from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
 
 
-_METADATA_DEFAULTS: dict[str, object] = {
+_METADATA_DEFAULTS: dict[str, str | bool] = {
     "building_group": "",
     "parent_group": "",
     "land_usage": "",

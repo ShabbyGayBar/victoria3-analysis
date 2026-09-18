@@ -322,10 +322,12 @@ def test_tables_have_stable_schemas_and_reconcile(result: SupplyChainResult):
 def test_coproduct_contribution_is_exact_at_process_level(result: SupplyChainResult):
     processes = result.processes().set_index("building")
     smelter = processes.loc["building_smelter"]
-    expected = float(smelter["output_value"]) - float(smelter["input_cost"])
-    assert smelter["value_added"] == pytest.approx(expected)
+    output_value = float(smelter["output_value"])  # pyright: ignore[reportArgumentType]
+    input_cost = float(smelter["input_cost"])  # pyright: ignore[reportArgumentType]
+    expected = output_value - input_cost
+    assert smelter["value_added"] == pytest.approx(expected)  # pyright: ignore[reportGeneralTypeIssues]
     assert "allocation" not in result.goods().columns
-    assert result.goods().set_index("good").loc["byproduct", "production"] > 0
+    assert result.goods().set_index("good").loc["byproduct", "production"] > 0  # pyright: ignore[reportOperatorIssue]
 
 
 def test_allowed_graph_respects_static_scenario_exclusions(economy: Economy):
@@ -383,8 +385,10 @@ def test_throughput_bonus_is_reflected_in_levels_and_edges(economy: Economy):
     ).run()
     base_process = base.processes().set_index("building").loc["building_widget_fast"]
     bonus_process = bonus.processes().set_index("building").loc["building_widget_fast"]
-    assert bonus_process["throughput_multiplier"] == 2.0
-    assert bonus_process["level"] == pytest.approx(float(base_process["level"]) / 2)
+    assert bonus_process["throughput_multiplier"] == 2.0  # pyright: ignore[reportGeneralTypeIssues]
+    assert bonus_process["level"] == pytest.approx(  # pyright: ignore[reportGeneralTypeIssues]
+        float(base_process["level"]) / 2  # pyright: ignore[reportArgumentType]
+    )
     edge = bonus.flows().query("good == 'widget' and role == 'output'").iloc[0]
     assert edge["unit_rate"] == 20.0
 

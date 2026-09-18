@@ -310,7 +310,7 @@ def production_table(
                 )
             membership.extend((combo_id, position) for position in positions)
 
-    building_metadata_defaults: dict[str, object] = {
+    building_metadata_defaults = {
         "parent_group": pd.NA,
         "land_usage": pd.NA,
         "is_subsistence": False,

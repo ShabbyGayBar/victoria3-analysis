@@ -24,6 +24,7 @@ dev = [
     "mkdocs>=1.6,<2",
     "mkdocs-material>=9.7.4",
     "mkdocstrings[python]>=1.0.3",
+    "pandas-stubs>=3.0.5.260914",
     "pyright>=1.1.411",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
