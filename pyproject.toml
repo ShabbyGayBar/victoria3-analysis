@@ -17,6 +17,10 @@ dependencies = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13"]
+build-backend = "uv_build"
+
 
 [dependency-groups]
 dev = [

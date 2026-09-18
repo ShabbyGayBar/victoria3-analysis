@@ -6,7 +6,6 @@ Python package for parsing and analyzing Victoria 3 game data. The ultimate goal
 
 ```bash
 uv sync
-uv pip install -e .
 ```
 
 Requires Python 3.13.

@@ -17,7 +17,6 @@ Clone the repository and install its locked development environment:
 git clone https://github.com/ShabbyGayBar/victoria3-analysis.git
 cd victoria3-analysis
 uv sync
-uv pip install -e .
 ```
 
 The example below needs `production_table.csv`, `goods.csv`, and

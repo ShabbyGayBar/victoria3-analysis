@@ -63,7 +63,6 @@ results without installing the game.
     git clone https://github.com/ShabbyGayBar/victoria3-analysis.git
     cd victoria3-analysis
     uv sync
-    uv pip install -e .
     ```
 
 Python 3.13 is required. Parsing fresh data also requires a local Victoria 3

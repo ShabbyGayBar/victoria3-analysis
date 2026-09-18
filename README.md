@@ -38,7 +38,6 @@ For development purposes, you can clone the repository and install the package i
 git clone https://github.com/ShabbyGayBar/victoria3-analysis.git
 cd victoria3-analysis
 uv sync
-uv pip install -e .
 ```
 
 ## License

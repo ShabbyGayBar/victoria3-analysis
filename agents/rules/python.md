@@ -40,7 +40,6 @@
 
 ## Code Style
 
-- **Import ordering.** Group imports as stdlib → third-party → first-party (`vic3_analysis`), separated by blank lines. This matches the `parse/` scripts and is enforced by `ruff check` (isort, rule `I`). Run `uv run ruff check --select I --fix` to auto-organise.
 - **Use `warnings.warn()` for non-fatal issues.** Never `print()` warnings (e.g. missing columns, unresolved references). `warnings.warn()` integrates with Python's warning filters, can be captured by `pytest`, and is the pattern used in `parse/buildings.py`. Reserve `print()` for user-facing CLI output only.
 
 ## Game File Parsing
