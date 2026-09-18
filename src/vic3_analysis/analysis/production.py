@@ -102,7 +102,9 @@ def production_table(
         A ``DataFrame`` with one row per building configuration.  The
         ``"production_method"`` column holds the chosen production methods
         concatenated with ``+``.  The remaining columns are ``"building"``,
-        ``"building_group"``, ``"economy_of_scale"``, ``"urbanization"``,
+        ``"building_group"``, ``"parent_group"``, ``"land_usage"``,
+        ``"is_subsistence"``, ``"discoverable_resource"``,
+        ``"depletable_resource"``, ``"economy_of_scale"``, ``"urbanization"``,
         ``"infrastructure_usage_per_level"`` (net of the configuration's
         ``state_infrastructure_add`` generation), ``"era"``,
         ``"unlocking_tech"``, ``"employment"``, ``"construction_cost"``,
@@ -308,6 +310,13 @@ def production_table(
                 )
             membership.extend((combo_id, position) for position in positions)
 
+    building_metadata_defaults: dict[str, object] = {
+        "parent_group": pd.NA,
+        "land_usage": pd.NA,
+        "is_subsistence": False,
+        "discoverable_resource": False,
+        "depletable_resource": False,
+    }
     column_order = [
         "building",
         *(["building_localization"] if has_building_localization else []),
@@ -315,20 +324,21 @@ def production_table(
         *(["production_method_localization"] if has_pm_localization else []),
         "building_group",
         *(["building_group_localization"] if has_building_group_localization else []),
-        "economy_of_scale",
-        "urbanization",
-        "infrastructure_usage_per_level",
-        "era",
-        "unlocking_tech",
-        *(["unlocking_tech_localization"] if has_tech_localization else []),
         "employment",
         "construction_cost",
-        "value_goods_inputs_nominal",
-        "value_goods_outputs_nominal",
         "profit_nominal",
         "profit_margin_nominal",
         "profit_per_capita_nominal",
         "profit_per_construction_cost_nominal",
+        "value_goods_inputs_nominal",
+        "value_goods_outputs_nominal",
+        "era",
+        "unlocking_tech",
+        *(["unlocking_tech_localization"] if has_tech_localization else []),
+        "urbanization",
+        "infrastructure_usage_per_level",
+        "economy_of_scale",
+        *building_metadata_defaults,
         *goods_cols,
         *profession_cols,
     ]
@@ -349,6 +359,20 @@ def production_table(
     )
 
     result = pd.concat([pd.DataFrame(combo_rows), sums], axis=1)
+
+    for column, default in building_metadata_defaults.items():
+        if column in df_buildings.columns:
+            values: dict[str, object] = {
+                str(key): value
+                for key, value in zip(df_buildings["key"], df_buildings[column])
+            }
+            result[column] = result["building"].map(
+                lambda building: values.get(str(building), default)
+            )
+            if isinstance(default, bool):
+                result[column] = result[column].fillna(default).eq(True)
+        else:
+            result[column] = default
 
     result["infrastructure_usage_per_level"] = (
         result["infrastructure_usage_per_level"] - result["state_infrastructure_add"]

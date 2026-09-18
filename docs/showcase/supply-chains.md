@@ -8,10 +8,11 @@ description: Compare Victoria 3 supply-chain scenarios and inspect recipe and re
 These examples use the same reusable `Economy`, `Scenario`, and supply-chain
 APIs described in the [supply-chain guide](../guides/supply-chain.md).
 
-## Recipe graph
+## Allowed technology graph
 
-The recipe view aggregates all configurations that can produce automobiles and
-follows their upstream goods. Dashed edges mark mutual dependencies.
+The allowed view follows scenario-permitted automobile producers and their
+upstream goods. It retains active configurations and otherwise limits each good
+to the top three producers by adjusted output rate. Dashed edges mark cycles.
 
 ```mermaid
 --8<-- "figures/supply_chain_recipe.mmd"
@@ -40,10 +41,10 @@ uv run python -m examples.supply_chain_trace
 
 `supply_chain_sweep.csv` compares every producible good across era 2, era 3,
 era 5 automation, and the cangshulun ban configuration. Production targets are
-normalized by base value, making GDP-per-capita and construction efficiency
-comparable across goods.
+normalized by base value. Each row uses the fixed sweep schema and records
+solver failures without stopping later goods.
 
-<!-- table-preview: tables/supply_chain_sweep.csv | columns=goods,objective,ban_config,production,annual_gdp,employment,gdp_per_capita,gdp_per_construction | rows=5 -->
+<!-- table-preview: tables/supply_chain_sweep.csv | columns=good,configuration,status,objective,target_quantity,target_base_value,system_gdp_annual,system_employment | rows=5 -->
 
 [:material-download: Download `tables/supply_chain_sweep.csv`](../tables/supply_chain_sweep.csv)
 · [:fontawesome-brands-github: View `examples/supply_chain_compare.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/supply_chain_compare.py)
@@ -55,11 +56,12 @@ uv run python -m examples.supply_chain_compare
 ## Cangshulun product details
 
 `supply_chain_cangshulun.csv` contains one normalized automation scenario per
-producible good plus named railway, glass, furniture, logging, groceries,
-clothing, grain, and urban-center variants. It records annual GDP, GDP per
-capita, resource-building levels, and employment-normalized levels.
+producible good plus named glass, furniture, logging, groceries, clothing,
+urban-center, and power variants. It records the same stable summary metrics as
+the public analyzer, including cyclic structure, resource processes, and chain
+shares of whole-system totals.
 
-<!-- table-preview: tables/supply_chain_cangshulun.csv | columns=scenario,goods,objective,ban_config,annual_gdp,employment,gdp_per_capita,construction_cost | rows=5 -->
+<!-- table-preview: tables/supply_chain_cangshulun.csv | columns=good,variant,status,objective,target_base_value,system_gdp_annual,chain_employment,realized_process_count | rows=5 -->
 
 [:material-download: Download `tables/supply_chain_cangshulun.csv`](../tables/supply_chain_cangshulun.csv)
 · [:fontawesome-brands-github: View `examples/supply_chain_cangshulun.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/supply_chain_cangshulun.py)

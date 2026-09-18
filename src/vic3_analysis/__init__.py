@@ -29,15 +29,12 @@ from vic3_analysis.optimize.base import BaseOptimizer, LinearProblem, MarketProb
 from vic3_analysis.optimize.scenario import Scenario
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.market import MarketOptimizer
-from vic3_analysis.analysis.supply_chain import (
-    SupplyChainNode,
-    ProducerNode,
-    upstream_tree,
-    optimize_chain,
-    value_added_breakdown,
-    bottleneck,
-    compare_scenarios,
+from vic3_analysis.analysis.supply_chain.analyzer import SupplyChainAnalyzer
+from vic3_analysis.analysis.supply_chain.result import (
+    SupplyChainResult,
+    SupplyChainSweepResult,
 )
+from vic3_analysis.analysis.supply_chain.sweep import sweep_supply_chains
 
 __all__ = [
     "get_vic3_directory",
@@ -63,11 +60,8 @@ __all__ = [
     "Scenario",
     "NominalOptimizer",
     "MarketOptimizer",
-    "SupplyChainNode",
-    "ProducerNode",
-    "upstream_tree",
-    "optimize_chain",
-    "value_added_breakdown",
-    "bottleneck",
-    "compare_scenarios",
+    "SupplyChainAnalyzer",
+    "SupplyChainResult",
+    "SupplyChainSweepResult",
+    "sweep_supply_chains",
 ]

@@ -2,8 +2,8 @@ import pandas as pd
 
 from vic3_analysis import (
     Economy,
+    NominalOptimizer,
     Scenario,
-    compare_scenarios,
     state_region_arable_land_limit,
     state_region_resource_limits,
 )
@@ -49,19 +49,36 @@ for employment_cap in employment_caps:
         ),
     )
 
-state_comparison = compare_scenarios(economy, scenarios)
-state_comparison.insert(0, "employment_cap", employment_caps)
-state_comparison = state_comparison.drop(
-    columns=[
-        "name",
-        "produce",
-        "base_price",
-        "n_active_buildings",
-        "chain_depth",
-        "n_raw_inputs",
-        "bottleneck_good",
-        "bottleneck_cost_share",
-        "bottleneck_marginal",
-    ]
-)
+rows: list[dict[str, object]] = []
+for employment_cap, scenario in zip(employment_caps, scenarios):
+    optimizer = NominalOptimizer(economy)
+    try:
+        state = optimizer.solve(scenario)
+        rows.append(
+            {
+                "employment_cap": employment_cap,
+                "status": "success",
+                "annual_gdp": state.gdp(annual=True),
+                "employment": state.total_population,
+                "construction_cost": economy.construction_cost(state),
+                "gdp_per_capita": state.gdp_per_capita(annual=True),
+                "arable_land_consumption": economy.arable_land_consumption(state),
+                "error": "",
+            }
+        )
+    except ValueError as exc:
+        rows.append(
+            {
+                "employment_cap": employment_cap,
+                "status": "failure",
+                "annual_gdp": float("nan"),
+                "employment": float("nan"),
+                "construction_cost": float("nan"),
+                "gdp_per_capita": float("nan"),
+                "arable_land_consumption": float("nan"),
+                "error": str(exc),
+            }
+        )
+
+state_comparison = pd.DataFrame(rows)
 state_comparison.to_csv(TABLES_DIR / "optimize_jap.csv", index=False)

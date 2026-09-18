@@ -1,9 +1,4 @@
-"""Generate the cangshulun per-good supply-chain detail table.
-
-The base basket contains one normalised, autarkic automation scenario for
-every good that the current production table can produce.  A small set of
-named variants is kept alongside it to make common PM choices comparable.
-"""
+"""Generate the cangshulun per-good supply-chain detail table."""
 
 from __future__ import annotations
 
@@ -11,12 +6,12 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from vic3_analysis import Economy, Scenario, compare_scenarios
+from vic3_analysis import Economy, Scenario, sweep_supply_chains
 
 from __init__ import (
+    CANGSHULUN_BUILDING_LIMITS,
     CANGSHULUN_THROUGHPUT_GROUPS,
     CANGSHULUN_VIDEO_BANNED_PMS,
-    CANGSHULUN_BUILDING_LIMITS,
     DEFAULT_BANNED_BGS,
     TABLES_DIR,
 )
@@ -37,16 +32,10 @@ class Variant:
 
 
 _VARIANTS = (
-    # The variant bans porcelain/ceramics and therefore selects the
-    # disabled-ceramics glass route that remains in the video configuration.
     Variant(
         "glass_bone_china",
         "porcelain",
-        banned_pms=(
-            "pm_forest_glass",
-            "pm_leaded_glass",
-            "pm_crystal_glass",
-        ),
+        banned_pms=("pm_forest_glass", "pm_leaded_glass", "pm_crystal_glass"),
     ),
     Variant(
         "luxury_furniture",
@@ -73,7 +62,6 @@ _VARIANTS = (
             "pm_cannery",
             "pm_cannery_fish",
             "pm_vacuum_canning",
-
             "pm_disabled_distillery",
             "pm_pot_stills",
         ),
@@ -81,7 +69,11 @@ _VARIANTS = (
     Variant(
         "luxury_clothes",
         "luxury_clothes",
-        banned_pms=("pm_handsewn_clothes", "pm_dye_workshops", "pm_sewing_machines"),
+        banned_pms=(
+            "pm_handsewn_clothes",
+            "pm_dye_workshops",
+            "pm_sewing_machines",
+        ),
     ),
     Variant(
         "urban_center_transportation",
@@ -96,11 +88,7 @@ _VARIANTS = (
             "pm_public_trams",
         ),
     ),
-    Variant(
-        "coal_fired_plant",
-        "electricity",
-        banned_pms=("pm_oil-fired_plant",),
-    ),
+    Variant("coal_fired_plant", "electricity", banned_pms=("pm_oil-fired_plant",)),
 )
 
 
@@ -122,22 +110,17 @@ def _video_throughput_bonuses(economy: Economy) -> tuple[tuple[str, float], ...]
     return tuple(bonuses)
 
 
-def _scenario(
+def _template(
     *,
     name: str,
-    good: str,
-    target: float,
     throughput_bonuses: tuple[tuple[str, float], ...],
     banned_pms: tuple[str, ...] = CANGSHULUN_VIDEO_BANNED_PMS,
     building_limits: tuple[tuple[str, float], ...] = CANGSHULUN_BUILDING_LIMITS,
     era_cap: int = 5,
 ) -> Scenario:
-    """Build one consistently constrained video scenario."""
     return Scenario(
         name=name,
-        produce=((good, target),),
         objective="automation",
-        import_limit=0.0,
         era_cap=era_cap,
         banned_building_groups=DEFAULT_BANNED_BGS,
         banned_pms=banned_pms,
@@ -152,103 +135,36 @@ def main() -> pd.DataFrame:
     goods = pd.read_csv(TABLES_DIR / "goods.csv")
     pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
     economy = Economy(df_production=production, df_goods=goods, df_pop_types=pop_types)
-    price_map = dict(zip(economy.goods_index(), economy.base_prices()))
-    throughput_bonuses = _video_throughput_bonuses(economy)
+    bonuses = _video_throughput_bonuses(economy)
 
-    scenarios: list[Scenario] = []
-    metadata: list[tuple[str, str, float]] = []
-    for good in economy.producible_goods():
-        target = NORMALIZED_VALUE / price_map[good]
-        scenarios.append(
-            _scenario(
-                name="base",
-                good=good,
-                target=target,
-                throughput_bonuses=throughput_bonuses,
-            )
-        )
-        metadata.append(("base", good, target))
+    base = sweep_supply_chains(
+        economy,
+        _template(name="base", throughput_bonuses=bonuses),
+        target_value=NORMALIZED_VALUE,
+    ).summary
+    base.insert(1, "variant", "base")
+    frames = [base]
+
     for variant in _VARIANTS:
-        if variant.good not in price_map:
+        if variant.good not in economy.goods_index():
             continue
-        target = NORMALIZED_VALUE / price_map[variant.good]
-        variant_bans = CANGSHULUN_VIDEO_BANNED_PMS + variant.banned_pms
-        variant_limits = list(
-            CANGSHULUN_BUILDING_LIMITS + variant.building_limits
-        )
-        if variant.name == "grain_wheat_no_secondary":
-            # Grain is produced by several crop buildings.  A zero limit on
-            # the alternatives makes the stable English name an actual wheat
-            # farm comparison, without globally banning those buildings.
-            grain_output = production.get("goods_grain")
-            if grain_output is not None:
-                grain_buildings = production.loc[
-                    grain_output.fillna(0).astype(float) > 0, "building"
-                ].astype(str)
-                for building in grain_buildings.unique():
-                    if building != "building_wheat_farm":
-                        variant_limits.append((building, 0.0))
-        scenarios.append(
-            _scenario(
+        frame = sweep_supply_chains(
+            economy,
+            _template(
                 name=variant.name,
-                good=variant.good,
-                target=target,
-                throughput_bonuses=throughput_bonuses,
-                banned_pms=variant_bans,
-                building_limits=tuple(variant_limits),
+                throughput_bonuses=bonuses,
+                banned_pms=CANGSHULUN_VIDEO_BANNED_PMS + variant.banned_pms,
+                building_limits=(CANGSHULUN_BUILDING_LIMITS + variant.building_limits),
                 era_cap=variant.era_cap,
-            )
-        )
-        metadata.append((variant.name, variant.good, target))
+            ),
+            goods=[variant.good],
+            target_value=NORMALIZED_VALUE,
+        ).summary
+        frame.insert(1, "variant", variant.name)
+        frames.append(frame)
 
-    result = compare_scenarios(economy, scenarios)
-    result = result.rename(columns={"name": "scenario"})
-    result["goods"] = [good for _name, good, _target in metadata]
-    result["ban_config"] = VIDEO_BAN_CONFIG
-    result["production"] = [target for _name, _good, target in metadata]
-    result = result.drop(columns=["produce"])
-
-    level_columns = [column for column in result.columns if column.startswith("level_")]
-    per_10k_columns = [
-        f"level_per_10k_{column.removeprefix('level_')}" for column in level_columns
-    ]
-    employment = result["employment"]
-    for source, destination in zip(level_columns, per_10k_columns):
-        # ``np.divide`` is deliberately avoided here: pandas' scalar division
-        # preserves the desired 0/0 -> NaN and nonzero/0 -> inf semantics
-        # without emitting a runtime warning for failed rows.
-        result[destination] = result[source] / employment * 10000.0
-
-    fixed_columns = [
-        "scenario",
-        "goods",
-        "objective",
-        "ban_config",
-        "production",
-        "base_price",
-        "annual_gdp",
-        "employment",
-        "gdp_per_capita",
-        "construction_cost",
-        "gdp_per_construction",
-        "era_cap",
-        "arable_land_consumption",
-    ]
-    tail_columns = [
-        "n_active_buildings",
-        "chain_depth",
-        "n_raw_inputs",
-        "bottleneck_good",
-        "bottleneck_cost_share",
-        "bottleneck_marginal",
-        "error",
-    ]
-    result = result.loc[
-        :, fixed_columns + level_columns + per_10k_columns + tail_columns
-    ]
-    result = result.sort_values(
-        "gdp_per_capita", ascending=False, kind="stable", na_position="last"
-    ).reset_index(drop=True)
+    result = pd.concat(frames, ignore_index=True)
+    result.insert(2, "ban_config", VIDEO_BAN_CONFIG)
     result.to_csv(TABLES_DIR / "supply_chain_cangshulun.csv", index=False)
     return result
 

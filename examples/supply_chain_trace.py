@@ -1,6 +1,6 @@
 import pandas as pd
 
-from vic3_analysis import Economy, NominalOptimizer, Scenario, upstream_tree
+from vic3_analysis import Economy, Scenario, SupplyChainAnalyzer
 from __init__ import FIGURES_DIR, TABLES_DIR
 
 df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
@@ -13,26 +13,23 @@ def run_supply_chain_trace():
         df_production=df_production_table, df_goods=df_goods, df_pop_types=df_pop_types
     )
 
-    print("=== Recipe trace: automobiles supply-chain map (all producers) ===")
-    recipe = upstream_tree(economy, "automobiles")
-    recipe_mermaid = recipe.to_mermaid(title="Recipe: automobiles (all producers)")
-    print(f"\n```mermaid\n{recipe_mermaid}\n```")
+    scenario = Scenario(
+        produce=(("automobiles", 1.0),),
+        objective="automation",
+        name="automobiles",
+    )
+    result = SupplyChainAnalyzer(economy, scenario, "automobiles").run()
+
+    print("=== Allowed automobiles supply-chain map ===")
+    allowed_mermaid = result.to_mermaid(view="allowed")
+    print(f"\n```mermaid\n{allowed_mermaid}\n```")
     (FIGURES_DIR / "supply_chain_recipe.mmd").write_text(
-        recipe_mermaid, encoding="utf-8"
+        allowed_mermaid, encoding="utf-8"
     )
     print("\nWritten to figures/supply_chain_recipe.mmd")
 
     print("\n=== Realised trace (1 automobile/wk, autarky, max automation) ===")
-    scenario = Scenario(
-        produce=(("automobiles", 1.0),),
-        objective="automation",
-    )
-    optimizer = NominalOptimizer(economy)
-    state = optimizer.solve(scenario)
-    realised = upstream_tree(economy, "automobiles", state, optimizer)
-    realised_mermaid = realised.to_mermaid(
-        realized=True, title="Realised: automobiles (1/wk, autarky)"
-    )
+    realised_mermaid = result.to_mermaid()
     print(f"\n```mermaid\n{realised_mermaid}\n```")
     (FIGURES_DIR / "supply_chain_realised.mmd").write_text(
         realised_mermaid, encoding="utf-8"

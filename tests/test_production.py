@@ -14,6 +14,11 @@ META_COLUMNS = [
     "building",
     "production_method",
     "building_group",
+    "parent_group",
+    "land_usage",
+    "is_subsistence",
+    "discoverable_resource",
+    "depletable_resource",
     "economy_of_scale",
     "urbanization",
     "infrastructure_usage_per_level",
@@ -68,7 +73,7 @@ def test_schema(
     goods_cols = [f"goods_{key}" for key in df_goods["key"]]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
 
-    assert df_production.shape == (1638, 83)
+    assert df_production.shape == (1638, 88)
     assert list(df_production.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
     assert df_production.index.equals(pd.RangeIndex(len(df_production)))
     assert df_production["era"].dtype == np.int64
@@ -296,6 +301,11 @@ def test_synthetic_exact_table() -> None:
                 "pm_b1",
             ],
             "building_group": ["bg_a"] * 5,
+            "parent_group": [pd.NA] * 5,
+            "land_usage": [pd.NA] * 5,
+            "is_subsistence": [False] * 5,
+            "discoverable_resource": [False] * 5,
+            "depletable_resource": [False] * 5,
             "economy_of_scale": [False] * 5,
             "urbanization": [10.0] * 4 + [0.0],
             "infrastructure_usage_per_level": [1.0, 1.0, -1.0, -1.0, -1.0],
@@ -336,6 +346,24 @@ def test_economy_of_scale_eligibility_excludes_subsistence() -> None:
 
     assert result.loc[result["building"] == "building_a", "economy_of_scale"].all()
     assert not result.loc[result["building"] == "building_b", "economy_of_scale"].any()
+    assert not result.loc[result["building"] == "building_a", "is_subsistence"].any()
+    assert result.loc[result["building"] == "building_b", "is_subsistence"].all()
+
+
+def test_building_resource_metadata_is_propagated() -> None:
+    buildings = _buildings_frame()
+    buildings["parent_group"] = ["bg_extraction", "bg_manufacturing"]
+    buildings["land_usage"] = ["rural", "urban"]
+    buildings["discoverable_resource"] = [True, False]
+    buildings["depletable_resource"] = [False, True]
+
+    result = production_table(buildings, _goods_frame(), _pm_frame(), _tech_frame())
+    first = result.loc[result["building"] == "building_a"].iloc[0]
+    second = result.loc[result["building"] == "building_b"].iloc[0]
+    assert first["parent_group"] == "bg_extraction"
+    assert first["land_usage"] == "rural"
+    assert first["discoverable_resource"]
+    assert second["depletable_resource"]
 
 
 def test_unknown_tech_raises() -> None:
@@ -497,6 +525,11 @@ def test_localization_columns_propagate_without_changing_flows() -> None:
         "production_method_localization",
         "building_group",
         "building_group_localization",
+        "parent_group",
+        "land_usage",
+        "is_subsistence",
+        "discoverable_resource",
+        "depletable_resource",
         "economy_of_scale",
         "urbanization",
         "infrastructure_usage_per_level",

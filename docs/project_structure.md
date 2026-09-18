@@ -102,27 +102,21 @@ or expose a `pyradox.Tree` subclass with helper methods.
     `profit_per_employment()`.
   - `production_table(game_dir=None)` — enumerates every building
     configuration (one production method per group) and returns a DataFrame
-    with `building`, `production_method`, `building_group`, `era`,
-    `construction_cost`, `profit`, `employment`, per-profession employment,
+    with building/group lineage, land and resource flags, production methods,
+    era, construction cost, profit, employment, per-profession employment,
     and `goods_<good>` columns.
 - `economy.py` — General-equilibrium economy model. Defines `EconomyState`
   (frozen dataclass with building levels, prices, supply, demand, employment,
   and wealth) and `Economy` which derives a nominal `EconomyState` from a
   building-level vector using base goods prices and per-profession wealth from
   the pop-types table.
-- `supply_chain.py` — Supply-chain analysis on the nominal economy. Provides
-  the `SupplyChainNode` / `ProducerNode` dependency-graph dataclasses (with
-  `iter_producers()`, `collect_producers()`, `collect_good_nodes()`,
-  `chain_depth()`, `count_raw_inputs()`, and `to_mermaid()` methods), and
-  composable functions: `optimize_chain` (solve a `Scenario` via
-  `NominalOptimizer`), `upstream_tree` (memoised recipe/realised trace, with
-  an optional compiled optimizer for throughput-adjusted flows),
-  `value_added_breakdown` (per-config or per-good GDP/employment/
-  construction-cost attribution, likewise optimizer-aware), `bottleneck`
-  (input cost-share ranking plus LP import-cap marginals read from the solved
-  optimizer), and `compare_scenarios` (multi-scenario metric table with chain
-  characteristics). `Economy.producible_goods()` lists goods with at least one
-  producer configuration.
+- `supply_chain/` — Single-terminal nominal supply-chain analysis. The package
+  separates analyzer/result orchestration, cyclic bipartite NetworkX graph
+  construction, metrics, Matplotlib/Mermaid visualization, and sequential
+  all-goods sweeps. `SupplyChainResult` exposes stable goods, process, flow,
+  workforce, constraint, bottleneck, and alternative-producer tables while
+  retaining exact process-level coproduct attribution. `Economy.producible_goods()`
+  lists goods with at least one producer configuration.
 
 ### `src/vic3_analysis/optimize/` — Optimisation
 
@@ -232,10 +226,10 @@ game directory.
 - `test_market_optimizer.py` — exercises nonlinear market compilation,
   fixed-zero bounds, warm starts, objective/Jacobian behavior, solve entry
   points, market validation, and cross-economy rejection.
-- `test_supply_chain.py` — exercises the supply-chain toolkit end-to-end
-  (`optimize_chain`, `upstream_tree` recipe/realised/bonus-consistent views,
-  Mermaid serialisation, chain metrics, `value_added_breakdown`,
-  `bottleneck`, `compare_scenarios`, `producible_goods`).
+- `test_supply_chain.py` — uses a synthetic economy to exercise analyzer
+  validation, immutable results, cyclic realized/allowed graphs, exact flows,
+  coproduct attribution, resource metadata, constraints, Mermaid/Matplotlib
+  rendering, and continue-on-error all-goods sweeps.
 
 ## `docs/` — MkDocs Documentation
 

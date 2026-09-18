@@ -6,6 +6,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "matplotlib>=3.11.1",
+    "networkx>=3.5",
     "numpy>=2.4.2",
     "pandas>=3.0.1",
     "pillow>=12.3.0",
@@ -19,7 +21,6 @@ license-files = ["LICEN[CS]E*"]
 [dependency-groups]
 dev = [
     "markdown-callouts>=0.4.0",
-    "matplotlib>=3.11.1",
     "mkdocs>=1.6,<2",
     "mkdocs-material>=9.7.4",
     "mkdocstrings[python]>=1.0.3",

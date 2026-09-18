@@ -66,40 +66,33 @@
 
 ## Supply chain analysis (nominal)
 
-Extend the LP optimiser into a full supply-chain analysis toolkit. Delivery:
-a reusable `src/vic3_analysis/analysis/supply_chain.py` module (composable
-functions + small dataclasses) paired with `examples/` scripts and tests,
-mirroring the `production_table()` + `examples/production_analysis.py` pattern.
+The nominal supply-chain toolkit is implemented as the
+`analysis/supply_chain/` package and deliberately analyzes one terminal good
+per solve.
 
 - [x] `Scenario` dataclass (now in `optimize/scenario.py`): an optimisation
   recipe as data (multi-good produce baskets, objective, import limit,
   banned PMs / buildings / building groups, per-building level limits,
   throughput bonuses, era / construction-cost / employment caps,
   infrastructure floor, urban-center tie).
-- [x] `SupplyChainNode` / `ProducerNode` dataclasses: recursive upstream
-  dependency tree (goods → producer configs → input goods → raw resources).
-- [x] Upstream trace: `upstream_tree(economy, good, state=None, optimizer=None)`
-  using the separate input/output matrices (not the net matrix) to separate
-  producers from consumers; *recipe* mode (all producers) when `state is None`,
-  *realised* mode (non-zero configs scaled by level) when a solved
-  `EconomyState` is given; optimizer-aware for throughput-adjusted flows.
-- [x] LP scenario runner: `optimize_chain(economy, scenario) -> EconomyState`,
-  a thin convenience over `NominalOptimizer.solve()`.
-- [x] Value-added breakdown:
-  `value_added_breakdown(economy, state, good=None, optimizer=None)`
-  attributing GDP, employment, and construction cost to each good/stage (chain
-  vs. whole-economy) using the upstream tree.
-- [x] Bottleneck identification via `scipy.linprog` constraint marginals (shadow
-  prices), with cost-share ranking as a fallback.
-- [x] Comparative what-if: `compare_scenarios(economy, scenarios) -> DataFrame`
-  running multiple `Scenario`s and tabulating GDP, employment, construction
-  cost, GDP/capita, GDP-per-construction-cost.
-- [x] `examples/supply_chain_trace.py`, `examples/supply_chain_optimize.py`,
-  `examples/supply_chain_compare.py`.
-- [x] `tests/test_supply_chain.py` (end-to-end, following
-  `test_nominal_optimizer.py` style; requires local game install).
-- [x] Re-export public symbols from `src/vic3_analysis/__init__.py`; update
-  `docs/usage/analysis.md` and `docs/project_structure.md`.
+- [x] `SupplyChainAnalyzer` validates a single matching positive target and
+  performs exactly one nominal solve.
+- [x] Immutable `SupplyChainResult` snapshots matrices, state arrays,
+  production metadata, graphs, and solver diagnostics.
+- [x] Cyclic bipartite NetworkX graphs provide `realized` and scenario-static
+  `allowed` views without treating cycle cutoffs as raw resources.
+- [x] Stable DataFrame reports cover goods, processes, flows, workforce,
+  constraints, bottlenecks, and alternative producers.
+- [x] Process-level coproduct attribution is exact; no implicit good-level
+  allocation policy is applied.
+- [x] Mermaid and Matplotlib renderers return in-memory objects and prune large
+  allowed views deterministically.
+- [x] `sweep_supply_chains()` normalizes all producible goods to equal
+  base-price value, retains economy order, and records failures while
+  continuing sequentially.
+- [x] Synthetic tests cover cycles, coproducts, alternatives, imports,
+  resources, throughput bonuses, infeasible/unbounded cases, stable schemas,
+  visualization objects, and sweeps without requiring a game installation.
 
 ## Pop consumption & wealth loop
 
