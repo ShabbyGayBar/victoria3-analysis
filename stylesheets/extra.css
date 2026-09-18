@@ -1,0 +1,68 @@
+:root {
+  --vic3-surface: color-mix(in srgb, var(--md-primary-fg-color) 7%, transparent);
+}
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > ol > li {
+  border-radius: 0.65rem;
+}
+
+.md-typeset .table-preview,
+.md-typeset__table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.md-typeset .table-preview table {
+  min-width: 42rem;
+  white-space: nowrap;
+}
+
+.artifact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.figure-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.figure-card {
+  background: var(--vic3-surface);
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+}
+
+.figure-card img {
+  background: var(--md-default-bg-color);
+  height: 15rem;
+  object-fit: contain;
+  padding: 0.5rem;
+  width: 100%;
+}
+
+.figure-card figcaption {
+  font-size: 0.72rem;
+  padding: 0.65rem 0.8rem;
+}
+
+@media screen and (max-width: 44.984375em) {
+  .md-typeset .table-preview table {
+    min-width: 36rem;
+  }
+}
