@@ -12,11 +12,11 @@ from typing import Any
 import pandas as pd
 from pyradox import Tree
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from vic3_analysis.parse.localization import (
     _insert_localization_column,
     _localization_values,
 )
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 
 class PopTypesParser(Tree):

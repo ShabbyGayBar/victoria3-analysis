@@ -17,17 +17,14 @@ from typing import Any
 import pandas as pd
 from pyradox import Tree
 
-from vic3_analysis import (
-    get_vic3_directory,
-    parse_merge,
-    BuildingsParser,
-    goods,
-    production_method_groups,
-)
+from vic3_analysis.parse.buildings import BuildingsParser
+from vic3_analysis.parse.goods import goods
 from vic3_analysis.parse.localization import (
     _insert_localization_column,
     _localization_values,
 )
+from vic3_analysis.parse.production_method_groups import production_method_groups
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 
 class ProductionMethodParser(Tree):

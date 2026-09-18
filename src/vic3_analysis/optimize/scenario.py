@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 
-
 _OBJECTIVES = (
     "gdp",
     "gdp_per_capita",

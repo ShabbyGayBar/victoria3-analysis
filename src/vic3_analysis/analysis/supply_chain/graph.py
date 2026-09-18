@@ -12,7 +12,6 @@ import pandas as pd
 
 from vic3_analysis.optimize.scenario import Scenario
 
-
 SupplyChainView = Literal["realized", "allowed"]
 
 

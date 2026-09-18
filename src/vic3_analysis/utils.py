@@ -6,6 +6,7 @@ Paradox script files.
 import errno
 import os
 from pathlib import Path
+
 import pyradox
 
 # If you know the location of your games but it is not being found automatically, add it to the top of this list.
@@ -42,8 +43,7 @@ def get_vic3_directory() -> Path:
         candidates = list(Path(full.root).glob(str(full.relative_to(full.root))))
         if candidates:
             return candidates[0]
-    else:
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), game_suffix)
+    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), game_suffix)
 
 
 def parse_merge(path: str | Path, merge_levels: int = 0) -> pyradox.Tree:

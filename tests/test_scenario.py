@@ -1,3 +1,5 @@
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from vic3_analysis import Scenario
@@ -31,8 +33,8 @@ def test_invalid_objective_raises_at_construction():
 
 def test_frozen():
     scenario = Scenario(produce=(("steel", 1.0),))
-    with pytest.raises(Exception):
-        setattr(scenario, "objective", "gdp")
+    with pytest.raises(FrozenInstanceError):
+        setattr(scenario, "objective", "gdp")  # noqa: B010
 
 
 def test_display_name():

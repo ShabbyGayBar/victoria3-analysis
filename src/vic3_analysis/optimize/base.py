@@ -7,14 +7,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Generic, TypeVar, TypedDict
+from typing import TypedDict
 
 import numpy as np
 from scipy.optimize import OptimizeResult
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.optimize.scenario import Scenario
-
 
 Bounds = tuple[tuple[float, float | None], ...]
 ConstraintSlices = Mapping[str, slice]
@@ -147,10 +146,7 @@ class _CompilationData:
     equality_slices: ConstraintSlices
 
 
-ProblemT = TypeVar("ProblemT", bound=_CompiledProblem)
-
-
-class BaseOptimizer(ABC, Generic[ProblemT]):
+class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
     """Abstract base for economy-bound optimization formulations."""
 
     model: Economy
@@ -300,7 +296,8 @@ class BaseOptimizer(ABC, Generic[ProblemT]):
                 raise ValueError(f"{name} entries must be (good, amount) pairs.")
             good, amount = entry
             if not isinstance(good, str):
-                raise ValueError(f"{name} good keys must be strings.")
+                # Malformed scenario entries consistently use the public ValueError API.
+                raise ValueError(f"{name} good keys must be strings.")  # noqa: TRY004
             if good not in positions:
                 raise ValueError(
                     f"Good '{good}' in {name} was not found in goods index."

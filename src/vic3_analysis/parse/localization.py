@@ -5,11 +5,12 @@ game's markup (references, icons, and data functions) is useful to callers and
 must therefore remain untouched.
 """
 
-from pathlib import Path
 import re
 import warnings
+from collections.abc import Mapping
+from pathlib import Path
 from types import MappingProxyType
-from typing import Final, Mapping
+from typing import Final
 
 import pandas as pd
 

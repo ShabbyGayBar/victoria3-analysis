@@ -227,7 +227,7 @@ def test_run_returns_immutable_snapshot(result: SupplyChainResult):
     with pytest.raises(ValueError):
         result.state.building_levels[0] = 999.0
     with pytest.raises(FrozenInstanceError):
-        setattr(result, "target_quantity", 2.0)
+        setattr(result, "target_quantity", 2.0)  # noqa: B010
     graph = result.graph()
     graph.clear()
     assert result.graph().number_of_nodes() > 0
@@ -419,7 +419,7 @@ def test_constraints_have_labels_slacks_and_marginals(result: SupplyChainResult)
     assert produce["slack"] == pytest.approx(0.0, abs=1e-8)
     assert np.isfinite(produce["solver_marginal"])
     bottlenecks = result.bottlenecks()
-    assert (bottlenecks["binding"] == True).all()  # noqa: E712
+    assert (bottlenecks["binding"] == True).all()
     assert (bottlenecks["improvement_per_unit"] > 0).all()
 
 

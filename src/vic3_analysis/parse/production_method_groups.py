@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pyradox import Tree
 
-from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 
 def production_method_groups(

@@ -10,8 +10,10 @@ from scipy.optimize import OptimizeResult
 from vic3_analysis import (
     BaseOptimizer,
     LinearProblem,
-    MarketOptimizer as ExportedMarketOptimizer,
     MarketProblem,
+)
+from vic3_analysis import (
+    MarketOptimizer as ExportedMarketOptimizer,
 )
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.optimize.market import MarketOptimizer

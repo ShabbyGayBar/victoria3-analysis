@@ -273,8 +273,7 @@ def production_table(
             era = building_era
             techs = list(building_techs)
             for position in positions:
-                if pm_eras[position] > era:
-                    era = pm_eras[position]
+                era = max(era, pm_eras[position])
                 techs.extend(pm_techs[position])
             combo_rows.append(
                 {
@@ -324,21 +323,21 @@ def production_table(
         *(["production_method_localization"] if has_pm_localization else []),
         "building_group",
         *(["building_group_localization"] if has_building_group_localization else []),
+        *building_metadata_defaults,
+        "economy_of_scale",
+        "urbanization",
+        "infrastructure_usage_per_level",
+        "era",
+        "unlocking_tech",
+        *(["unlocking_tech_localization"] if has_tech_localization else []),
         "employment",
         "construction_cost",
+        "value_goods_inputs_nominal",
+        "value_goods_outputs_nominal",
         "profit_nominal",
         "profit_margin_nominal",
         "profit_per_capita_nominal",
         "profit_per_construction_cost_nominal",
-        "value_goods_inputs_nominal",
-        "value_goods_outputs_nominal",
-        "era",
-        "unlocking_tech",
-        *(["unlocking_tech_localization"] if has_tech_localization else []),
-        "urbanization",
-        "infrastructure_usage_per_level",
-        "economy_of_scale",
-        *building_metadata_defaults,
         *goods_cols,
         *profession_cols,
     ]
@@ -367,7 +366,9 @@ def production_table(
                 for key, value in zip(df_buildings["key"], df_buildings[column])
             }
             result[column] = result["building"].map(
-                lambda building: values.get(str(building), default)
+                lambda building, values=values, default=default: values.get(
+                    str(building), default
+                )
             )
             if isinstance(default, bool):
                 result[column] = result[column].fillna(default).eq(True)

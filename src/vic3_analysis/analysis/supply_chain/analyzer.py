@@ -19,7 +19,6 @@ from vic3_analysis.analysis.supply_chain.result import (
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
 
-
 _METADATA_DEFAULTS: dict[str, str | bool] = {
     "building_group": "",
     "parent_group": "",

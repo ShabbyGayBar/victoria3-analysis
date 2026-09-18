@@ -27,7 +27,6 @@ from vic3_analysis.analysis.supply_chain.graph import (
 from vic3_analysis.optimize.base import ConstraintSlices, LinearProblem
 from vic3_analysis.optimize.scenario import Scenario
 
-
 PROCESS_COLUMNS = [
     "config",
     "building",

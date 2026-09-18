@@ -15,14 +15,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from vic3_analysis import (
-    BuildingsParser,
-    PopTypesParser,
-    ProductionMethodParser,
-    goods,
-    production_table,
-    technology,
-)
+from vic3_analysis.analysis.production import production_table
+from vic3_analysis.parse.buildings import BuildingsParser
+from vic3_analysis.parse.goods import goods
+from vic3_analysis.parse.pop_types import PopTypesParser
+from vic3_analysis.parse.production_methods import ProductionMethodParser
+from vic3_analysis.parse.technology import technology
 
 _ARABLE_LAND_BUILDING_GROUPS: frozenset[str] = frozenset(
     {

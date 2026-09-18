@@ -17,7 +17,6 @@ from vic3_analysis.optimize.base import (
 )
 from vic3_analysis.optimize.scenario import Scenario
 
-
 _FEASIBILITY_TOLERANCE = 1e-7
 
 

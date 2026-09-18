@@ -14,11 +14,11 @@ import numpy as np
 import pandas as pd
 from pyradox import Tree
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from vic3_analysis.parse.localization import (
     _insert_localization_column,
     _localization_values,
 )
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 _skip_keys = [
     "provinces",
@@ -236,10 +236,12 @@ class StateRegionsParser(Tree):
         # For every column whose name starts with "resource_" or "undiscovered_amount_resource_" or "discovered_amount_resource_",
         # convert the column to numeric, coercing errors to NaN, and then fill NaN values with 0
         for column in df.columns:
-            if (
-                column.startswith("resource_")
-                or column.startswith("undiscovered_amount_resource_")
-                or column.startswith("discovered_amount_resource_")
+            if column.startswith(
+                (
+                    "resource_",
+                    "undiscovered_amount_resource_",
+                    "discovered_amount_resource_",
+                )
             ):
                 df[column] = (
                     pd.to_numeric(df[column], errors="coerce").fillna(0).astype(int)  # pyright: ignore[reportAttributeAccessIssue]

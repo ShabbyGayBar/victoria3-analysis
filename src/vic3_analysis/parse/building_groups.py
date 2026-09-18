@@ -7,18 +7,18 @@ with helper methods for flat ``pandas.DataFrame`` conversion and for resolving
 attributes inherited along the ``parent_group`` chain.
 """
 
+import warnings
 from pathlib import Path
 from typing import Any
-import warnings
 
 import pandas as pd
 from pyradox import Tree
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from vic3_analysis.parse.localization import (
     _insert_localization_column,
     _localization_values,
 )
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 #: Attributes that are inherited from the parent building group when unset on a
 #: child. Each entry maps the attribute name to whether an explicit ``0`` value

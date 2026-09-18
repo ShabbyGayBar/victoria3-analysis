@@ -1,10 +1,10 @@
 """Documentation structure, artifact coverage, and public API checks."""
 
 import ast
-from collections import Counter
-from pathlib import Path
 import re
 import tomllib
+from collections import Counter
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -147,9 +147,12 @@ def test_exported_objects_and_public_methods_have_docstrings() -> None:
             missing.append(export)
         if isinstance(definition, ast.ClassDef):
             for member in definition.body:
-                if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
-                    not member.name.startswith("_") or member.name == "__init__"
+                if (
+                    isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and (
+                        not member.name.startswith("_") or member.name == "__init__"
+                    )
+                    and not ast.get_docstring(member)
                 ):
-                    if not ast.get_docstring(member):
-                        missing.append(f"{export}.{member.name}")
+                    missing.append(f"{export}.{member.name}")
     assert not missing, f"missing public docstrings: {', '.join(missing)}"

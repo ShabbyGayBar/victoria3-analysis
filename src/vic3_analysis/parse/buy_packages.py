@@ -6,15 +6,14 @@ level's political strength and good-consumption values as a
 ``pandas.DataFrame``.
 """
 
+import re
 from pathlib import Path
 from typing import Any
-
-import re
 
 import pandas as pd
 from pyradox import Tree
 
-from vic3_analysis import get_vic3_directory, parse_merge
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 
 def _wealth_number(key: str) -> int | None:

@@ -37,7 +37,7 @@ def test_public_problem_types_are_dataclasses():
 def test_compiled_problem_is_immutable(economy: Economy):
     problem = NominalOptimizer(economy).compile(Scenario())
     with pytest.raises(FrozenInstanceError):
-        setattr(problem, "scenario", Scenario(name="replacement"))
+        setattr(problem, "scenario", Scenario(name="replacement"))  # noqa: B010
     with pytest.raises(ValueError, match="read-only"):
         problem.gdp_vector[0] = 0.0
     with pytest.raises(TypeError):

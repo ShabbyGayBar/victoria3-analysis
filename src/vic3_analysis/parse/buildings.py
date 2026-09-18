@@ -6,19 +6,19 @@ it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and production-method-group look-ups.
 """
 
+import warnings
 from pathlib import Path
 from typing import Any, cast
-import warnings
 
 import pandas as pd
 from pyradox import Tree
 
-from vic3_analysis import get_vic3_directory, parse_merge
 from vic3_analysis.parse.building_groups import BuildingGroupParser, _join_group_attrs
 from vic3_analysis.parse.localization import (
     _insert_localization_column,
     _localization_values,
 )
+from vic3_analysis.utils import get_vic3_directory, parse_merge
 
 
 class BuildingsParser(Tree):

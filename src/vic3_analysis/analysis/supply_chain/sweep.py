@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable
 from dataclasses import replace
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,6 @@ from vic3_analysis.analysis.supply_chain.result import (
     SupplyChainSweepResult,
 )
 from vic3_analysis.optimize.scenario import Scenario
-
 
 SWEEP_COLUMNS = ["good", "status", "error_type", "error_message", *SUMMARY_FIELDS]
 
