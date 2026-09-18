@@ -5,8 +5,8 @@ from __future__ import annotations
 import csv
 import html
 import logging
-from pathlib import Path
 import re
+from pathlib import Path
 
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.structure.files import File, Files

@@ -1,12 +1,12 @@
 import pandas as pd
-
-from vic3_analysis import Economy, Scenario, sweep_supply_chains
 from __init__ import (
     CANGSHULUN_BANNED_PMS,
     CANGSHULUN_BUILDING_LIMITS,
     DEFAULT_BANNED_BGS,
     TABLES_DIR,
 )
+
+from vic3_analysis import Economy, Scenario, sweep_supply_chains
 
 df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
 df_goods = pd.read_csv(TABLES_DIR / "goods.csv")

@@ -117,11 +117,15 @@ def test_context_rejects_invalid_amounts(
         NominalOptimizer(economy).compile(_context_scenario(field, value))
 
 
+def test_context_rejects_non_string_good_key(economy: Economy):
+    with pytest.raises(TypeError, match="good keys must be strings"):
+        NominalOptimizer(economy).compile(Scenario(imports=cast(Any, ((1, 1.0),))))
+
+
 @pytest.mark.parametrize(
     "entries",
     (
         cast(Any, (("tools",),)),
-        cast(Any, ((1, 1.0),)),
         cast(Any, (("tools", object()),)),
     ),
 )

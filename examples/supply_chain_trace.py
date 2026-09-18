@@ -1,7 +1,7 @@
 import pandas as pd
+from __init__ import FIGURES_DIR, TABLES_DIR
 
 from vic3_analysis import Economy, Scenario, SupplyChainAnalyzer
-from __init__ import FIGURES_DIR, TABLES_DIR
 
 df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
 df_goods = pd.read_csv(TABLES_DIR / "goods.csv")

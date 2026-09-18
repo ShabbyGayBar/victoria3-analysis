@@ -2,8 +2,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 from __init__ import FIGURES_DIR, TABLES_DIR
+
 from vic3_analysis import buy_packages
 
 BUY_PACKAGES_FIGURES_DIR = FIGURES_DIR / "buy_packages"

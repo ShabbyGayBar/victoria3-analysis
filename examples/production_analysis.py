@@ -1,8 +1,7 @@
 import pandas as pd
+from __init__ import TABLES_DIR
 
 from vic3_analysis import production_table
-
-from __init__ import TABLES_DIR
 
 df_buildings = pd.read_csv(TABLES_DIR / "buildings.csv")
 df_goods = pd.read_csv(TABLES_DIR / "goods.csv")

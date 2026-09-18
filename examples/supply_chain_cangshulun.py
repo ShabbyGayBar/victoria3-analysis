@@ -5,9 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pandas as pd
-
-from vic3_analysis import Economy, Scenario, sweep_supply_chains
-
 from __init__ import (
     CANGSHULUN_BUILDING_LIMITS,
     CANGSHULUN_THROUGHPUT_GROUPS,
@@ -15,6 +12,8 @@ from __init__ import (
     DEFAULT_BANNED_BGS,
     TABLES_DIR,
 )
+
+from vic3_analysis import Economy, Scenario, sweep_supply_chains
 
 NORMALIZED_VALUE = 100000.0
 VIDEO_BAN_CONFIG = "cangshulun_video"

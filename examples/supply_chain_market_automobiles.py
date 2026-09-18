@@ -1,11 +1,10 @@
 """Optimize an automobiles export supply chain using endogenous prices."""
 
 import pandas as pd
+from __init__ import DEFAULT_BANNED_BGS, TABLES_DIR
 
 from vic3_analysis import Economy, MarketOptimizer, Scenario
 from vic3_analysis.analysis.economy import EconomyState
-
-from __init__ import DEFAULT_BANNED_BGS, TABLES_DIR
 
 AUTOMOBILE_EXPORTS = 100.0
 EMPLOYMENT_CAP = 1_000_000.0

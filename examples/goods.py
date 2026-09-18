@@ -1,4 +1,5 @@
 from __init__ import TABLES_DIR
+
 from vic3_analysis import goods
 
 df = goods()

@@ -296,8 +296,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
                 raise ValueError(f"{name} entries must be (good, amount) pairs.")
             good, amount = entry
             if not isinstance(good, str):
-                # Malformed scenario entries consistently use the public ValueError API.
-                raise ValueError(f"{name} good keys must be strings.")  # noqa: TRY004
+                raise TypeError(f"{name} good keys must be strings.")
             if good not in positions:
                 raise ValueError(
                     f"Good '{good}' in {name} was not found in goods index."

@@ -1,4 +1,5 @@
 import pandas as pd
+from __init__ import DEFAULT_BANNED_BGS, TABLES_DIR
 
 from vic3_analysis import (
     Economy,
@@ -7,7 +8,6 @@ from vic3_analysis import (
     state_region_arable_land_limit,
     state_region_resource_limits,
 )
-from __init__ import DEFAULT_BANNED_BGS, TABLES_DIR
 
 JAPAN_STATES = (
     "STATE_HOKKAIDO",
