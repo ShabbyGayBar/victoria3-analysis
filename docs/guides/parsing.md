@@ -84,6 +84,29 @@ for professions whose `paid_private_wage` flag is true. The corresponding
 `profit_per_wage_normalized_employment_nominal` column divides existing nominal
 profit by that private-wage-equivalent employment; it does not subtract payroll.
 
+The technology and pop-types tables are optional enrichments. Without the
+technology table, `production_table()` keeps the raw `unlocking_tech` keys but
+omits `era` and `unlocking_tech_localization`. Without the pop-types table, it
+omits `wage_normalized_employment` and
+`profit_per_wage_normalized_employment_nominal`. For example, a base table needs
+only the first three inputs:
+
+```python
+production = production_table(buildings_df, goods_df, production_methods_df)
+```
+
+To add wage-normalized metrics without technology enrichment, pass pop types by
+keyword:
+
+```python
+production = production_table(
+    buildings_df,
+    goods_df,
+    production_methods_df,
+    df_pop_types=pop_types_df,
+)
+```
+
 ## Add localization
 
 Localization is opt-in. Pass Victoria 3's internal language name to a parser to

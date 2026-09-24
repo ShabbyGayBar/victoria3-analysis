@@ -1,5 +1,6 @@
 """Tests for :func:`vic3_analysis.production_table`."""
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -421,6 +422,61 @@ def test_unknown_tech_raises() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("include_tech", "include_pop_types"),
+    [(True, True), (True, False), (False, True), (False, False)],
+)
+def test_optional_enrichment_tables(
+    include_tech: bool, include_pop_types: bool
+) -> None:
+    tech = _tech_frame().assign(
+        key_localization=pd.Series(["Technology 1", "Technology 2"], dtype="string")
+    )
+    pop_types = _pop_types_frame()
+    full = production_table(
+        _buildings_frame(), _goods_frame(), _pm_frame(), tech, pop_types
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = production_table(
+            _buildings_frame(),
+            _goods_frame(),
+            _pm_frame(),
+            df_tech=tech if include_tech else None,
+            df_pop_types=pop_types if include_pop_types else None,
+        )
+
+    omitted_columns = []
+    if not include_tech:
+        omitted_columns.extend(["era", "unlocking_tech_localization"])
+    if not include_pop_types:
+        omitted_columns.extend(
+            [
+                "wage_normalized_employment",
+                "profit_per_wage_normalized_employment_nominal",
+            ]
+        )
+    pd.testing.assert_frame_equal(result, full.drop(columns=omitted_columns))
+    assert "unlocking_tech" in result.columns
+    assert not caught
+
+
+def test_unknown_tech_allowed_without_technology_table() -> None:
+    df_pm = _pm_frame()
+    df_pm.loc[0, "unlocking_technologies"] = "tech_missing"
+
+    result = production_table(
+        _buildings_frame(),
+        _goods_frame(),
+        df_pm,
+        df_pop_types=_pop_types_frame(),
+    )
+
+    assert result["unlocking_tech"].str.contains("tech_missing").any()
+    assert "era" not in result.columns
+
+
 def test_missing_goods_column_zero_filled() -> None:
     df_goods = pd.concat(
         [_goods_frame(), pd.DataFrame({"key": ["good_z"], "cost": [5]})],
@@ -547,6 +603,28 @@ def test_empty_buildings_returns_empty_frame() -> None:
 
     assert result.empty
     assert list(result.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
+
+
+def test_empty_buildings_without_enrichment_uses_reduced_schema() -> None:
+    df_buildings = _buildings_frame().iloc[:0]
+    goods_cols = [f"goods_{key}" for key in _goods_frame()["key"]]
+    profession_cols = [
+        col for col in _pm_frame().columns if col.startswith("employment_")
+    ]
+    omitted_columns = {
+        "era",
+        "wage_normalized_employment",
+        "profit_per_wage_normalized_employment_nominal",
+    }
+
+    result = production_table(df_buildings, _goods_frame(), _pm_frame())
+
+    assert result.empty
+    assert list(result.columns) == [
+        *[column for column in META_COLUMNS if column not in omitted_columns],
+        *goods_cols,
+        *profession_cols,
+    ]
 
 
 def test_localization_columns_propagate_without_changing_flows() -> None:
