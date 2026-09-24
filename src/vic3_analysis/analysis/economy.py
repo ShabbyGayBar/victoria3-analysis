@@ -348,17 +348,18 @@ class Economy:
                 parsing tables internally. Explicit DataFrames are authoritative
                 and are not modified.
         """
-        if df_production is None:
-            df_production = production_table(
-                BuildingsParser(game_dir).to_dataframe(language=language),
-                goods(game_dir, language=language),
-                ProductionMethodParser(game_dir).to_dataframe(language=language),
-                technology(game_dir, language=language),
-            )
         if df_goods is None:
             df_goods = goods(game_dir, language=language)
         if df_pop_types is None:
             df_pop_types = PopTypesParser(game_dir).to_dataframe(language=language)
+        if df_production is None:
+            df_production = production_table(
+                BuildingsParser(game_dir).to_dataframe(language=language),
+                df_goods,
+                ProductionMethodParser(game_dir).to_dataframe(language=language),
+                technology(game_dir, language=language),
+                df_pop_types,
+            )
         self.df_production = df_production
         self.df_goods = df_goods
         self.df_pop_types = df_pop_types

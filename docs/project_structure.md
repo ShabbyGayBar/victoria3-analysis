@@ -100,11 +100,12 @@ or expose a `pyradox.Tree` subclass with helper methods.
   - `ProductionUnit` — dict-like snapshot of one building level's goods flows,
     employment, and era; supports `+` aggregation, `profit()`, and
     `profit_per_employment()`.
-  - `production_table(game_dir=None)` — enumerates every building
-    configuration (one production method per group) and returns a DataFrame
-    with building/group lineage, land and resource flags, production methods,
-    era, construction cost, profit, employment, per-profession employment,
-    and `goods_<good>` columns.
+  - `production_table(df_buildings, df_goods, df_pm, df_tech, df_pop_types)` —
+    enumerates every building configuration (one production method per group)
+    and returns a DataFrame with building/group lineage, land and resource flags,
+    production methods, era, construction cost, profit, employment,
+    private-wage-normalized employment, per-profession employment, and
+    `goods_<good>` columns.
 - `economy.py` — General-equilibrium economy model. Defines `EconomyState`
   (frozen dataclass with building levels, prices, supply, demand, employment,
   and wealth) and `Economy` which derives a nominal `EconomyState` from a

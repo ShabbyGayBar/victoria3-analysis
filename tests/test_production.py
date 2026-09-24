@@ -25,12 +25,14 @@ META_COLUMNS = [
     "era",
     "unlocking_tech",
     "employment",
+    "wage_normalized_employment",
     "construction_cost",
     "value_goods_inputs_nominal",
     "value_goods_outputs_nominal",
     "profit_nominal",
     "profit_margin_nominal",
     "profit_per_capita_nominal",
+    "profit_per_wage_normalized_employment_nominal",
     "profit_per_construction_cost_nominal",
 ]
 
@@ -56,13 +58,19 @@ def df_tech() -> pd.DataFrame:
 
 
 @pytest.fixture(scope="module")
+def df_pop_types() -> pd.DataFrame:
+    return pd.read_csv(TABLES_DIR / "pop_types.csv")
+
+
+@pytest.fixture(scope="module")
 def df_production(
     df_buildings: pd.DataFrame,
     df_goods: pd.DataFrame,
     df_pm: pd.DataFrame,
     df_tech: pd.DataFrame,
+    df_pop_types: pd.DataFrame,
 ) -> pd.DataFrame:
-    return production_table(df_buildings, df_goods, df_pm, df_tech)
+    return production_table(df_buildings, df_goods, df_pm, df_tech, df_pop_types)
 
 
 def test_schema(
@@ -73,13 +81,18 @@ def test_schema(
     goods_cols = [f"goods_{key}" for key in df_goods["key"]]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
 
-    assert df_production.shape == (1638, 88)
+    assert df_production.shape == (1638, 90)
     assert list(df_production.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
     assert df_production.index.equals(pd.RangeIndex(len(df_production)))
     assert df_production["era"].dtype == np.int64
     assert df_production["employment"].dtype == np.int64
+    assert df_production["wage_normalized_employment"].dtype == np.float64
     assert df_production["construction_cost"].dtype == np.int64
     assert df_production["profit_nominal"].dtype == np.float64
+    assert (
+        df_production["profit_per_wage_normalized_employment_nominal"].dtype
+        == np.float64
+    )
     assert isinstance(df_production["unlocking_tech"].dtype, pd.StringDtype)
 
 
@@ -120,6 +133,7 @@ def test_food_industry_default_combination(
     expected_profit = expected_outputs - expected_inputs
 
     assert row["employment"] == 5000
+    assert row["wage_normalized_employment"] == 6000
     assert row["employment_laborers"] == 4500
     assert row["employment_shopkeepers"] == 500
     assert row["goods_grain"] == -40
@@ -134,6 +148,9 @@ def test_food_industry_default_combination(
         expected_profit / expected_outputs
     )
     assert row["profit_per_capita_nominal"] == pytest.approx(expected_profit / 5000)
+    assert row["profit_per_wage_normalized_employment_nominal"] == pytest.approx(
+        expected_profit / 6000
+    )
     assert row["profit_per_construction_cost_nominal"] == pytest.approx(
         expected_profit / 600
     )
@@ -291,6 +308,16 @@ def _tech_frame() -> pd.DataFrame:
     return pd.DataFrame({"key": ["tech_1", "tech_2"], "era": [1, 2]})
 
 
+def _pop_types_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "key": ["laborers"],
+            "wage_weight": [1.0],
+            "paid_private_wage": [True],
+        }
+    )
+
+
 def test_synthetic_exact_table() -> None:
     expected = pd.DataFrame(
         {
@@ -320,12 +347,20 @@ def test_synthetic_exact_table() -> None:
                 "",
             ],
             "employment": [100, 50, 150, 100, 10],
+            "wage_normalized_employment": [100.0, 100.0, 150.0, 150.0, 10.0],
             "construction_cost": [100, 100, 100, 100, 0],
             "value_goods_inputs_nominal": [30.0, 40.0, 0.0, 0.0, 0.0],
             "value_goods_outputs_nominal": [60.0, 60.0, 110.0, 100.0, 20.0],
             "profit_nominal": [30.0, 20.0, 110.0, 100.0, 20.0],
             "profit_margin_nominal": [0.5, 20.0 / 60.0, 1.0, 1.0, 1.0],
             "profit_per_capita_nominal": [0.3, 0.4, 110.0 / 150.0, 1.0, 2.0],
+            "profit_per_wage_normalized_employment_nominal": [
+                0.3,
+                0.2,
+                110.0 / 150.0,
+                100.0 / 150.0,
+                2.0,
+            ],
             "profit_per_construction_cost_nominal": [0.3, 0.2, 1.1, 1.0, np.inf],
             "goods_good_x": [-3, -4, 1, 0, 2],
             "goods_good_y": [3, 3, 5, 5, 0],
@@ -334,7 +369,11 @@ def test_synthetic_exact_table() -> None:
     )
 
     result = production_table(
-        _buildings_frame(), _goods_frame(), _pm_frame(), _tech_frame()
+        _buildings_frame(),
+        _goods_frame(),
+        _pm_frame(),
+        _tech_frame(),
+        _pop_types_frame(),
     )
     pd.testing.assert_frame_equal(result, expected)
 
@@ -344,7 +383,9 @@ def test_economy_of_scale_eligibility_excludes_subsistence() -> None:
     buildings["economy_of_scale"] = [True, True]
     buildings["is_subsistence"] = [False, True]
 
-    result = production_table(buildings, _goods_frame(), _pm_frame(), _tech_frame())
+    result = production_table(
+        buildings, _goods_frame(), _pm_frame(), _tech_frame(), _pop_types_frame()
+    )
 
     assert result.loc[result["building"] == "building_a", "economy_of_scale"].all()
     assert not result.loc[result["building"] == "building_b", "economy_of_scale"].any()
@@ -359,7 +400,9 @@ def test_building_resource_metadata_is_propagated() -> None:
     buildings["discoverable_resource"] = [True, False]
     buildings["depletable_resource"] = [False, True]
 
-    result = production_table(buildings, _goods_frame(), _pm_frame(), _tech_frame())
+    result = production_table(
+        buildings, _goods_frame(), _pm_frame(), _tech_frame(), _pop_types_frame()
+    )
     first = result.loc[result["building"] == "building_a"].iloc[0]
     second = result.loc[result["building"] == "building_b"].iloc[0]
     assert first["parent_group"] == "bg_extraction"
@@ -373,7 +416,9 @@ def test_unknown_tech_raises() -> None:
     df_pm.loc[0, "unlocking_technologies"] = "tech_missing"
 
     with pytest.raises(ValueError, match="Unknown unlocking technology"):
-        production_table(_buildings_frame(), _goods_frame(), df_pm, _tech_frame())
+        production_table(
+            _buildings_frame(), _goods_frame(), df_pm, _tech_frame(), _pop_types_frame()
+        )
 
 
 def test_missing_goods_column_zero_filled() -> None:
@@ -384,7 +429,7 @@ def test_missing_goods_column_zero_filled() -> None:
 
     with pytest.warns(UserWarning, match="zero-filled"):
         result = production_table(
-            _buildings_frame(), df_goods, _pm_frame(), _tech_frame()
+            _buildings_frame(), df_goods, _pm_frame(), _tech_frame(), _pop_types_frame()
         )
 
     assert "goods_good_z" in result.columns
@@ -396,7 +441,7 @@ def test_missing_state_infrastructure_column_zero_filled() -> None:
 
     with pytest.warns(UserWarning, match="State-infrastructure column missing"):
         result = production_table(
-            _buildings_frame(), _goods_frame(), df_pm, _tech_frame()
+            _buildings_frame(), _goods_frame(), df_pm, _tech_frame(), _pop_types_frame()
         )
 
     assert (result["infrastructure_usage_per_level"] == [1.0] * 4 + [0.0]).all()
@@ -430,7 +475,7 @@ def test_unpriced_goods_column_ignored() -> None:
 
     with pytest.warns(UserWarning, match="without a base price"):
         result = production_table(
-            _buildings_frame(), _goods_frame(), df_pm, _tech_frame()
+            _buildings_frame(), _goods_frame(), df_pm, _tech_frame(), _pop_types_frame()
         )
 
     assert "goods_good_w" not in result.columns
@@ -451,7 +496,7 @@ def test_buildings_without_pmg_string_skipped() -> None:
 
     with pytest.warns(UserWarning, match="no production method groups"):
         result = production_table(
-            df_buildings, _goods_frame(), _pm_frame(), _tech_frame()
+            df_buildings, _goods_frame(), _pm_frame(), _tech_frame(), _pop_types_frame()
         )
 
     assert set(result["building"]) == {"building_a"}
@@ -481,7 +526,9 @@ def test_pmg_without_methods_skipped() -> None:
     }
 
     with pytest.warns(UserWarning, match="no production methods in group pmg_ghost"):
-        result = production_table(df_buildings, _goods_frame(), df_pm, _tech_frame())
+        result = production_table(
+            df_buildings, _goods_frame(), df_pm, _tech_frame(), _pop_types_frame()
+        )
 
     assert "building_d" not in set(result["building"])
     assert {"building_a", "building_b"} <= set(result["building"])
@@ -494,7 +541,9 @@ def test_empty_buildings_returns_empty_frame() -> None:
         col for col in _pm_frame().columns if col.startswith("employment_")
     ]
 
-    result = production_table(df_buildings, _goods_frame(), _pm_frame(), _tech_frame())
+    result = production_table(
+        df_buildings, _goods_frame(), _pm_frame(), _tech_frame(), _pop_types_frame()
+    )
 
     assert result.empty
     assert list(result.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
@@ -516,9 +565,15 @@ def test_localization_columns_propagate_without_changing_flows() -> None:
     tech["key_localization"] = ["Technology 1", "Technology 2"]
 
     plain = production_table(
-        _buildings_frame(), _goods_frame(), _pm_frame(), _tech_frame()
+        _buildings_frame(),
+        _goods_frame(),
+        _pm_frame(),
+        _tech_frame(),
+        _pop_types_frame(),
     )
-    localized = production_table(buildings, _goods_frame(), pm, tech)
+    localized = production_table(
+        buildings, _goods_frame(), pm, tech, _pop_types_frame()
+    )
 
     expected_prefix = [
         "building",
@@ -566,8 +621,158 @@ def test_localization_compound_missing_member_is_na() -> None:
     tech = _tech_frame()
     tech["key_localization"] = ["Technology 1", None]
 
-    result = production_table(buildings, _goods_frame(), pm, tech)
+    result = production_table(buildings, _goods_frame(), pm, tech, _pop_types_frame())
     missing_pm = result["production_method"].eq("pm_a1+pm_m2")
     assert result.loc[missing_pm, "production_method_localization"].isna().all()
     missing_tech = result["unlocking_tech"].eq("tech_1+tech_2")
     assert result.loc[missing_tech, "unlocking_tech_localization"].isna().all()
+
+
+def test_wage_normalized_employment_filters_private_wages_and_preserves_sign() -> None:
+    df_pm = _pm_frame()
+    df_pm.loc[3, "employment_laborers"] = -50
+    df_pm["employment_capitalists"] = [20, 30, 0, 0, 0]
+    df_pm["employment_aristocrats"] = [10, 10, 0, 0, 0]
+    df_pop_types = pd.DataFrame(
+        {
+            "key": ["laborers", "capitalists", "aristocrats"],
+            "wage_weight": [1.5, -1.0, "not used"],
+            "paid_private_wage": [True, False, None],
+        }
+    )
+
+    result = production_table(
+        _buildings_frame(), _goods_frame(), df_pm, _tech_frame(), df_pop_types
+    )
+    row = result.loc[result["production_method"] == "pm_a1+pm_m2"].iloc[0]
+
+    assert row["employment_laborers"] == 50
+    assert row["employment_capitalists"] == 20
+    assert row["employment_aristocrats"] == 10
+    assert row["wage_normalized_employment"] == 75.0
+
+
+def test_wage_normalized_division_by_zero() -> None:
+    df_pop_types = _pop_types_frame()
+    df_pop_types["paid_private_wage"] = False
+
+    result = production_table(
+        _buildings_frame(), _goods_frame(), _pm_frame(), _tech_frame(), df_pop_types
+    )
+    assert (result["wage_normalized_employment"] == 0).all()
+
+    nonzero_profit = result["profit_nominal"] != 0
+    assert np.isinf(
+        result.loc[nonzero_profit, "profit_per_wage_normalized_employment_nominal"]
+    ).all()
+    zero_profit = ~nonzero_profit
+    assert (
+        result.loc[zero_profit, "profit_per_wage_normalized_employment_nominal"]
+        .isna()
+        .all()
+    )
+
+
+@pytest.mark.parametrize("column", ["key", "wage_weight", "paid_private_wage"])
+def test_pop_types_required_columns(column: str) -> None:
+    df_pop_types = _pop_types_frame().drop(columns=column)
+
+    with pytest.raises(ValueError, match="missing required columns"):
+        production_table(
+            _buildings_frame(),
+            _goods_frame(),
+            _pm_frame(),
+            _tech_frame(),
+            df_pop_types,
+        )
+
+
+def test_duplicate_pop_type_key_raises() -> None:
+    df_pop_types = pd.concat(
+        [_pop_types_frame(), _pop_types_frame()], ignore_index=True
+    )
+
+    with pytest.raises(ValueError, match="Duplicate pop-type keys"):
+        production_table(
+            _buildings_frame(),
+            _goods_frame(),
+            _pm_frame(),
+            _tech_frame(),
+            df_pop_types,
+        )
+
+
+def test_missing_employment_profession_raises() -> None:
+    with pytest.raises(ValueError, match="missing employment professions"):
+        production_table(
+            _buildings_frame(),
+            _goods_frame(),
+            _pm_frame(),
+            _tech_frame(),
+            _pop_types_frame().iloc[:0],
+        )
+
+
+def test_non_boolean_private_wage_flag_raises() -> None:
+    df_pop_types = _pop_types_frame()
+    df_pop_types["paid_private_wage"] = "yes"
+
+    with pytest.raises(ValueError, match="non-boolean paid_private_wage"):
+        production_table(
+            _buildings_frame(),
+            _goods_frame(),
+            _pm_frame(),
+            _tech_frame(),
+            df_pop_types,
+        )
+
+
+@pytest.mark.parametrize("wage_weight", [np.nan, np.inf, -1.0, "invalid"])
+def test_invalid_private_wage_weight_raises(wage_weight: float | str) -> None:
+    df_pop_types = _pop_types_frame()
+    df_pop_types["wage_weight"] = wage_weight
+
+    with pytest.raises(ValueError, match="invalid private wage weights"):
+        production_table(
+            _buildings_frame(),
+            _goods_frame(),
+            _pm_frame(),
+            _tech_frame(),
+            df_pop_types,
+        )
+
+
+def test_empty_localized_table_uses_string_dtypes() -> None:
+    buildings = (
+        _buildings_frame()
+        .iloc[:0]
+        .assign(
+            key_localization=pd.Series(dtype="string"),
+            building_group_localization=pd.Series(dtype="string"),
+        )
+    )
+    production_methods = _pm_frame().assign(
+        production_method_localization=pd.Series(
+            [pd.NA] * len(_pm_frame()), dtype="string"
+        )
+    )
+    technologies = _tech_frame().assign(
+        key_localization=pd.Series([pd.NA] * len(_tech_frame()), dtype="string")
+    )
+
+    result = production_table(
+        buildings,
+        _goods_frame(),
+        production_methods,
+        technologies,
+        _pop_types_frame(),
+    )
+
+    localization_columns = [
+        column for column in result.columns if column.endswith("_localization")
+    ]
+    assert localization_columns
+    assert all(
+        isinstance(result[column].dtype, pd.StringDtype)
+        for column in localization_columns
+    )

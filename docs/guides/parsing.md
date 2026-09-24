@@ -54,17 +54,35 @@ uv run python -m examples.production_analysis
 
 ## Build the production table
 
-`production_table()` combines buildings, goods, production methods, and
-technology data into one row per building/production-method configuration. Its
+`production_table()` combines buildings, goods, production methods, technology,
+and pop types into one row per building/production-method configuration. Its
 `goods_<key>` columns use positive values for outputs and negative values for
 inputs.
 
 ```python
-from vic3_analysis import production_table
+from vic3_analysis import (
+    BuildingsParser,
+    PopTypesParser,
+    ProductionMethodParser,
+    goods,
+    production_table,
+    technology,
+)
 
-production = production_table()
+production = production_table(
+    BuildingsParser().to_dataframe(),
+    goods(),
+    ProductionMethodParser().to_dataframe(),
+    technology(),
+    PopTypesParser().to_dataframe(),
+)
 print(production[["building", "production_method", "profit_nominal"]].head())
 ```
+
+`wage_normalized_employment` weights per-profession employment by `wage_weight`
+for professions whose `paid_private_wage` flag is true. The corresponding
+`profit_per_wage_normalized_employment_nominal` column divides existing nominal
+profit by that private-wage-equivalent employment; it does not subtract payroll.
 
 ## Add localization
 
@@ -88,7 +106,7 @@ descriptions and lens-option suffixes.
 `production_table()` propagates localization columns when its input tables
 contain them. `Economy(language="english")` applies the same option only to
 tables it parses internally; explicitly supplied DataFrames remain unchanged.
-The default no-language behavior and committed CSV snapshots are unchanged.
+Localization does not change the default no-language behavior.
 
 See the [parsing API](../api/parsing.md) for constructor parameters, return
 values, and exceptions.

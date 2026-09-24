@@ -86,10 +86,11 @@ uv run python -m examples.production_method
 ## Production configurations
 
 The main analytical table has one row per valid combination of production
-methods for a building. It contains input/output flows, employment, construction
-cost, unlock era, and nominal profitability.
+methods for a building. It contains input/output flows, employment,
+private-wage-normalized employment, construction cost, unlock era, and nominal
+profitability.
 
-<!-- table-preview: tables/production_table.csv | columns=building,production_method,building_group,era,employment,construction_cost,profit_nominal | rows=5 -->
+<!-- table-preview: tables/production_table.csv | columns=building,production_method,building_group,era,employment,wage_normalized_employment,profit_per_wage_normalized_employment_nominal | rows=5 -->
 
 [:material-download: Download `tables/production_table.csv`](../tables/production_table.csv)
 · [:fontawesome-brands-github: View `examples/production_analysis.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_analysis.py)

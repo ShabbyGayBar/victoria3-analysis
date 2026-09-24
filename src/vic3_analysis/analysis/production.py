@@ -55,13 +55,17 @@ def production_table(
     df_goods: pd.DataFrame,
     df_pm: pd.DataFrame,
     df_tech: pd.DataFrame,
+    df_pop_types: pd.DataFrame,
 ) -> pd.DataFrame:
     """Build the production table of all building configurations.
 
     For every building, enumerates every combination of production methods
     (one per production-method group) and aggregates the per-method
     employment (total and per profession) and net goods flows (positive =
-    output, negative = input).  The ``infrastructure_usage_per_level``
+    output, negative = input). Wage-normalized employment is the sum of each
+    profession's employment multiplied by its wage weight, restricted to pop
+    types whose ``paid_private_wage`` flag is true. The
+    ``infrastructure_usage_per_level``
     column holds the net per-level footprint: the building group's usage
     minus the ``state_infrastructure_add`` generation summed over the chosen
     production methods, so provider configurations (ports, railways, urban
@@ -97,6 +101,10 @@ def production_table(
             zero-filled with a warning when absent).
         df_tech: Technology table (`technology` or
             ``tables/technology.csv``) with ``key`` and ``era`` columns.
+        df_pop_types: Pop-types table (`PopTypesParser.to_dataframe()` or
+            ``tables/pop_types.csv``) with ``key``, ``wage_weight``, and
+            ``paid_private_wage`` columns. Missing private-wage flags are
+            treated as false.
 
     Returns:
         A ``DataFrame`` with one row per building configuration.  The
@@ -107,21 +115,83 @@ def production_table(
         ``"depletable_resource"``, ``"economy_of_scale"``, ``"urbanization"``,
         ``"infrastructure_usage_per_level"`` (net of the configuration's
         ``state_infrastructure_add`` generation), ``"era"``,
-        ``"unlocking_tech"``, ``"employment"``, ``"construction_cost"``,
+        ``"unlocking_tech"``, ``"employment"``,
+        ``"wage_normalized_employment"``, ``"construction_cost"``,
         ``"value_goods_inputs_nominal"``, ``"value_goods_outputs_nominal"``,
         ``"profit_nominal"``, ``"profit_margin_nominal"``,
-        ``"profit_per_capita_nominal"``, and
+        ``"profit_per_capita_nominal"``,
+        ``"profit_per_wage_normalized_employment_nominal"``, and
         ``"profit_per_construction_cost_nominal"``, followed by one
         ``goods_<good>`` column per good and one ``employment_<profession>``
         column per profession.
 
     Raises:
-        ValueError: If an unlocking technology referenced by a building or a
-            production method is missing from the technology table.
+        ValueError: If an unlocking technology is missing from the technology
+            table, or if the pop-types table cannot uniquely provide a valid
+            private-wage weight for each employment profession.
     """
     goods_cols = [f"goods_{key}" for key in df_goods["key"]]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
     sum_cols = ["employment", *profession_cols, "state_infrastructure_add", *goods_cols]
+
+    required_pop_columns = {"key", "wage_weight", "paid_private_wage"}
+    missing_pop_columns = required_pop_columns - set(df_pop_types.columns)
+    if missing_pop_columns:
+        raise ValueError(
+            f"Pop-types table missing required columns: {sorted(missing_pop_columns)}"
+        )
+
+    duplicate_pop_keys = df_pop_types.loc[
+        df_pop_types["key"].duplicated(keep=False), "key"
+    ]
+    if not duplicate_pop_keys.empty:
+        raise ValueError(
+            "Duplicate pop-type keys: "
+            f"{sorted(str(key) for key in duplicate_pop_keys.unique())}"
+        )
+
+    profession_keys = [column.removeprefix("employment_") for column in profession_cols]
+    pop_types_by_key = df_pop_types.set_index("key")
+    missing_professions = sorted(set(profession_keys) - set(pop_types_by_key.index))
+    if missing_professions:
+        raise ValueError(
+            f"Pop-types table missing employment professions: {missing_professions}"
+        )
+
+    profession_pop_types = pop_types_by_key.reindex(profession_keys)
+    private_wage_flags = profession_pop_types["paid_private_wage"].fillna(False)
+    invalid_private_wage_flags = ~private_wage_flags.map(
+        lambda value: isinstance(value, (bool, np.bool_))
+    )
+    if invalid_private_wage_flags.any():
+        invalid_professions = [
+            profession
+            for profession, invalid in zip(profession_keys, invalid_private_wage_flags)
+            if invalid
+        ]
+        raise ValueError(
+            "Pop-types table has non-boolean paid_private_wage values for: "
+            f"{invalid_professions}"
+        )
+
+    private_wage_mask = private_wage_flags.to_numpy(dtype=bool)
+    numeric_wage_weights = pd.to_numeric(
+        profession_pop_types["wage_weight"], errors="coerce"
+    ).to_numpy(dtype=np.float64)
+    invalid_wage_weight_mask = private_wage_mask & (
+        ~np.isfinite(numeric_wage_weights) | (numeric_wage_weights < 0)
+    )
+    if invalid_wage_weight_mask.any():
+        invalid_professions = [
+            profession
+            for profession, invalid in zip(profession_keys, invalid_wage_weight_mask)
+            if invalid
+        ]
+        raise ValueError(
+            "Pop-types table has invalid private wage weights for: "
+            f"{invalid_professions}"
+        )
+    wage_weights = np.where(private_wage_mask, numeric_wage_weights, 0.0)
 
     missing_goods_cols = [col for col in goods_cols if col not in df_pm.columns]
     if missing_goods_cols:
@@ -331,12 +401,14 @@ def production_table(
         "unlocking_tech",
         *(["unlocking_tech_localization"] if has_tech_localization else []),
         "employment",
+        "wage_normalized_employment",
         "construction_cost",
         "value_goods_inputs_nominal",
         "value_goods_outputs_nominal",
         "profit_nominal",
         "profit_margin_nominal",
         "profit_per_capita_nominal",
+        "profit_per_wage_normalized_employment_nominal",
         "profit_per_construction_cost_nominal",
         *goods_cols,
         *profession_cols,
@@ -378,6 +450,9 @@ def production_table(
     result["infrastructure_usage_per_level"] = (
         result["infrastructure_usage_per_level"] - result["state_infrastructure_add"]
     )
+    result["wage_normalized_employment"] = (
+        result[profession_cols].to_numpy(dtype=np.float64) @ wage_weights
+    )
 
     prices = df_goods["cost"].to_numpy(dtype=np.float64)
     flows = result[goods_cols].to_numpy(dtype=np.float64)
@@ -391,6 +466,9 @@ def production_table(
     )
     result["profit_per_capita_nominal"] = (
         result["profit_nominal"] / result["employment"]
+    )
+    result["profit_per_wage_normalized_employment_nominal"] = (
+        result["profit_nominal"] / result["wage_normalized_employment"]
     )
     result["profit_per_construction_cost_nominal"] = (
         result["profit_nominal"] / result["construction_cost"]
