@@ -1,0 +1,69 @@
+[[collection]]
+script = "examples/buildings.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/buildings.csv"]
+
+[[collection]]
+script = "examples/goods.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/goods.csv"]
+
+[[collection]]
+script = "examples/pop_needs.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/pop_needs.csv"]
+
+[[collection]]
+script = "examples/pop_types.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/pop_types.csv"]
+
+[[collection]]
+script = "examples/production_method.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/production_methods.csv"]
+
+[[collection]]
+script = "examples/production_analysis.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/production_table.csv"]
+
+[[collection]]
+script = "examples/state_regions.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/state_regions.csv"]
+
+[[collection]]
+script = "examples/technology.py"
+page = "showcase/parsed-data.md"
+artifacts = ["tables/technology.csv"]
+
+[[collection]]
+script = "examples/buy_packages.py"
+page = "showcase/buy-packages.md"
+artifacts = ["tables/buy_packages.csv", "figures/buy_packages/*.svg"]
+
+[[collection]]
+script = "examples/supply_chain_compare.py"
+page = "showcase/supply-chains.md"
+artifacts = ["tables/supply_chain_sweep.csv"]
+
+[[collection]]
+script = "examples/supply_chain_cangshulun.py"
+page = "showcase/supply-chains.md"
+artifacts = ["tables/supply_chain_cangshulun.csv"]
+
+[[collection]]
+script = "examples/supply_chain_market_automobiles.py"
+page = "showcase/supply-chains.md"
+artifacts = []
+
+[[collection]]
+script = "examples/supply_chain_trace.py"
+page = "showcase/supply-chains.md"
+artifacts = ["figures/supply_chain_recipe.mmd", "figures/supply_chain_realised.mmd"]
+
+[[collection]]
+script = "examples/optimize_jap.py"
+page = "showcase/resource-limited-optimization.md"
+artifacts = ["tables/optimize_jap.csv"]
