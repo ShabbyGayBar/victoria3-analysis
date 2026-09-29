@@ -80,16 +80,29 @@ def test_schema(
     df_pm: pd.DataFrame,
 ) -> None:
     goods_cols = [f"goods_{key}" for key in df_goods["key"]]
+    goods_and_ratio_cols = [
+        column
+        for goods_col in goods_cols
+        for column in (goods_col, f"input_ratio_{goods_col}")
+    ]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
 
-    assert df_production.shape == (1638, 90)
-    assert list(df_production.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
+    assert df_production.shape == (1638, 143)
+    assert list(df_production.columns) == [
+        *META_COLUMNS,
+        *goods_and_ratio_cols,
+        *profession_cols,
+    ]
     assert df_production.index.equals(pd.RangeIndex(len(df_production)))
     assert df_production["era"].dtype == np.int64
     assert df_production["employment"].dtype == np.int64
     assert df_production["wage_normalized_employment"].dtype == np.float64
     assert df_production["construction_cost"].dtype == np.int64
     assert df_production["profit_nominal"].dtype == np.float64
+    assert all(
+        df_production[f"input_ratio_{column}"].dtype == np.float64
+        for column in goods_cols
+    )
     assert (
         df_production["profit_per_wage_normalized_employment_nominal"].dtype
         == np.float64
@@ -138,7 +151,9 @@ def test_food_industry_default_combination(
     assert row["employment_laborers"] == 4500
     assert row["employment_shopkeepers"] == 500
     assert row["goods_grain"] == -40
+    assert row["input_ratio_goods_grain"] == 1.0
     assert row["goods_groceries"] == 45
+    assert row["input_ratio_goods_groceries"] == 0.0
     assert row["era"] == 1
     assert row["unlocking_tech"] == "manufacturies"
     assert row["construction_cost"] == 600
@@ -364,7 +379,9 @@ def test_synthetic_exact_table() -> None:
             ],
             "profit_per_construction_cost_nominal": [0.3, 0.2, 1.1, 1.0, np.inf],
             "goods_good_x": [-3, -4, 1, 0, 2],
+            "input_ratio_goods_good_x": [1.0, 1.0, 0.0, 0.0, 0.0],
             "goods_good_y": [3, 3, 5, 5, 0],
+            "input_ratio_goods_good_y": [0.0] * 5,
             "employment_laborers": [100, 100, 150, 150, 10],
         }
     )
@@ -377,6 +394,46 @@ def test_synthetic_exact_table() -> None:
         _pop_types_frame(),
     )
     pd.testing.assert_frame_equal(result, expected)
+
+
+def test_input_ratios_use_physical_net_input_quantities() -> None:
+    df_pm = _pm_frame()
+    df_pm.loc[df_pm["production_method"] == "pm_a1", "goods_good_y"] = -2
+
+    result = production_table(
+        _buildings_frame(),
+        _goods_frame(),
+        df_pm,
+        _tech_frame(),
+        _pop_types_frame(),
+    )
+    row = result.loc[result["production_method"] == "pm_a1+pm_m1"].iloc[0]
+
+    assert row["goods_good_x"] == -3
+    assert row["goods_good_y"] == -2
+    assert row["input_ratio_goods_good_x"] == pytest.approx(3 / 5)
+    assert row["input_ratio_goods_good_y"] == pytest.approx(2 / 5)
+
+
+def test_input_ratios_sum_to_one_only_for_rows_with_net_inputs(
+    df_production: pd.DataFrame,
+    df_goods: pd.DataFrame,
+) -> None:
+    goods_cols = [f"goods_{key}" for key in df_goods["key"]]
+    ratio_cols = [f"input_ratio_{column}" for column in goods_cols]
+    input_quantities = np.maximum(
+        -df_production[goods_cols].to_numpy(dtype=np.float64), 0.0
+    )
+    expected_sums = (input_quantities.sum(axis=1) > 0).astype(np.float64)
+
+    np.testing.assert_allclose(
+        df_production[ratio_cols].sum(axis=1).to_numpy(dtype=np.float64),
+        expected_sums,
+    )
+    np.testing.assert_array_equal(
+        df_production[ratio_cols].to_numpy(dtype=np.float64)[input_quantities == 0],
+        0.0,
+    )
 
 
 def test_economy_of_scale_eligibility_excludes_subsistence() -> None:
@@ -490,6 +547,8 @@ def test_missing_goods_column_zero_filled() -> None:
 
     assert "goods_good_z" in result.columns
     assert (result["goods_good_z"] == 0).all()
+    assert "input_ratio_goods_good_z" in result.columns
+    assert (result["input_ratio_goods_good_z"] == 0).all()
 
 
 def test_missing_state_infrastructure_column_zero_filled() -> None:
@@ -593,6 +652,11 @@ def test_pmg_without_methods_skipped() -> None:
 def test_empty_buildings_returns_empty_frame() -> None:
     df_buildings = _buildings_frame().iloc[:0]
     goods_cols = [f"goods_{key}" for key in _goods_frame()["key"]]
+    goods_and_ratio_cols = [
+        column
+        for goods_col in goods_cols
+        for column in (goods_col, f"input_ratio_{goods_col}")
+    ]
     profession_cols = [
         col for col in _pm_frame().columns if col.startswith("employment_")
     ]
@@ -602,12 +666,24 @@ def test_empty_buildings_returns_empty_frame() -> None:
     )
 
     assert result.empty
-    assert list(result.columns) == [*META_COLUMNS, *goods_cols, *profession_cols]
+    assert list(result.columns) == [
+        *META_COLUMNS,
+        *goods_and_ratio_cols,
+        *profession_cols,
+    ]
+    assert all(
+        result[f"input_ratio_{column}"].dtype == np.float64 for column in goods_cols
+    )
 
 
 def test_empty_buildings_without_enrichment_uses_reduced_schema() -> None:
     df_buildings = _buildings_frame().iloc[:0]
     goods_cols = [f"goods_{key}" for key in _goods_frame()["key"]]
+    goods_and_ratio_cols = [
+        column
+        for goods_col in goods_cols
+        for column in (goods_col, f"input_ratio_{goods_col}")
+    ]
     profession_cols = [
         col for col in _pm_frame().columns if col.startswith("employment_")
     ]
@@ -622,7 +698,7 @@ def test_empty_buildings_without_enrichment_uses_reduced_schema() -> None:
     assert result.empty
     assert list(result.columns) == [
         *[column for column in META_COLUMNS if column not in omitted_columns],
-        *goods_cols,
+        *goods_and_ratio_cols,
         *profession_cols,
     ]
 

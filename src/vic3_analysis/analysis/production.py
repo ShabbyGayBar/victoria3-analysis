@@ -79,8 +79,14 @@ def production_table(
     is supplied, each row also records the earliest era at which the
     configuration becomes available (the maximum era of those technologies,
     ``0`` when none). Nominal values are evaluated at the
-    goods table's base prices; the ratio columns follow plain division
+    goods table's base prices; the profit ratio columns follow plain division
     semantics (``x / 0`` is ``inf`` and ``0 / 0`` is ``NaN``).
+    Each ``input_ratio_goods_<good>`` column is the good's physical net-input
+    quantity divided by the total physical net-input quantity across all
+    goods. Outputs and zero net flows contribute ``0``, and configurations
+    without net inputs receive ``0`` in every input-ratio column. These ratios
+    are quantity-based analytical measures; Victoria 3's prestige-goods
+    throughput bonus instead uses the proportion of gross input base value.
 
     Args:
         df_buildings: Buildings table (``BuildingsParser.to_dataframe()`` or
@@ -127,8 +133,9 @@ def production_table(
         ``"profit_per_capita_nominal"``,
         optional ``"profit_per_wage_normalized_employment_nominal"``, and
         ``"profit_per_construction_cost_nominal"``, followed by one
-        ``goods_<good>`` column per good and one ``employment_<profession>``
-        column per profession.
+        ``goods_<good>`` column per good, each immediately followed by its
+        ``input_ratio_goods_<good>`` column, and one
+        ``employment_<profession>`` column per profession.
 
     Raises:
         ValueError: If a supplied technology table is missing an unlocking
@@ -137,6 +144,12 @@ def production_table(
             profession.
     """
     goods_cols = [f"goods_{key}" for key in df_goods["key"]]
+    input_ratio_cols = [f"input_ratio_{column}" for column in goods_cols]
+    goods_and_ratio_cols = [
+        column
+        for goods_and_ratio in zip(goods_cols, input_ratio_cols)
+        for column in goods_and_ratio
+    ]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
     sum_cols = ["employment", *profession_cols, "state_infrastructure_add", *goods_cols]
 
@@ -445,7 +458,7 @@ def production_table(
             else []
         ),
         "profit_per_construction_cost_nominal",
-        *goods_cols,
+        *goods_and_ratio_cols,
         *profession_cols,
     ]
     if not combo_rows:
@@ -453,6 +466,8 @@ def production_table(
         for column in column_order:
             if column.endswith("_localization"):
                 empty[column] = empty[column].astype("string")
+            elif column in input_ratio_cols:
+                empty[column] = empty[column].astype(np.float64)
         return empty
 
     member_positions = [position for _, position in membership]
@@ -492,7 +507,26 @@ def production_table(
 
     prices = df_goods["cost"].to_numpy(dtype=np.float64)
     flows = result[goods_cols].to_numpy(dtype=np.float64)
-    result["value_goods_inputs_nominal"] = np.maximum(-flows, 0.0) @ prices
+    input_quantities = np.maximum(-flows, 0.0)
+    input_quantity_totals = input_quantities.sum(axis=1, keepdims=True)
+    input_ratios = np.divide(
+        input_quantities,
+        input_quantity_totals,
+        out=np.zeros_like(input_quantities),
+        where=input_quantity_totals != 0,
+    )
+    result = pd.concat(
+        [
+            result,
+            pd.DataFrame(
+                input_ratios,
+                columns=input_ratio_cols,
+                index=result.index,
+            ),
+        ],
+        axis=1,
+    )
+    result["value_goods_inputs_nominal"] = input_quantities @ prices
     result["value_goods_outputs_nominal"] = np.maximum(flows, 0.0) @ prices
     result["profit_nominal"] = (
         result["value_goods_outputs_nominal"] - result["value_goods_inputs_nominal"]

@@ -57,7 +57,16 @@ uv run python -m examples.production_analysis
 `production_table()` combines buildings, goods, production methods, technology,
 and pop types into one row per building/production-method configuration. Its
 `goods_<key>` columns use positive values for outputs and negative values for
-inputs.
+inputs. Every goods column is immediately followed by an
+`input_ratio_goods_<key>` column. The ratio is the good's physical net-input
+quantity divided by the total physical net-input quantity across all goods;
+outputs and configurations without net inputs receive `0.0`.
+
+Named prestige variants of the same base good use the same ratio column. These
+ratios are analytical quantity shares, not Victoria 3's exact prestige-goods
+throughput shares: the game uses gross input base value. Multiplying a ratio by
+the 20% maximum prestige-goods throughput bonus is therefore only a
+quantity-based proxy, not the in-game bonus.
 
 ```python
 from vic3_analysis import (
