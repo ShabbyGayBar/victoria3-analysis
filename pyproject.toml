@@ -15,7 +15,7 @@ dependencies = [
     "scipy>=1.17.1",
 ]
 license = "MIT"
-license-files = ["LICEN[CS]E*"]
+license-files = ["LICEN[CS]E*", "THIRD_PARTY_CONTENT.md"]
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13"]

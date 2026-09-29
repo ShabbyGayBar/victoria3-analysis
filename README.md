@@ -42,4 +42,10 @@ uv sync
 
 ## License
 
-This project is licensed under the MIT License.
+The original source code and original documentation in this repository are
+licensed under the [MIT License](LICENSE), except where stated otherwise.
+
+Generated data and analytical artifacts under `tables/` and `figures/` are
+derived from Victoria 3 game content and are excluded from the MIT License.
+See [Third-Party Content](THIRD_PARTY_CONTENT.md) for their provenance, terms,
+and the project's affiliation disclaimer.
