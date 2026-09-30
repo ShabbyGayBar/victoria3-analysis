@@ -25,6 +25,13 @@ the result.
 
     [:octicons-arrow-right-24: Explore buy packages](buy-packages.md)
 
+-   :material-chart-bar: **Production-unit rankings（中文）**
+
+    A Chinese-language comparison of nominal profit margin, profit per worker,
+    and profit per construction point across production configurations.
+
+    [:octicons-arrow-right-24: 阅读生产单元排行榜](production-unit-rankings.md)
+
 -   :material-source-branch: **Supply chains**
 
     Recipe and realized graphs plus full-good scenario comparison tables.
