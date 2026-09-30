@@ -1,0 +1,2021 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="按名义人均产值和每点建筑力名义净利比较维多利亚3的生产方式组合。">
+      
+      
+      
+        <link rel="canonical" href="https://shabbygaybar.github.io/victoria3-analysis/showcase/production-unit-rankings/">
+      
+      
+        <link rel="prev" href="../parsed-data/">
+      
+      
+        <link rel="next" href="../buy-packages/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>生产单元排行榜 - Victoria 3 Analysis</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Victoria 3 Analysis" class="md-header__button md-logo" aria-label="Victoria 3 Analysis" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m16 11.78 4.24-7.33 1.73 1-5.23 9.05-6.51-3.75L5.46 19H22v2H2V3h2v14.54L9.5 8z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Victoria 3 Analysis
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              生产单元排行榜
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ShabbyGayBar/victoria3-analysis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ShabbyGayBar/victoria3-analysis
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../tutorial/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Tutorial
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Showcase
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../roadmap/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Victoria 3 Analysis" class="md-nav__button md-logo" aria-label="Victoria 3 Analysis" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m16 11.78 4.24-7.33 1.73 1-5.23 9.05-6.51-3.75L5.46 19H22v2H2V3h2v14.54L9.5 8z"/></svg>
+
+    </a>
+    Victoria 3 Analysis
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ShabbyGayBar/victoria3-analysis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ShabbyGayBar/victoria3-analysis
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsing game data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy and optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Showcase
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Showcase
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsed-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsed data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-unit rankings (Chinese)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-unit rankings (Chinese)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        什么是生产单元？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        分析口径
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        尾盘
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="尾盘">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        名义人均产值
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第三时代：游戏中期
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第三时代：游戏中期">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中期名义人均产值
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中期每点建筑力名义净利
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中期工业建筑每点建筑力名义净利
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总结
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../buy-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Buy packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../supply-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resource-limited-optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resource-limited optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsing and utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy and production
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        什么是生产单元？
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        分析口径
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        尾盘
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="尾盘">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        名义人均产值
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        第三时代：游戏中期
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="第三时代：游戏中期">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中期名义人均产值
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中期每点建筑力名义净利
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        中期工业建筑每点建筑力名义净利
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        总结
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Showcase
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<div class="admonition info">
+<p class="admonition-title">时效性</p>
+<ul>
+<li><strong>撰写日期：</strong> 2026 年 9 月 30 日</li>
+<li><strong>游戏数据版本：</strong> Victoria 3 1.13.11</li>
+</ul>
+<p>后续游戏补丁可能调整建筑、商品基础价格、生产方式和就业结构；重新生成数据表后，本文中的数值与排名也可能随之变化。</p>
+</div>
+<h1 id="_1">生产单元排行榜<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<p>在维多利亚3的论坛上，“最强建筑”往往为玩家们津津乐道。根据语境和侧重的不同，结论也通常莫衷一是。是汽车大人？还是工具大人？还是种植园？还是某位神秘世外高人？这次就让我们在 AI 大人的帮助下彻底终结这个话题。</p>
+<h2 id="_2">什么是生产单元？<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p>游戏中包含 115 种建筑。每个建筑有若干不同的生产方式。这样，游戏中所有可能的建筑加生产方式组合达到了 1,638 种，我们将其称为<strong>生产单元</strong>。排除奇观、军队、政府、自给农业、公司总部等建筑，共有 1,274 个值得排名的生产单元。</p>
+<p>生产单元决定了输入和输出商品，以及雇佣的人力，提供或消耗的基础设施和建筑力等。</p>
+<h2 id="_3">分析口径<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>在继续下一步之前，首先让我们做一些必要的假设。
+1. 市场采用合作社所有制。各生产单元没有人力成本。单元生产商品总值减去单元建筑购买商品总值作为净利润全部直接分红给员工。
+2. 市场没有本地市场火星损耗。
+3. 忽略市场价格机制，所有商品采用基础价格。这也是最偏离游戏的假设，因此基于这个假设得到的所有指标我会加上“名义”这个前缀来区分。
+4. 忽略吞吐量机制，如轧棉机，公司，规模效应等。</p>
+<p>有了这些信息，我们可以推算一些我们作为玩家感兴趣的指标。</p>
+<p>设一个生产单元的输入商品基础价格总值为 I，输出商品基础价格总值为 O，雇员人数为 L，所需建筑力为 C，则：</p>
+<ul>
+<li><strong>名义净利</strong> = O − I</li>
+<li><strong>名义人均净利/产值</strong> = (O − I) ÷ L</li>
+<li><strong>每点建筑力名义净利</strong> = (O − I) ÷ C</li>
+</ul>
+<p>名义净利对应大家熟悉的产值；名义人均净利则对应大家熟悉的人均产值；每点建筑力名义净利与扩张速度和回本周期直接相关。商品流量和名义净利均按周计算；名义净利及人均、每建筑力指标可乘以 52 换算成年值。</p>
+<div class="admonition note">
+<p class="admonition-title">排名规则</p>
+<p>排名不包含奇观、军队、政府、自给农业、公司总部等非一般商品生产建筑，只保留具有正产出、正就业、正建筑力成本和正名义净利的生产单元。排名对象是生产单元而不是建筑，所以同一建筑的多套生产方式可以同时进入前十。指标相同时，以名义净利更高者优先。</p>
+</div>
+<p>在 AI 的帮助下，我们得到了这张<a href="../../tables/production_table.csv">表格</a>，收录了所有生产单元的以上相关信息。让我们根据不同指标排序，看看游戏中有哪些最强生产单元。</p>
+<h2 id="_4">尾盘<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>尾盘排名允许所有生产方式。考虑到后期不在乎回本周期，每点建筑力名义净利就不进行排名了。</p>
+<h3 id="_5">名义人均产值<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">排名</th>
+<th>建筑</th>
+<th>生产方式组合</th>
+<th style="text-align: right;">时代</th>
+<th style="text-align: right;">名义人均产值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>武器厂</td>
+<td>栓动步枪＋流水线</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1.140</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>硫矿</td>
+<td>柴油泵＋黄色炸药＋辅助蒸汽机＋轨道运输</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1.037</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>油井</td>
+<td>内燃机井架＋罐车</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1.033</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>武器厂</td>
+<td>栓动步枪＋旋转阀发动机</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0.983</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>工艺装备工坊</td>
+<td>机械化钢制工具＋流水线</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0.975</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>硫矿</td>
+<td>柴油泵＋硝化甘油＋辅助蒸汽机＋轨道运输</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.960</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>硫矿</td>
+<td>柴油泵＋手工钻孔＋辅助蒸汽机＋轨道运输</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.957</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>火炮铸造厂</td>
+<td>后坐式机制＋流水线</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0.927</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>铁路</td>
+<td>联合内燃机车＋木制乘客车厢</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.873</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>汽车厂</td>
+<td>大规模生产＋无飞机生产＋无坦克生产＋流水线</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0.871</td>
+</tr>
+</tbody>
+</table>
+<p>万万没想到，有口皆碑的汽车大人，在前十只能垫底。而真神其实也不是我们的武器厂，而是一位世外高人。没错，就是哈瓦那大剧院！区区200学者就能产出5个艺术品，人均高达3.5，可谓一骑绝尘。此外，木制车厢的人均居然超过了科技要求更高的钢制车厢，不得不怀疑P社是否填错了数值。</p>
+<p>那么汽车作为人均产值并非最为突出的生产单元，为何会被称为神？无他，唯需求大耳。汽车不仅能满足休闲需求，还能满足自由出行需求，并且在自由出行中的最大供应占比达到 100%；轻武器只能进入休闲需求，适用范围窄得多。火炮则是纯军需品。铁路问题在于运力是本地商品，基本卖不出去。至于硫矿和油井，则是作为资源存在上限。</p>
+<p>从这个榜单可以看出几个趋势：
+- 自动化越激进，人均产值越高。前十生产单元的劳工数量没有超过1,000人的，甚至有些根本不招工人。
+- 没有石油，就没有高人均。除了油井，所有前十生产单元都可以说是油老虎。</p>
+<p>综上所述，作为人均GDP追求者，最优解其实就是让全国只有一块地，上面盖70座油井或硫矿，同时统御一个巨大的市场，给自己提供名贵工具引擎和消费品。</p>
+<h2 id="_6">第三时代：游戏中期<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>尾盘展示的是上限，但实际经济决策大量发生在游戏中期。现在我们再把科技限制到第三时代，重新运行人均产值和回本周期的榜单。</p>
+<h3 id="_7">中期名义人均产值<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">排名</th>
+<th>建筑</th>
+<th>生产方式组合</th>
+<th style="text-align: right;">时代</th>
+<th style="text-align: right;">名义人均产值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>工艺装备工坊</td>
+<td>机械化钢制工具＋旋转阀发动机</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.683</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>硫矿</td>
+<td>冷凝蒸汽机泵＋黄色炸药＋辅助蒸汽机＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.652</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>武器厂</td>
+<td>连发步枪＋旋转阀发动机</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.650</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>火炮铸造厂</td>
+<td>后膛炮＋旋转阀发动机</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.631</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>工艺装备工坊</td>
+<td>机械化钢制工具＋水管锅炉</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.629</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>硫矿</td>
+<td>冷凝蒸汽机泵＋硝化甘油＋辅助蒸汽机＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.575</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>硫矿</td>
+<td>冷凝蒸汽机泵＋黄色炸药＋手动曲柄起重机＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.541</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋离心分晶机＋暴力对待＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.540</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>硫矿</td>
+<td>冷凝蒸汽机泵＋手工钻孔＋辅助蒸汽机＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.540</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>硫矿</td>
+<td>冷凝蒸汽机泵＋黄色炸药＋辅助蒸汽机＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.534</td>
+</tr>
+</tbody>
+</table>
+<p>人均榜经历了一轮小洗牌。尾盘前十主要依赖第四、第五时代的流水线、柴油泵和内燃机；把上限压到第三时代后，石油直接曼巴 out。然而工具厂、硫矿和军工依旧坚挺。尤其是硫矿靠第2,3生产方式排列组合花式占领了榜首5个席位。糖料种植园靠抽鞭子也爬上了第8名，相对的，铁路则是彻底掉到20名开外。</p>
+<p>不夸张地说，橡胶完完全全成就了工具厂的辉煌。如果没有橡胶，工具厂人均产值暴跌至约 0.383，也就是差不多 43.9%，那就废掉了。</p>
+<h3 id="_8">中期每点建筑力名义净利<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">排名</th>
+<th>建筑</th>
+<th>生产方式组合</th>
+<th style="text-align: right;">时代</th>
+<th style="text-align: right;">每点建筑力名义净利</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋离心分晶机＋暴力对待＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">15.60</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋离心分晶机＋暴力对待＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">14.85</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋蒸汽研磨机＋暴力对待＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">13.65</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>糖料作物种植园</td>
+<td>基础生产＋离心分晶机＋暴力对待＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">13.35</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋蒸汽研磨机＋暴力对待＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.90</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋离心分晶机＋剥削压榨＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.60</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋真空浓缩罐＋暴力对待＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.60</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>糖料作物种植园</td>
+<td>基础生产＋离心分晶机＋暴力对待＋轨道运输</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.60</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>茶叶种植园</td>
+<td>自动灌溉＋暴力对待＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.55</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>糖料作物种植园</td>
+<td>自动灌溉＋牛力碾压辊＋暴力对待＋手推车</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">12.00</td>
+</tr>
+</tbody>
+</table>
+<p>如果玩家很缺建筑力，只要200锤的种植园几乎是唯一答案。而糖料种植园更是个中翘楚，前十名中居然九个是它的不同生产方式的排列组合，剩下一个是茶叶种植园。但不难看出，流水的生产方式，铁打的鞭子。鞭子好啊，鞭子得抽啊。</p>
+<p>如果不抽鞭子，原榜首糖料种植园直接跌至 9.60，下降约 38.5%。而采用电动卷烟机和工厂收音机的烟草种植园则以 11.40 的指标拿下榜首。</p>
+<p>到目前的榜单为止，速B也许会看一看，但对于大多数玩家来说，可能并没有种植园可以造，或者玩家想要工业化，而不是把建造力泼在农业上。因此我们追加下面的榜单，只统计工业建筑，看看工业建筑中哪些生产单元回本最快。</p>
+<h3 id="_9">中期工业建筑每点建筑力名义净利<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<p>只考虑制造业（<code>bg_manufacturing</code>）建筑，包括轻工业、重工业和军事工业，不包括矿山、种植园、铁路、电厂和造船厂。那么第三时代共有 14 种工业建筑、154 个名义盈利的生产单元进入排名。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">排名</th>
+<th>建筑</th>
+<th>生产方式组合</th>
+<th style="text-align: right;">时代</th>
+<th style="text-align: right;">每点建筑力名义净利</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>食品厂</td>
+<td>发酵粉＋高效罐头生产＋连续式蒸馏器＋手工面团加工</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4.42</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>火炮铸造厂</td>
+<td>后膛炮＋手工装配</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4.17</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>工艺装备工坊</td>
+<td>机械化钢制工具＋手工装配</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4.17</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>家具制造厂</td>
+<td>机械化工坊＋精密工具＋手工装配</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">4.08</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>武器厂</td>
+<td>连发步枪＋手工装配</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">4.00</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>食品厂</td>
+<td>发酵粉＋真空包装＋连续式蒸馏器＋手工面团加工</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3.92</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>食品厂</td>
+<td>甜味剂＋高效罐头生产＋连续式蒸馏器＋手工面团加工</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3.75</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>纺织厂</td>
+<td>缝纫机＋弹性织物＋传统织机</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3.67</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>工艺装备工坊</td>
+<td>机械化钢制工具＋水管锅炉</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3.67</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>食品厂</td>
+<td>发酵粉＋高效罐头生产＋罐式蒸馏器＋手工面团加工</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">3.58</td>
+</tr>
+</tbody>
+</table>
+<p>食品厂以 4.42 夺冠。不过它同时使用七种投入，并产出 150 单位食品和 100 单位烈酒。烈酒在这里是必要的，它贡献了这个方案总产值的 40%。如果关闭酿酒生产，食品厂的最佳指标会降到 3.33，掉出前十。</p>
+<p>工具厂和火炮厂并列第二，余下的则是家具纺织等轻工业和武器厂等军工业。值得注意的是，榜单完全被 600 锤的轻工业和军事工业垄断，而需要 800 锤的化工厂、钢铁厂、发动机厂等重工业无一上榜，毕竟即使重工业的产值不低，除以建筑力后也很难进入前十。</p>
+<p>另一个反直觉结果是手工装配大获全胜。工艺装备工坊使用手工装配时为 4.17，换成水管锅炉降至 3.67，换成旋转阀发动机又降至 3.42；火炮铸造厂也从手工装配的 4.17 降到旋转阀发动机的 3.42。这并不表示自动化没有价值，而是因为当前模型不计算工资：自动化减少的雇员在这个指标里不值钱，额外消耗的煤炭和工具却会直接减少名义净利。</p>
+<h2 id="_10">总结<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h2>
+<p>纵观四张榜单，我们可以看到，除了跟种植园拼建造力，工具厂和军工厂都能勇夺头筹。左手高产值，右手低雇员。这其中工具的需求又奇高，因此称其为游戏中最夯建筑也不为过。</p>
+<p>但值得注意的是，这四张榜单仍然只算了每栋建筑内部的账。每个生产单元表现如何是一回事，其所在产业上下游如何又是另一回事。工具厂这么强，那么会不会被上游的钢铁厂和橡胶园拖累呢？</p>
+<p>敬请期待下期维多利亚3全产业链分析。</p>
+<p><a href="../../tables/production_table.csv"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7z"/></svg></span> 下载完整生产单元表 tables/production_table.csv</a></p>
+<p><a href="https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_analysis.py"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg></span> 查看生成脚本 examples/production_analysis.py</a></p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.tabs.link", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
