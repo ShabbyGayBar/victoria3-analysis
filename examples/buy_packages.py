@@ -26,11 +26,13 @@ for column in data.columns:
     ax.set_ylabel(column)
     ax.set_title(f"{column} vs wealth")
     fig.tight_layout()
-    fig.savefig(str(BUY_PACKAGES_FIGURES_DIR / f"{column}.svg"))
-    print(f"Saved figures/buy_packages/{column}.svg")
+    figure_path = BUY_PACKAGES_FIGURES_DIR / f"{column}.svg"
+    fig.savefig(figure_path)
+    print(f"Saved {figure_path}")
 
     ax.set_yscale("log")
-    fig.savefig(str(BUY_PACKAGES_FIGURES_DIR / f"{column}_log.svg"))
-    print(f"Saved figures/buy_packages/{column}_log.svg")
+    log_figure_path = BUY_PACKAGES_FIGURES_DIR / f"{column}_log.svg"
+    fig.savefig(log_figure_path)
+    print(f"Saved {log_figure_path}")
 
     plt.close(fig)

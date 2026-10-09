@@ -26,18 +26,16 @@ def run_supply_chain_trace():
     print("=== Allowed automobiles supply-chain map ===")
     allowed_mermaid = result.to_mermaid(view="allowed")
     print(f"\n```mermaid\n{allowed_mermaid}\n```")
-    (FIGURES_DIR / "supply_chain_recipe.mmd").write_text(
-        allowed_mermaid, encoding="utf-8"
-    )
-    print("\nWritten to figures/supply_chain_recipe.mmd")
+    recipe_path = FIGURES_DIR / "supply_chain_recipe.mmd"
+    recipe_path.write_text(allowed_mermaid, encoding="utf-8")
+    print(f"\nWritten to {recipe_path}")
 
     print("\n=== Realised trace (1 automobile/wk, autarky, max automation) ===")
     realised_mermaid = result.to_mermaid()
     print(f"\n```mermaid\n{realised_mermaid}\n```")
-    (FIGURES_DIR / "supply_chain_realised.mmd").write_text(
-        realised_mermaid, encoding="utf-8"
-    )
-    print("\nWritten to figures/supply_chain_realised.mmd")
+    realised_path = FIGURES_DIR / "supply_chain_realised.mmd"
+    realised_path.write_text(realised_mermaid, encoding="utf-8")
+    print(f"\nWritten to {realised_path}")
 
 
 if __name__ == "__main__":

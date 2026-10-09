@@ -4,8 +4,24 @@
 from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
-TABLES_DIR = THIS_DIR / ".." / "tables"
-FIGURES_DIR = THIS_DIR / ".." / "figures"
+REPOSITORY_DIR = THIS_DIR.parent
+ARTIFACTS_DIR = REPOSITORY_DIR / "artifacts"
+
+
+def _artifact_directory(name: str) -> Path:
+    """Return a writable directory inside the initialized artifact checkout."""
+    if not (ARTIFACTS_DIR / ".git").exists():
+        raise RuntimeError(
+            "Artifact repository is not initialized. Run "
+            "`git submodule update --init --recursive`."
+        )
+    directory = ARTIFACTS_DIR / name
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+TABLES_DIR = _artifact_directory("tables")
+FIGURES_DIR = _artifact_directory("figures")
 
 DEFAULT_BANNED_BGS = (
     "bg_gold_fields",
