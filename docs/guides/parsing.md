@@ -5,6 +5,10 @@ description: Parse a Victoria 3 installation into pandas tables or work from the
 
 # Parsing game data
 
+For column meanings, units, and defaults, see the
+[parser dictionary](../data-dictionary/parsers.md) and the complete
+[production-table dictionary](../data-dictionary/production.md).
+
 ## Choose a data source
 
 Use the committed CSVs when you want reproducible analysis or do not have a

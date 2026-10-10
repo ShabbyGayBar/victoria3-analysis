@@ -8,6 +8,9 @@ description: Compare Victoria 3 supply-chain scenarios and inspect recipe and re
 These examples use the same reusable `Economy`, `Scenario`, and supply-chain
 APIs described in the [supply-chain guide](../guides/supply-chain.md).
 
+The [supply-chain dictionary](../data-dictionary/supply-chain.md) explains every
+CSV/report column and the separately printed automobile market metrics.
+
 ## Allowed technology graph
 
 The allowed view follows scenario-permitted automobile producers and their

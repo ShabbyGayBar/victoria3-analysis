@@ -5,6 +5,9 @@ description: Explore a resource- and land-constrained GDP optimization using Jap
 
 # Resource-limited optimization
 
+See the [Japan report dictionary](../data-dictionary/economy.md#japan-optimization-comparison)
+for every output column, annualization rule, and failure value.
+
 This example combines state-region resource potential, arable land, banned
 non-economic building groups, and an era-5 technology cap. It uses selected
 Japanese states to demonstrate a reusable GDP optimization under autarky for

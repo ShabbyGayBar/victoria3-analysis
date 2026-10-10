@@ -8,6 +8,9 @@ description: Task-focused guides for parsing, economy modeling, optimization, an
 Use the [quickstart](../tutorial.md) for a first complete run. These guides
 explain individual workflows in more depth and link to the exact public API.
 
+Use the [data dictionary](../data-dictionary/index.md) to interpret table
+columns and compare their units, formulas, and edge cases.
+
 <div class="grid cards" markdown>
 
 -   :material-database-import: **Parsing game data**

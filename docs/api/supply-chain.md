@@ -7,6 +7,9 @@ description: Single-terminal nominal supply-chain analysis and all-goods sweeps.
 
 Used by the runnable scripts in the [supply-chain showcase](../showcase/supply-chains.md).
 
+The [data dictionary](../data-dictionary/supply-chain.md) defines all summary,
+detailed-report, and sweep columns, including solver signs and graph scope.
+
 ::: vic3_analysis.SupplyChainAnalyzer
 
 ::: vic3_analysis.SupplyChainResult

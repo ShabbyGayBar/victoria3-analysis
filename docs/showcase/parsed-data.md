@@ -9,6 +9,10 @@ These tables turn Victoria 3 definitions into analysis-ready CSV files. See the
 [parsing guide](../guides/parsing.md) before regenerating them from an installed
 game.
 
+Use the [parser dictionary](../data-dictionary/parsers.md) for generated parser
+fields and the [production dictionary](../data-dictionary/production.md) for
+every analytical production-table column.
+
 ## Buildings
 
 One row per building, including construction cost, group membership, unlocks,

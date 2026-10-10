@@ -146,6 +146,12 @@ nav:
       - Buy packages: showcase/buy-packages.md
       - Supply chains: showcase/supply-chains.md
       - Resource-limited optimization: showcase/resource-limited-optimization.md
+  - Data dictionary:
+      - Conventions and scope: data-dictionary/index.md
+      - Parser outputs: data-dictionary/parsers.md
+      - Production configurations: data-dictionary/production.md
+      - Economy reports: data-dictionary/economy.md
+      - Supply-chain reports: data-dictionary/supply-chain.md
   - API Reference:
       - api/index.md
       - Parsing and utilities: api/parsing.md

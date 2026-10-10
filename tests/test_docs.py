@@ -4,6 +4,7 @@
 """Documentation structure, artifact coverage, and public API checks."""
 
 import ast
+import csv
 import re
 import tomllib
 from collections import Counter
@@ -152,10 +153,204 @@ def test_exported_objects_and_public_methods_have_docstrings() -> None:
             for member in definition.body:
                 if (
                     isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and (
-                        not member.name.startswith("_") or member.name == "__init__"
-                    )
+                    and (not member.name.startswith("_") or member.name == "__init__")
                     and not ast.get_docstring(member)
                 ):
                     missing.append(f"{export}.{member.name}")
     assert not missing, f"missing public docstrings: {', '.join(missing)}"
+
+
+def _dictionary_columns(page: str, section: str | None = None) -> set[str]:
+    """Read named first-column entries, requiring complete four-cell rows."""
+    markdown = (DOCS / "data-dictionary" / page).read_text(encoding="utf-8-sig")
+    if section is not None:
+        heading = f"## {section}\n"
+        assert heading in markdown, f"missing dictionary section: {section}"
+        markdown = markdown.split(heading, 1)[1].split("\n## ", 1)[0]
+    columns: set[str] = set()
+    for line in markdown.splitlines():
+        if not line.startswith("| `"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        assert len(cells) == 4 and all(cells), f"incomplete dictionary row: {line}"
+        match = re.fullmatch(r"`([^`]+)`", cells[0])
+        assert match is not None, f"invalid dictionary column name: {cells[0]}"
+        assert match[1] not in columns, f"duplicate column in {section}: {match[1]}"
+        columns.add(match[1])
+    return columns
+
+
+def _schema_assignment(relative: str, name: str) -> ast.expr:
+    """Locate one schema assignment without importing parsers or examples."""
+    tree = ast.parse((ROOT / relative).read_text(encoding="utf-8-sig"))
+    values = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == name
+            for target in node.targets
+        )
+    ]
+    assert len(values) == 1, f"cannot locate unique schema: {relative}:{name}"
+    return values[0]
+
+
+def _assert_columns_documented(columns: set[str], entries: set[str]) -> None:
+    """Match fixed names or placeholder families against actual column names."""
+    patterns = [
+        re.compile(re.sub(r"<[^>]+>", ".+", re.escape(entry))) for entry in entries
+    ]
+    missing = {
+        column
+        for column in columns
+        if not any(pattern.fullmatch(column) for pattern in patterns)
+    }
+    assert not missing, f"undocumented columns: {sorted(missing)}"
+
+
+def test_dictionary_covers_supply_chain_schemas() -> None:
+    """Each detailed report and summary exactly documents its fixed schema."""
+    relative = "src/vic3_analysis/analysis/supply_chain/result.py"
+    schemas = {
+        "Summary": "SUMMARY_FIELDS",
+        "Processes": "PROCESS_COLUMNS",
+        "Goods": "GOOD_COLUMNS",
+        "Flows": "FLOW_COLUMNS",
+        "Workforce": "WORKFORCE_COLUMNS",
+        "Constraints and bottlenecks": "CONSTRAINT_COLUMNS",
+        "Alternatives": "ALTERNATIVE_COLUMNS",
+    }
+    for section, name in schemas.items():
+        columns = ast.literal_eval(_schema_assignment(relative, name))
+        assert isinstance(columns, list) and all(
+            isinstance(column, str) for column in columns
+        )
+        assert _dictionary_columns("supply-chain.md", section) == set(columns)
+    sweep_columns = _schema_assignment(
+        "src/vic3_analysis/analysis/supply_chain/sweep.py", "SWEEP_COLUMNS"
+    )
+    sweep_prefix = {
+        node.value
+        for node in ast.walk(sweep_columns)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    assert (
+        _dictionary_columns("supply-chain.md", "Sweep summary and failures")
+        == sweep_prefix
+    )
+
+
+def test_dictionary_covers_analytical_csv_headers() -> None:
+    """Analytical CSVs have no uncovered columns, including dynamic families."""
+    for filename, page, sections in (
+        ("production_table.csv", "production.md", ()),
+        (
+            "supply_chain_sweep.csv",
+            "supply-chain.md",
+            ("Summary", "Sweep summary and failures", "Example CSV additions"),
+        ),
+        (
+            "supply_chain_cangshulun.csv",
+            "supply-chain.md",
+            ("Summary", "Sweep summary and failures", "Example CSV additions"),
+        ),
+        ("optimize_jap.csv", "economy.md", ("Japan optimization comparison",)),
+    ):
+        entries = (
+            set().union(*(_dictionary_columns(page, section) for section in sections))
+            if sections
+            else _dictionary_columns(page)
+        )
+        with (ROOT / "tables" / filename).open(
+            encoding="utf-8-sig", newline=""
+        ) as handle:
+            columns = set(next(csv.reader(handle)))
+        _assert_columns_documented(columns, entries)
+
+
+def test_dictionary_covers_optional_production_fields() -> None:
+    """Source-defined metadata/enrichments remain covered beyond snapshot headers."""
+    relative = "src/vic3_analysis/analysis/production.py"
+    order = _schema_assignment(relative, "column_order")
+    columns = {
+        node.value
+        for node in ast.walk(order)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    defaults = _schema_assignment(relative, "building_metadata_defaults")
+    assert isinstance(defaults, ast.Dict)
+    columns.update(
+        key.value
+        for key in defaults.keys
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    )
+    _assert_columns_documented(columns, _dictionary_columns("production.md"))
+
+
+def test_dictionary_covers_economy_report_columns() -> None:
+    """Public state export dictionaries have a complete table-specific reference."""
+    tree = ast.parse(
+        (SRC_PACKAGE / "analysis" / "economy.py").read_text(encoding="utf-8-sig")
+    )
+    for method, section in (
+        ("df_buildings", "Building registry"),
+        ("df_market", "Market report"),
+        ("df_pop", "Population report"),
+    ):
+        functions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef) and node.name == method
+        ]
+        assert len(functions) == 1
+        columns = {
+            key.value
+            for node in ast.walk(functions[0])
+            if isinstance(node, ast.Dict)
+            for key in node.keys
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+        assert columns
+        assert _dictionary_columns("economy.md", section) == columns
+
+
+def test_dictionary_covers_market_example_fields() -> None:
+    """The printed market report has its own reference rather than nominal aliases."""
+    columns = ast.literal_eval(
+        _schema_assignment(
+            "examples/supply_chain_market_automobiles.py", "FIXED_COLUMNS"
+        )
+    )
+    assert isinstance(columns, tuple)
+    assert _dictionary_columns("supply-chain.md", "Automobile market example") == set(
+        columns
+    )
+
+
+def test_dictionary_covers_normalized_parser_columns() -> None:
+    """Explicit population-need and buy-package schemas are fully documented."""
+    tree = ast.parse(
+        (SRC_PACKAGE / "parse" / "pop_needs.py").read_text(encoding="utf-8-sig")
+    )
+    columns_lists = [
+        keyword.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        for keyword in node.keywords
+        if keyword.arg == "columns"
+    ]
+    assert len(columns_lists) == 1
+    columns = ast.literal_eval(columns_lists[0])
+    assert isinstance(columns, list)
+    assert _dictionary_columns("parsers.md", "Population needs") == set(columns)
+    fieldnames = _schema_assignment(
+        "src/vic3_analysis/parse/buy_packages.py", "fieldnames"
+    )
+    columns = {
+        node.value
+        for node in ast.walk(fieldnames)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    columns.add("popneed_<need>")
+    assert _dictionary_columns("parsers.md", "Buy packages") == columns

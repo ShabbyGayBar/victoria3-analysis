@@ -9,6 +9,9 @@ The reference is generated from type annotations and docstrings in
 `src/vic3_analysis`. All package-level exports are documented exactly once and
 grouped by workflow.
 
+The [data dictionary](../data-dictionary/index.md) is the column reference for
+the tables returned by these APIs.
+
 <div class="grid cards" markdown>
 
 - [Parsing and utilities](parsing.md) — locate game data and construct tables.

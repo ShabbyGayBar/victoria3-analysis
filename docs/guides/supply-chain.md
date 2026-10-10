@@ -5,6 +5,9 @@ description: Analyze one nominal terminal-good chain or sweep all producible goo
 
 # Supply-chain analysis
 
+The [supply-chain data dictionary](../data-dictionary/supply-chain.md) defines
+every report column, its scope, units, formulas, and failure behavior.
+
 `SupplyChainAnalyzer` runs one nominal optimization for one terminal good and
 returns an immutable result. The scenario must contain exactly one positive
 production target, and that target must match `terminal_good`.

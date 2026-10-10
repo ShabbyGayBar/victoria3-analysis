@@ -7,6 +7,8 @@ description: Public parsers and utilities for Victoria 3 source data.
 
 Used throughout the [parsed-data showcase](../showcase/parsed-data.md).
 
+Column definitions are in the [parser data dictionary](../data-dictionary/parsers.md).
+
 ::: vic3_analysis.get_vic3_directory
 
 ::: vic3_analysis.localization

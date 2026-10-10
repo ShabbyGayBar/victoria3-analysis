@@ -5,6 +5,10 @@ description: Model Victoria 3 goods flows and solve constrained production scena
 
 # Economy and optimization
 
+See the [production-table dictionary](../data-dictionary/production.md) for
+input coefficients and the [economy-report dictionary](../data-dictionary/economy.md)
+for exported state columns, formulas, and units.
+
 ## Economy data and alignment
 
 An `Economy` wraps three DataFrames: production configurations, goods, and pop
