@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from typing import cast
 
 import numpy as np

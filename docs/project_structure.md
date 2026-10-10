@@ -20,10 +20,11 @@ purpose of each directory, and the key modules/files within them.
 - `mkdocs.yml` — MkDocs Material configuration. Builds the API reference from
   docstrings via `mkdocstrings` (Google style) and wires up the `usage/` and
   `api.md` nav. Watched paths include `src/vic3_analysis` for live reload.
-- `LICENSE` — MIT license for the repository's original source code and
-  original documentation.
+- `LICENSE` — GNU General Public License version 3 text for original project
+  material licensed under GPL-3.0-or-later.
 - `THIRD_PARTY_CONTENT.md` — License boundary, provenance, and attribution for
-  the Victoria 3-derived artifacts under `tables/` and `figures/`.
+  the Victoria 3-derived artifacts under `tables/` and `figures/`, and for the
+  separate `artifacts/` repository when checked out.
 - `README.md` — Project overview, features, and install instructions. Included
   verbatim on the docs home page via `docs/index.md`.
 - `.gitattribute` / `.gitignore` — Git metadata and ignore rules.

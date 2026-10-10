@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Acceptance tests for the nonlinear market-price optimizer."""
 
 from dataclasses import replace

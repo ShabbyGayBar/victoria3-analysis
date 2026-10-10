@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Tests for :func:`vic3_analysis.production_table`."""
 
 import warnings

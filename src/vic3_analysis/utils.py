@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
 Utility helpers for locating the Victoria 3 game installation and parsing
 Paradox script files.

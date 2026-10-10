@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """MkDocs hooks for generated artifact downloads and CSV previews."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent

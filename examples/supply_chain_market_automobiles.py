@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Optimize an automobiles export supply chain using endogenous prices."""
 
 import pandas as pd

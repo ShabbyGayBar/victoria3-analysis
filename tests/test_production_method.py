@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Tests for :class:`vic3_analysis.ProductionMethodParser`."""
 
 from vic3_analysis import ProductionMethodParser

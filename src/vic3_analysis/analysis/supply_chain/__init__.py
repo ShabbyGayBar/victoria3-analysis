@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Nominal, single-terminal supply-chain analysis."""
 
 from vic3_analysis.analysis.supply_chain.analyzer import SupplyChainAnalyzer

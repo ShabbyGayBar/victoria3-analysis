@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Shared compilation infrastructure for Victoria 3 optimizers."""
 
 from __future__ import annotations

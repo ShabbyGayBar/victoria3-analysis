@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Optimizers for Victoria 3 economy scenarios."""
 
 from vic3_analysis.optimize.base import BaseOptimizer, LinearProblem, MarketProblem

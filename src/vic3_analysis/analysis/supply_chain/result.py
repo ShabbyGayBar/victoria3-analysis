@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Immutable result objects for supply-chain analysis."""
 
 from __future__ import annotations

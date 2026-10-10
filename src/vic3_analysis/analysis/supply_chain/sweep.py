@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """All-goods supply-chain sweep orchestration."""
 
 from __future__ import annotations

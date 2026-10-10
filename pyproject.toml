@@ -14,7 +14,7 @@ dependencies = [
     "pyradox-txt-parser>=5.0.1",
     "scipy>=1.17.1",
 ]
-license = "MIT"
+license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*", "THIRD_PARTY_CONTENT.md"]
 
 [build-system]

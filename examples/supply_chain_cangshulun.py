@@ -1,3 +1,6 @@
+# Copyright (C) 2026 Brian Li
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Generate the cangshulun per-good supply-chain detail table."""
 
 from __future__ import annotations
