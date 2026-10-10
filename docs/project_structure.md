@@ -121,7 +121,7 @@ or expose a `pyradox.Tree` subclass with helper methods.
   construction, metrics, Matplotlib/Mermaid visualization, and sequential
   all-goods sweeps. `SupplyChainResult` exposes stable goods, process, flow,
   workforce, constraint, bottleneck, and alternative-producer tables while
-  retaining exact process-level coproduct attribution. `Economy.producible_goods()`
+  retaining exact process-level coproduct attribution. `Economy.producible_goods`
   lists goods with at least one producer configuration.
 
 ### `src/vic3_analysis/optimize/` — Optimisation

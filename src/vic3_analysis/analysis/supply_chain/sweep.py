@@ -13,10 +13,7 @@ import numpy as np
 import pandas as pd
 
 from vic3_analysis.analysis.economy import Economy
-from vic3_analysis.analysis.supply_chain.analyzer import (
-    SupplyChainAnalyzer,
-    _EconomySnapshot,
-)
+from vic3_analysis.analysis.supply_chain.analyzer import SupplyChainAnalyzer
 from vic3_analysis.analysis.supply_chain.result import (
     SUMMARY_FIELDS,
     SupplyChainResult,
@@ -25,59 +22,6 @@ from vic3_analysis.analysis.supply_chain.result import (
 from vic3_analysis.optimize.scenario import Scenario
 
 SWEEP_COLUMNS = ["good", "status", "error_type", "error_message", *SUMMARY_FIELDS]
-
-
-class _CachedSweepEconomy(Economy):
-    """Economy facade that reuses immutable indexes, vectors, and matrices."""
-
-    def __init__(self, source: Economy, snapshot: _EconomySnapshot) -> None:
-        self.df_production = source.df_production
-        self.df_goods = source.df_goods
-        self.df_pop_types = source.df_pop_types
-        self._snapshot = snapshot
-        self._input_matrix = source.goods_input_matrix()
-        self._output_matrix = source.goods_output_matrix()
-        self._base_prices = source.base_prices()
-
-    def building_index(self) -> list[str]:
-        return list(self._snapshot.config_index)
-
-    def goods_index(self) -> list[str]:
-        return list(self._snapshot.goods_index)
-
-    def pop_index(self) -> list[str]:
-        return list(self._snapshot.profession_index)
-
-    def base_prices(self) -> np.ndarray:
-        return self._base_prices.copy()
-
-    def goods_input_matrix(
-        self, throughput_multipliers: np.ndarray | None = None
-    ) -> np.ndarray:
-        if throughput_multipliers is None:
-            return self._input_matrix.copy()
-        self._validate_throughput_multipliers(throughput_multipliers)
-        return self._input_matrix * throughput_multipliers[:, None]
-
-    def goods_output_matrix(
-        self, throughput_multipliers: np.ndarray | None = None
-    ) -> np.ndarray:
-        if throughput_multipliers is None:
-            return self._output_matrix.copy()
-        self._validate_throughput_multipliers(throughput_multipliers)
-        return self._output_matrix * throughput_multipliers[:, None]
-
-    def employment_matrix(self) -> np.ndarray:
-        return self._snapshot.employment_matrix.copy()
-
-    def employment_vector(self) -> np.ndarray:
-        return self._snapshot.employment_vector.copy()
-
-    def construction_cost_vector(self) -> np.ndarray:
-        return self._snapshot.construction_cost_vector.copy()
-
-    def arable_land_vector(self) -> np.ndarray:
-        return self._snapshot.arable_land_vector.copy()
 
 
 def sweep_supply_chains(
@@ -104,17 +48,15 @@ def sweep_supply_chains(
         )
     if not np.isfinite(target_value) or target_value <= 0:
         raise ValueError("target_value must be a positive finite number.")
-    selected_goods = list(economy.producible_goods()) if goods is None else list(goods)
+    selected_goods = list(economy.producible_goods) if goods is None else list(goods)
     if len(selected_goods) != len(set(selected_goods)):
         raise ValueError("goods must not contain duplicates.")
-    goods_index = economy.goods_index()
+    goods_index = economy.goods_index
     unknown = [good for good in selected_goods if good not in goods_index]
     if unknown:
         raise ValueError(f"Goods not found in goods index: {unknown}")
 
-    snapshot = _EconomySnapshot.from_economy(economy)
-    cached_economy = _CachedSweepEconomy(economy, snapshot)
-    prices = dict(zip(goods_index, cached_economy.base_prices()))
+    prices = dict(zip(goods_index, economy.base_prices))
     rows: list[dict[str, object]] = []
     retained: dict[str, SupplyChainResult] = {}
     for good in selected_goods:
@@ -134,11 +76,10 @@ def sweep_supply_chains(
         )
         try:
             result = SupplyChainAnalyzer(
-                cached_economy,
+                economy,
                 scenario,
                 good,
                 tolerance=tolerance,
-                _snapshot=snapshot,
             ).run()
             row: dict[str, object] = {
                 str(key): value for key, value in result.summary().items()

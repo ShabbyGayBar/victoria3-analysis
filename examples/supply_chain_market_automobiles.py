@@ -49,7 +49,7 @@ def main() -> EconomyState:
     )
     state = MarketOptimizer(economy).solve(scenario)
 
-    goods_index = economy.goods_index()
+    goods_index = economy.goods_index
     annual_gdp = state.gdp(annual=True)
     employment = state.total_population
     construction_cost = economy.construction_cost(state)
@@ -59,7 +59,7 @@ def main() -> EconomyState:
         "objective": scenario.objective,
         "ban_config": "default",
         "production": AUTOMOBILE_EXPORTS,
-        "base_price": economy.base_prices()[goods_index.index("automobiles")],
+        "base_price": economy.base_prices[goods_index.index("automobiles")],
         "annual_gdp": annual_gdp,
         "employment": employment,
         "gdp_per_capita": state.gdp_per_capita(annual=True),

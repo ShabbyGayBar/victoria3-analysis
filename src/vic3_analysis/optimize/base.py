@@ -222,7 +222,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         pop_needs = self._goods_context_vector(scenario.pop_needs, "pop_needs")
         A_ub, b_ub, inequality_slices = self._compile_inequalities(scenario, net_matrix)
         A_eq, b_eq, equality_slices = self._compile_equalities(scenario)
-        n_buildings = len(self.model.building_index())
+        n_buildings = len(self.model.building_index)
         return _CompilationData(
             economy=self.model,
             scenario=scenario,
@@ -230,7 +230,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             input_matrix=input_matrix,
             output_matrix=output_matrix,
             net_matrix=net_matrix,
-            gdp_vector=net_matrix @ self.model.base_prices(),
+            gdp_vector=net_matrix @ self.model.base_prices,
             imports=imports,
             exports=exports,
             pop_needs=pop_needs,
@@ -292,7 +292,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         self, entries: tuple[tuple[str, float], ...], name: str
     ) -> np.ndarray:
         """Translate named fixed market context into a goods-aligned vector."""
-        positions = {good: i for i, good in enumerate(self.model.goods_index())}
+        positions = {good: i for i, good in enumerate(self.model.goods_index)}
         vector = np.zeros(len(positions), dtype=np.float64)
         for entry in entries:
             if not isinstance(entry, tuple) or len(entry) != 2:
@@ -345,7 +345,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             blocks.append(
                 (
                     "construction_cost_cap",
-                    self.model.construction_cost_vector(),
+                    self.model.construction_cost_vector,
                     np.array([scenario.construction_cost_cap], dtype=np.float64),
                 )
             )
@@ -353,12 +353,12 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             blocks.append(
                 (
                     "employment_cap",
-                    self.model.employment_vector(),
+                    self.model.employment_vector,
                     np.array([scenario.employment_cap], dtype=np.float64),
                 )
             )
         if scenario.produce:
-            positions = {good: i for i, good in enumerate(self.model.goods_index())}
+            positions = {good: i for i, good in enumerate(self.model.goods_index)}
             rows: list[np.ndarray] = []
             amounts: list[float] = []
             for good, amount in scenario.produce:
@@ -393,7 +393,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             blocks.append(
                 (
                     "arable_land_cap",
-                    self.model.arable_land_vector(),
+                    self.model.arable_land_vector,
                     np.array([scenario.arable_land_cap], dtype=np.float64),
                 )
             )

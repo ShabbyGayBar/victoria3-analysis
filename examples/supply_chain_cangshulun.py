@@ -148,7 +148,7 @@ def main() -> pd.DataFrame:
     frames = [base]
 
     for variant in _VARIANTS:
-        if variant.good not in economy.goods_index():
+        if variant.good not in economy.goods_index:
             continue
         frame = sweep_supply_chains(
             economy,

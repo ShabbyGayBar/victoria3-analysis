@@ -1,6 +1,7 @@
 # Copyright (C) 2026 Brian Li
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from dataclasses import FrozenInstanceError
 from typing import cast
 
 import numpy as np
@@ -8,6 +9,184 @@ import pandas as pd
 import pytest
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
+
+
+@pytest.fixture
+def coefficient_economy() -> Economy:
+    """Small model with ordered flows, missing professions, and nullable metadata."""
+    return Economy(
+        df_production=pd.DataFrame(
+            {
+                "building": ["mine", "factory"],
+                "production_method": ["pm_mine", "pm_factory"],
+                "building_group": ["bg_mining", "bg_agriculture"],
+                "parent_group": ["bg_extraction", None],
+                "is_subsistence": pd.Series([False, pd.NA], dtype="boolean"),
+                "era": [1, 1],
+                "goods_ore": [5.0, -3.0],
+                "goods_tools": [-2.0, 4.0],
+                "employment": [10.0, 20.0],
+                "employment_laborers": [10.0, 20.0],
+                "construction_cost": [8.0, 12.0],
+                "infrastructure_usage_per_level": [2.0, np.nan],
+            }
+        ),
+        df_goods=pd.DataFrame({"key": ["ore", "tools"], "cost": [10.0, 20.0]}),
+        df_pop_types=pd.DataFrame(
+            {"key": ["laborers", "engineers"], "start_quality_of_life": [5.0, 10.0]}
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("building_index", ("mine+pm_mine", "factory+pm_factory")),
+        ("goods_index", ("ore", "tools")),
+        ("pop_index", ("laborers", "engineers")),
+        ("producible_goods", ("ore", "tools")),
+    ],
+)
+def test_cached_indexes_are_ordered_tuples(
+    coefficient_economy: Economy, name: str, expected: tuple[str, ...]
+):
+    index = getattr(coefficient_economy, name)
+    assert isinstance(index, tuple)
+    assert index == expected
+    assert index is getattr(coefficient_economy, name)
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("goods_input_matrix_unscaled", [[0.0, 2.0], [3.0, 0.0]]),
+        ("goods_output_matrix_unscaled", [[5.0, 0.0], [0.0, 4.0]]),
+        ("base_prices", [10.0, 20.0]),
+        ("employment_matrix", [[10.0, 0.0], [20.0, 0.0]]),
+        ("employment_vector", [10.0, 20.0]),
+        ("pop_wealth_init", [5.0, 10.0]),
+        ("construction_cost_vector", [8.0, 12.0]),
+        ("arable_land_vector", [0.0, 1.0]),
+        ("infrastructure_vector", [2.0, 0.0]),
+    ],
+)
+def test_cached_coefficients_are_owned_readonly_arrays(
+    coefficient_economy: Economy, name: str, expected: list[float] | list[list[float]]
+):
+    array = getattr(coefficient_economy, name)
+    assert isinstance(array, np.ndarray)
+    assert array is getattr(coefficient_economy, name)
+    assert array.dtype == np.float64
+    assert array.flags.owndata
+    assert not array.flags.writeable
+    np.testing.assert_array_equal(array, expected)
+    with pytest.raises(ValueError, match="read-only"):
+        array.flat[0] = 999.0
+
+
+@pytest.mark.parametrize(
+    "name", ["df_production", "df_goods", "df_pop_types", "base_prices"]
+)
+def test_economy_fields_and_cached_properties_are_frozen(
+    coefficient_economy: Economy, name: str
+):
+    value = getattr(coefficient_economy, name)
+    with pytest.raises(FrozenInstanceError):
+        setattr(coefficient_economy, name, value)
+
+
+def test_economy_copies_inputs_before_caching(coefficient_economy: Economy):
+    source_production = coefficient_economy.df_production.copy(deep=True)
+    source_goods = coefficient_economy.df_goods.copy(deep=True)
+    source_pops = coefficient_economy.df_pop_types.copy(deep=True)
+    model = Economy(
+        df_production=source_production,
+        df_goods=source_goods,
+        df_pop_types=source_pops,
+    )
+    source_production.loc[0, "goods_ore"] = 999.0
+    source_goods.loc[0, "cost"] = 999.0
+    source_pops.loc[0, "start_quality_of_life"] = 999.0
+    np.testing.assert_array_equal(
+        model.goods_output_matrix_unscaled,
+        coefficient_economy.goods_output_matrix_unscaled,
+    )
+    np.testing.assert_array_equal(model.base_prices, coefficient_economy.base_prices)
+    np.testing.assert_array_equal(
+        model.pop_wealth_init, coefficient_economy.pop_wealth_init
+    )
+    for actual, original in (
+        (model.df_production, coefficient_economy.df_production),
+        (model.df_goods, coefficient_economy.df_goods),
+        (model.df_pop_types, coefficient_economy.df_pop_types),
+    ):
+        pd.testing.assert_frame_equal(actual, original)
+    assert model != coefficient_economy
+    assert {model: "model", coefficient_economy: "source"}[model] == "model"
+
+
+@pytest.mark.parametrize("method_name", ["goods_input_matrix", "goods_output_matrix"])
+def test_goods_matrix_copies_and_scaling_preserve_cache(
+    coefficient_economy: Economy, method_name: str
+):
+    base = getattr(coefficient_economy, f"{method_name}_unscaled")
+    original = base.copy()
+    method = getattr(coefficient_economy, method_name)
+    for multipliers in (None, np.array([2.0, 3.0]), np.array([0.5, 1.0])):
+        result = method(multipliers)
+        expected = original if multipliers is None else original * multipliers[:, None]
+        np.testing.assert_array_equal(result, expected)
+        assert result.flags.writeable
+        assert not np.shares_memory(result, base)
+        result[:] = 999.0
+        np.testing.assert_array_equal(base, original)
+        assert base is getattr(coefficient_economy, f"{method_name}_unscaled")
+
+
+def test_missing_infrastructure_and_land_columns_default_to_zero(
+    coefficient_economy: Economy,
+):
+    model = Economy(
+        df_production=coefficient_economy.df_production.drop(
+            columns=["infrastructure_usage_per_level", "building_group"]
+        ),
+        df_goods=coefficient_economy.df_goods,
+        df_pop_types=coefficient_economy.df_pop_types,
+    )
+    np.testing.assert_array_equal(model.infrastructure_vector, [0.0, 0.0])
+    assert not model.infrastructure_vector.flags.writeable
+    np.testing.assert_array_equal(model.arable_land_vector, [0.0, 0.0])
+    assert not model.arable_land_vector.flags.writeable
+
+
+def test_missing_goods_columns_warn_and_cache_zero_flows(coefficient_economy: Economy):
+    with pytest.warns(UserWarning, match="Missing goods input columns.*goods_tools"):
+        model = Economy(
+            df_production=coefficient_economy.df_production.drop(columns="goods_tools"),
+            df_goods=coefficient_economy.df_goods,
+            df_pop_types=coefficient_economy.df_pop_types,
+        )
+    np.testing.assert_array_equal(
+        model.goods_input_matrix_unscaled, [[0.0, 0.0], [3.0, 0.0]]
+    )
+    np.testing.assert_array_equal(
+        model.goods_output_matrix_unscaled, [[5.0, 0.0], [0.0, 0.0]]
+    )
+    assert model.producible_goods == ("ore",)
+
+
+def test_normalized_production_metadata_is_cached_without_changing_source(
+    coefficient_economy: Economy,
+):
+    original = coefficient_economy.df_production.copy(deep=True)
+    metadata = coefficient_economy._supply_chain_production
+    assert metadata is coefficient_economy._supply_chain_production
+    assert metadata is not coefficient_economy.df_production
+    assert metadata["parent_group"].tolist() == ["bg_extraction", ""]
+    assert metadata["land_usage"].tolist() == ["", ""]
+    for column in ("is_subsistence", "discoverable_resource", "depletable_resource"):
+        assert metadata[column].tolist() == [False, False]
+    pd.testing.assert_frame_equal(coefficient_economy.df_production, original)
 
 
 def _make_state(
@@ -52,7 +231,7 @@ def economy() -> Economy:
 def _first_producing_levels(economy: Economy) -> np.ndarray:
     out = economy.goods_output_matrix()
     idx = int(np.argmax(out.sum(axis=1) > 0))
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     levels[idx] = 1.0
     return levels
 
@@ -125,9 +304,11 @@ def test_init_with_explicit_dataframes(economy):
         df_goods=economy.df_goods,
         df_pop_types=economy.df_pop_types,
     )
-    assert eco2.df_production is economy.df_production
-    assert eco2.df_goods is economy.df_goods
-    assert eco2.df_pop_types is economy.df_pop_types
+    for name in ("df_production", "df_goods", "df_pop_types"):
+        actual = getattr(eco2, name)
+        original = getattr(economy, name)
+        assert actual is not original
+        pd.testing.assert_frame_equal(actual, original)
 
 
 def test_explicit_dataframes_are_authoritative_with_language(economy):
@@ -137,9 +318,11 @@ def test_explicit_dataframes_are_authoritative_with_language(economy):
         df_pop_types=economy.df_pop_types,
         language="english",
     )
-    assert eco2.df_production is economy.df_production
-    assert eco2.df_goods is economy.df_goods
-    assert eco2.df_pop_types is economy.df_pop_types
+    for name in ("df_production", "df_goods", "df_pop_types"):
+        actual = getattr(eco2, name)
+        original = getattr(economy, name)
+        assert actual is not original
+        pd.testing.assert_frame_equal(actual, original)
 
 
 def test_language_localizes_internally_parsed_tables():
@@ -153,19 +336,19 @@ def test_language_localizes_internally_parsed_tables():
 
 
 def test_indices_consistent(economy):
-    buildings = economy.building_index()
-    goods_idx = economy.goods_index()
-    pops = economy.pop_index()
+    buildings = economy.building_index
+    goods_idx = economy.goods_index
+    pops = economy.pop_index
     assert len(buildings) == len(economy.df_production)
     assert len(goods_idx) == len(economy.df_goods)
     assert len(pops) == len(economy.df_pop_types)
     assert all("+" in b for b in buildings)
-    assert goods_idx == economy.df_goods["key"].tolist()
-    assert pops == economy.df_pop_types["key"].tolist()
+    assert goods_idx == tuple(economy.df_goods["key"].tolist())
+    assert pops == tuple(economy.df_pop_types["key"].tolist())
 
 
 def test_base_prices(economy):
-    prices = economy.base_prices()
+    prices = economy.base_prices
     assert prices.shape == (len(economy.df_goods),)
     assert prices.dtype == np.float64
     np.testing.assert_array_equal(
@@ -174,8 +357,8 @@ def test_base_prices(economy):
 
 
 def test_market_prices_balanced_and_empty(economy: Economy):
-    n_goods = len(economy.goods_index())
-    base_prices = economy.base_prices()
+    n_goods = len(economy.goods_index)
+    base_prices = economy.base_prices
     zeros = np.zeros(n_goods, dtype=np.float64)
     balanced = np.full(n_goods, 10.0, dtype=np.float64)
 
@@ -186,15 +369,15 @@ def test_market_prices_balanced_and_empty(economy: Economy):
 
 
 def test_market_prices_documented_wood_example(economy: Economy):
-    wood = economy.goods_index().index("wood")
-    buy_orders = np.zeros(len(economy.goods_index()), dtype=np.float64)
-    sell_orders = np.zeros(len(economy.goods_index()), dtype=np.float64)
+    wood = economy.goods_index.index("wood")
+    buy_orders = np.zeros(len(economy.goods_index), dtype=np.float64)
+    sell_orders = np.zeros(len(economy.goods_index), dtype=np.float64)
     buy_orders[wood] = 100.0
     sell_orders[wood] = 120.0
 
     prices = economy.market_prices(buy_orders, sell_orders)
 
-    assert prices[wood] == pytest.approx(economy.base_prices()[wood] * 0.85)
+    assert prices[wood] == pytest.approx(economy.base_prices[wood] * 0.85)
     assert prices[wood] == pytest.approx(17.0)
 
 
@@ -211,14 +394,14 @@ def test_market_prices_caps_and_clamping(
     economy: Economy, buy_orders: float, sell_orders: float, factor: float
 ):
     good = 0
-    buy_vector = np.zeros(len(economy.goods_index()), dtype=np.float64)
-    sell_vector = np.zeros(len(economy.goods_index()), dtype=np.float64)
+    buy_vector = np.zeros(len(economy.goods_index), dtype=np.float64)
+    sell_vector = np.zeros(len(economy.goods_index), dtype=np.float64)
     buy_vector[good] = buy_orders
     sell_vector[good] = sell_orders
 
     prices = economy.market_prices(buy_vector, sell_vector)
 
-    assert prices[good] == pytest.approx(economy.base_prices()[good] * factor)
+    assert prices[good] == pytest.approx(economy.base_prices[good] * factor)
 
 
 @pytest.mark.parametrize("invalid_argument", ["buy_orders", "sell_orders"])
@@ -229,7 +412,7 @@ def test_market_prices_caps_and_clamping(
 def test_market_prices_rejects_invalid_orders(
     economy: Economy, invalid_argument: str, invalid_kind: str
 ):
-    n_goods = len(economy.goods_index())
+    n_goods = len(economy.goods_index)
     valid = np.zeros(n_goods, dtype=np.float64)
     if invalid_kind == "non_1d":
         invalid_value = np.zeros((n_goods, 1), dtype=np.float64)
@@ -268,7 +451,7 @@ def test_goods_output_matrix(economy):
 
 
 def test_goods_matrices_with_throughput_multipliers(economy):
-    multipliers = np.full(len(economy.building_index()), 2.0, dtype=np.float64)
+    multipliers = np.full(len(economy.building_index), 2.0, dtype=np.float64)
     np.testing.assert_allclose(
         economy.goods_input_matrix(multipliers),
         economy.goods_input_matrix() * multipliers[:, None],
@@ -285,19 +468,19 @@ def test_goods_matrices_reject_misaligned_throughput_multipliers(
 ):
     method = getattr(economy, matrix_method)
     with pytest.raises(ValueError, match="throughput_multipliers must be a 1-D"):
-        method(np.ones((len(economy.building_index()), 1), dtype=np.float64))
+        method(np.ones((len(economy.building_index), 1), dtype=np.float64))
     with pytest.raises(ValueError, match="throughput_multipliers length"):
-        method(np.ones(len(economy.building_index()) + 1, dtype=np.float64))
+        method(np.ones(len(economy.building_index) + 1, dtype=np.float64))
 
 
 def test_employment_matrix(economy):
-    mat = economy.employment_matrix()
+    mat = economy.employment_matrix
     assert mat.shape == (len(economy.df_production), len(economy.df_pop_types))
     assert mat.dtype == np.float64
 
 
 def test_pop_wealth_init(economy):
-    w = economy.pop_wealth_init()
+    w = economy.pop_wealth_init
     assert w.shape == (len(economy.df_pop_types),)
     assert w.dtype == np.float64
     np.testing.assert_array_equal(
@@ -306,7 +489,7 @@ def test_pop_wealth_init(economy):
 
 
 def test_construction_cost_vector(economy):
-    cc = economy.construction_cost_vector()
+    cc = economy.construction_cost_vector
     assert cc.shape == (len(economy.df_production),)
     assert cc.dtype == np.float64
     np.testing.assert_array_equal(
@@ -315,51 +498,51 @@ def test_construction_cost_vector(economy):
 
 
 def test_employment_vector(economy):
-    emp = economy.employment_vector()
+    emp = economy.employment_vector
     assert emp.shape == (len(economy.df_production),)
     assert emp.dtype == np.float64
     expected = economy.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
     np.testing.assert_array_equal(emp, expected)
     # equals the row sums of the employment matrix.
-    np.testing.assert_allclose(emp, economy.employment_matrix().sum(axis=1))
+    np.testing.assert_allclose(emp, economy.employment_matrix.sum(axis=1))
 
 
 def test_solve_invalid_method(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     with pytest.raises(ValueError, match="Invalid method"):
         economy.solve(levels, method="bogus")
 
 
 def test_solve_non_1d(economy):
-    levels = np.zeros((len(economy.building_index()), 1), dtype=np.float64)
+    levels = np.zeros((len(economy.building_index), 1), dtype=np.float64)
     with pytest.raises(ValueError, match="1-D"):
         economy.solve(levels)
 
 
 def test_solve_wrong_length(economy):
-    levels = np.zeros(len(economy.building_index()) + 1, dtype=np.float64)
+    levels = np.zeros(len(economy.building_index) + 1, dtype=np.float64)
     with pytest.raises(ValueError, match="length must match"):
         economy.solve(levels)
 
 
 def test_solve_imports_wrong_length(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
-    bad_imports = np.zeros(len(economy.goods_index()) + 1, dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
+    bad_imports = np.zeros(len(economy.goods_index) + 1, dtype=np.float64)
     with pytest.raises(ValueError, match="imports length"):
         economy.solve(levels, imports=bad_imports)
 
 
 def test_solve_exports_wrong_length(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
-    bad_exports = np.zeros(len(economy.goods_index()) + 1, dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
+    bad_exports = np.zeros(len(economy.goods_index) + 1, dtype=np.float64)
     with pytest.raises(ValueError, match="exports length"):
         economy.solve(levels, exports=bad_exports)
 
 
 def test_solve_nominal(economy):
-    n_b = len(economy.building_index())
-    n_g = len(economy.goods_index())
-    n_p = len(economy.pop_index())
+    n_b = len(economy.building_index)
+    n_g = len(economy.goods_index)
+    n_p = len(economy.pop_index)
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
     assert isinstance(state, EconomyState)
@@ -373,10 +556,10 @@ def test_solve_nominal(economy):
     assert state.pop_needs.shape == (n_g,)
     assert state.imports.shape == (n_g,)
     assert state.exports.shape == (n_g,)
-    np.testing.assert_array_equal(state.market_prices, economy.base_prices())
+    np.testing.assert_array_equal(state.market_prices, economy.base_prices)
     np.testing.assert_allclose(
         state.pop_wealth,
-        np.broadcast_to(economy.pop_wealth_init(), (n_b, n_p)),
+        np.broadcast_to(economy.pop_wealth_init, (n_b, n_p)),
     )
     assert np.all(state.imports == 0)
     assert np.all(state.exports == 0)
@@ -389,38 +572,36 @@ def test_solve_nominal(economy):
         state.building_goods_output,
         levels @ economy.goods_output_matrix(),
     )
-    np.testing.assert_allclose(
-        state.pops, levels[:, None] * economy.employment_matrix()
-    )
+    np.testing.assert_allclose(state.pops, levels[:, None] * economy.employment_matrix)
 
 
 def test_solve_nominal_pop_needs_and_default(economy: Economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
-    needs = np.arange(len(economy.goods_index()), dtype=np.float64) + 1.0
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
+    needs = np.arange(len(economy.goods_index), dtype=np.float64) + 1.0
 
     default_state = economy.solve(levels)
     explicit_zero_state = economy.solve(
-        levels, pop_needs=np.zeros(len(economy.goods_index()), dtype=np.float64)
+        levels, pop_needs=np.zeros(len(economy.goods_index), dtype=np.float64)
     )
     supplied_state = economy.solve(levels, pop_needs=needs)
 
     np.testing.assert_array_equal(
         default_state.pop_needs, explicit_zero_state.pop_needs
     )
-    np.testing.assert_array_equal(default_state.market_prices, economy.base_prices())
+    np.testing.assert_array_equal(default_state.market_prices, economy.base_prices)
     np.testing.assert_array_equal(supplied_state.pop_needs, needs)
     np.testing.assert_allclose(
         supplied_state.buy_orders,
         supplied_state.building_goods_input + supplied_state.exports + needs,
     )
-    np.testing.assert_array_equal(supplied_state.market_prices, economy.base_prices())
+    np.testing.assert_array_equal(supplied_state.market_prices, economy.base_prices)
 
 
 @pytest.mark.parametrize(
     "invalid_kind", ["non_1d", "wrong_length", "negative", "nan", "inf"]
 )
 def test_solve_rejects_invalid_pop_needs(economy: Economy, invalid_kind: str):
-    n_goods = len(economy.goods_index())
+    n_goods = len(economy.goods_index)
     pop_needs = np.zeros(n_goods, dtype=np.float64)
     if invalid_kind == "non_1d":
         pop_needs = np.zeros((n_goods, 1), dtype=np.float64)
@@ -432,7 +613,7 @@ def test_solve_rejects_invalid_pop_needs(economy: Economy, invalid_kind: str):
         pop_needs[0] = np.nan
     else:
         pop_needs[0] = np.inf
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
 
     with pytest.raises(ValueError, match="pop_needs"):
         economy.solve(
@@ -442,8 +623,8 @@ def test_solve_rejects_invalid_pop_needs(economy: Economy, invalid_kind: str):
 
 
 def test_solve_with_imports_exports(economy):
-    n_g = len(economy.goods_index())
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    n_g = len(economy.goods_index)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     imports = np.full(n_g, 5.0, dtype=np.float64)
     exports = np.full(n_g, 3.0, dtype=np.float64)
     state = economy.solve(levels, imports=imports, exports=exports)
@@ -455,7 +636,7 @@ def test_solve_with_imports_exports(economy):
 
 def test_solve_with_throughput_multipliers(economy):
     levels = _first_producing_levels(economy)
-    multipliers = np.full(len(economy.building_index()), 2.0, dtype=np.float64)
+    multipliers = np.full(len(economy.building_index), 2.0, dtype=np.float64)
     state = economy.solve(levels, throughput_multipliers=multipliers)
     np.testing.assert_allclose(
         state.building_goods_input,
@@ -499,7 +680,7 @@ def test_economy_of_scale_bonuses_aggregate_configs_and_cap(
 def test_economy_of_scale_bonuses_reject_invalid_cap(
     economy: Economy, level_cap: float
 ) -> None:
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     with pytest.raises(ValueError, match="level_cap"):
         economy.economy_of_scale_bonuses(levels, level_cap=level_cap)
 
@@ -509,7 +690,7 @@ def test_economy_of_scale_bonuses_reject_misaligned_levels(
 ) -> None:
     with pytest.raises(ValueError, match="building_levels shape"):
         economy.economy_of_scale_bonuses(
-            np.zeros(len(economy.building_index()) + 1, dtype=np.float64)
+            np.zeros(len(economy.building_index) + 1, dtype=np.float64)
         )
 
 
@@ -536,7 +717,7 @@ def test_economy_of_scale_missing_column_and_disabled(economy: Economy) -> None:
 def test_solve_with_raised_economy_of_scale_cap(economy: Economy) -> None:
     eligible = economy.df_production["economy_of_scale"].to_numpy(dtype=bool)
     position = int(np.flatnonzero(eligible)[0])
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     levels[position] = 25.0
 
     state = economy.solve(levels, economy_of_scale_level_cap=30.0)
@@ -552,8 +733,8 @@ def test_solve_with_raised_economy_of_scale_cap(economy: Economy) -> None:
 
 
 def test_solve_market_reuses_flows_and_changes_only_prices(economy: Economy):
-    n_b = len(economy.building_index())
-    n_g = len(economy.goods_index())
+    n_b = len(economy.building_index)
+    n_g = len(economy.goods_index)
     levels = _first_producing_levels(economy)
     imports = np.full(n_g, 0.5, dtype=np.float64)
     exports = np.full(n_g, 0.25, dtype=np.float64)
@@ -596,15 +777,15 @@ def test_solve_market_reuses_flows_and_changes_only_prices(economy: Economy):
 
 
 def test_solve_market_rejects_invalid_derived_orders(economy: Economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
-    invalid_imports = np.full(len(economy.goods_index()), -1.0, dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
+    invalid_imports = np.full(len(economy.goods_index), -1.0, dtype=np.float64)
 
     with pytest.raises(ValueError):
         economy.solve(levels, method="market", imports=invalid_imports)
 
 
 def test_solve_rejects_misaligned_throughput_multipliers(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     with pytest.raises(ValueError, match="throughput_multipliers must be a 1-D"):
         economy.solve(
             levels,
@@ -618,11 +799,11 @@ def test_solve_rejects_misaligned_throughput_multipliers(economy):
 
 
 def test_construction_cost(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     levels[0] = 2.0
     levels[1] = 1.0
     state = economy.solve(levels)
-    expected = float(np.dot(levels, economy.construction_cost_vector()))
+    expected = float(np.dot(levels, economy.construction_cost_vector))
     assert economy.construction_cost(state) == pytest.approx(expected)
 
 
@@ -652,7 +833,7 @@ def test_arable_land_consumption(economy: Economy):
 
     assert consumption == pytest.approx(float(len(arable_land_groups) + 2))
     np.testing.assert_array_equal(
-        economy.arable_land_vector(),
+        economy.arable_land_vector,
         groups.isin(tuple(arable_land_groups)).to_numpy(dtype=np.float64),
     )
 
@@ -688,13 +869,13 @@ def test_market_prices_variance(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
     var = economy.market_prices_variance(state)
-    assert var.shape == (len(economy.goods_index()),)
-    expected = (state.market_prices / economy.base_prices() - 1) * 100
+    assert var.shape == (len(economy.goods_index),)
+    expected = (state.market_prices / economy.base_prices - 1) * 100
     np.testing.assert_allclose(var, expected)
 
 
 def test_df_buildings(economy):
-    levels = np.zeros(len(economy.building_index()), dtype=np.float64)
+    levels = np.zeros(len(economy.building_index), dtype=np.float64)
     levels[0] = 3.0
     levels[1] = 1.0
     state = economy.solve(levels)
@@ -705,9 +886,9 @@ def test_df_buildings(economy):
     assert df["level"].is_monotonic_decreasing
     expected = pd.DataFrame(
         {
-            "key": economy.building_index(),
+            "key": economy.building_index,
             "level": levels,
-            "construction_cost": economy.construction_cost_vector() * levels,
+            "construction_cost": economy.construction_cost_vector * levels,
         }
     )
     expected = expected[expected["level"] > 0]
@@ -859,5 +1040,5 @@ def test_df_pop(economy):
     assert df["employment"].is_monotonic_decreasing
     assert len(df) <= len(economy.df_pop_types)
     assert df["employment_share"].sum() == pytest.approx(1.0)
-    assert set(df["profession"]) <= set(economy.pop_index())
+    assert set(df["profession"]) <= set(economy.pop_index)
     assert np.allclose(df["avg_wealth"], df["total_wealth"] / df["employment"])

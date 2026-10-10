@@ -21,7 +21,7 @@ NORMALIZED_VALUE = 100000.0
 economy = Economy(
     df_production=df_production_table, df_goods=df_goods, df_pop_types=df_pop_types
 )
-producible = economy.producible_goods()
+producible = economy.producible_goods
 print(
     f"Sweeping {len(producible)} producible goods across 4 configurations "
     f"(normalized value = {NORMALIZED_VALUE})\n"

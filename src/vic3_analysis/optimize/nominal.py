@@ -25,11 +25,11 @@ class NominalOptimizer(BaseOptimizer[LinearProblem]):
         if scenario.objective == "gdp":
             objective = -data.gdp_vector
         elif scenario.objective == "employment":
-            objective = -self.model.employment_vector()
+            objective = -self.model.employment_vector
         elif scenario.objective == "automation":
-            objective = self.model.employment_vector()
+            objective = self.model.employment_vector
         elif scenario.objective == "construction_cost":
-            objective = self.model.construction_cost_vector()
+            objective = self.model.construction_cost_vector
         else:
             raise ValueError(f"Unknown objective: {scenario.objective!r}")
         problem = self._linear_problem(data, objective)

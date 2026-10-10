@@ -84,9 +84,9 @@ def test_common_context_and_cumulative_bonuses(economy: Economy):
         problem.net_matrix, problem.output_matrix - problem.input_matrix
     )
     np.testing.assert_allclose(
-        problem.gdp_vector, problem.net_matrix @ economy.base_prices()
+        problem.gdp_vector, problem.net_matrix @ economy.base_prices
     )
-    goods = economy.goods_index()
+    goods = economy.goods_index
     assert problem.imports[goods.index("tools")] == pytest.approx(5.0)
     assert problem.exports[goods.index("coal")] == pytest.approx(4.0)
     assert problem.pop_needs[goods.index("grain")] == pytest.approx(5.0)
@@ -199,7 +199,7 @@ def test_equality_compilation_and_named_slices(economy: Economy):
         "urbanization_per_center",
     )
     np.testing.assert_array_equal(problem.b_eq, np.zeros(4))
-    assert problem.A_eq.shape == (4, len(economy.building_index()))
+    assert problem.A_eq.shape == (4, len(economy.building_index))
 
 
 def test_empty_constraint_compilation(economy: Economy):

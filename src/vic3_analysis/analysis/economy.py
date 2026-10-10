@@ -11,7 +11,7 @@ prices and per-profession wealth from the pop-types table.
 """
 
 import warnings
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path
 
@@ -35,6 +35,22 @@ _ARABLE_LAND_BUILDING_GROUPS: frozenset[str] = frozenset(
         "bg_subsistence_ranching",
     }
 )
+
+_METADATA_DEFAULTS: dict[str, str | bool] = {
+    "building_group": "",
+    "parent_group": "",
+    "land_usage": "",
+    "is_subsistence": False,
+    "discoverable_resource": False,
+    "depletable_resource": False,
+}
+
+
+def _readonly_coefficients(value: np.ndarray) -> np.ndarray:
+    """Return owned, read-only float64 coefficients without freezing table data."""
+    result = np.array(value, dtype=np.float64, copy=True)
+    result.setflags(write=False)
+    return result
 
 
 def _weighted_percentile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
@@ -303,13 +319,19 @@ class EconomyState:
         return float(1.0 - 2.0 * area)
 
 
+@dataclass(frozen=True, eq=False, init=False)
 class Economy:
     """Builds `EconomyState` instances from building-level vectors.
 
     Wraps the production table, goods table, and pop-types table parsed from
-    the Victoria 3 game files and pre-computes the matrices needed to derive
+    the Victoria 3 game files and lazily caches the coefficients needed to derive
     prices, supply, demand, employment, and wealth for a given
     ``building_levels`` vector.
+
+    Input tables are defensively copied. Public DataFrames remain mutable,
+    but editing them is unsupported because cached coefficients are not
+    invalidated. Construct a new `Economy` when model data changes. Cached
+    indexes are tuples and cached arrays are owned, read-only float64 data.
 
     Attributes:
         df_production: The production table DataFrame.
@@ -317,9 +339,9 @@ class Economy:
         df_pop_types: The pop-types table DataFrame.
     """
 
-    df_production: pd.DataFrame
-    df_goods: pd.DataFrame
-    df_pop_types: pd.DataFrame
+    df_production: pd.DataFrame = field(repr=False)
+    df_goods: pd.DataFrame = field(repr=False)
+    df_pop_types: pd.DataFrame = field(repr=False)
 
     def __init__(
         self,
@@ -363,60 +385,65 @@ class Economy:
                 technology(game_dir, language=language),
                 df_pop_types,
             )
-        self.df_production = df_production
-        self.df_goods = df_goods
-        self.df_pop_types = df_pop_types
-        goods_columns = [f"goods_{good}" for good in self.goods_index()]
+        object.__setattr__(self, "df_production", df_production.copy(deep=True))
+        object.__setattr__(self, "df_goods", df_goods.copy(deep=True))
+        object.__setattr__(self, "df_pop_types", df_pop_types.copy(deep=True))
+        goods_columns = [f"goods_{good}" for good in self.goods_index]
 
         missing = set(goods_columns) - set(self.df_production.columns)
         if missing:
             warnings.warn(f"Missing goods input columns: {sorted(missing)}")
 
-    def building_index(self) -> list[str]:
+    @cached_property
+    def building_index(self) -> tuple[str, ...]:
         """Return production-configuration keys in production-table row order.
 
         Each key combines the row's building and production-method strings with
         ``"+"``. The resulting order defines the alignment of building-level
         vectors and the rows of building matrices.
         """
-        return [
+        return tuple(
             f"{b}+{pm}"
             for b, pm in zip(
                 self.df_production["building"],
                 self.df_production["production_method"],
             )
-        ]
+        )
 
-    def goods_index(self) -> list[str]:
+    @cached_property
+    def goods_index(self) -> tuple[str, ...]:
         """Return good keys in goods-table row order.
 
         This order defines the alignment of goods vectors and the columns of
         goods matrices.
         """
-        return self.df_goods["key"].tolist()
+        return tuple(self.df_goods["key"].tolist())
 
-    def producible_goods(self) -> list[str]:
+    @cached_property
+    def producible_goods(self) -> tuple[str, ...]:
         """Return goods that have at least one producer configuration.
 
         Returns:
-            A list of good keys that can be produced by at least one building
+            A tuple of good keys that can be produced by at least one building
             configuration in the production table.
         """
-        out_mat = self.goods_output_matrix()
-        goods_index = self.goods_index()
-        return [g for j, g in enumerate(goods_index) if (out_mat[:, j] > 0).any()]
+        out_mat = self.goods_output_matrix_unscaled
+        goods_index = self.goods_index
+        return tuple(g for j, g in enumerate(goods_index) if (out_mat[:, j] > 0).any())
 
-    def pop_index(self) -> list[str]:
+    @cached_property
+    def pop_index(self) -> tuple[str, ...]:
         """Return profession keys in pop-types-table row order.
 
         This order defines the alignment of profession vectors and employment
         matrix columns.
         """
-        return self.df_pop_types["key"].tolist()
+        return tuple(self.df_pop_types["key"].tolist())
 
+    @cached_property
     def base_prices(self) -> np.ndarray:
         """Return Victoria 3 base prices aligned to `goods_index`."""
-        return self.df_goods["cost"].to_numpy(dtype=np.float64)
+        return _readonly_coefficients(self.df_goods["cost"].to_numpy(dtype=np.float64))
 
     def _apply_throughput_multipliers(
         self,
@@ -425,7 +452,7 @@ class Economy:
     ) -> np.ndarray:
         """Scale matrix rows by optional per-configuration multipliers."""
         if throughput_multipliers is None:
-            return matrix
+            return matrix.copy()
         self._validate_throughput_multipliers(throughput_multipliers)
         return matrix * throughput_multipliers[:, None]
 
@@ -436,7 +463,7 @@ class Economy:
         """Validate a production-row-aligned throughput multiplier vector."""
         if throughput_multipliers.ndim != 1:
             raise ValueError("throughput_multipliers must be a 1-D array.")
-        if throughput_multipliers.shape[0] != len(self.building_index()):
+        if throughput_multipliers.shape[0] != len(self.building_index):
             raise ValueError(
                 "throughput_multipliers length must match the number of rows "
                 "in the production table."
@@ -491,21 +518,40 @@ class Economy:
                 bonuses[i] = 0.01 * min(max(totals[building], 0.0), level_cap)
         return bonuses
 
-    def goods_input_matrix(
-        self,
-        throughput_multipliers: (
-            np.ndarray[tuple[int], np.dtype[np.float64]] | None
-        ) = None,
-    ) -> np.ndarray:
-        """Return gross goods inputs, optionally scaled by configuration."""
-        goods_columns = [f"goods_{good}" for good in self.goods_index()]
+    @cached_property
+    def goods_input_matrix_unscaled(self) -> np.ndarray:
+        """Cached read-only gross inputs per level, without throughput scaling."""
+        goods_columns = [f"goods_{good}" for good in self.goods_index]
         matrix = np.maximum(
             -self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
                 dtype=np.float64
             ),
             0,
         )
-        return self._apply_throughput_multipliers(matrix, throughput_multipliers)
+        return _readonly_coefficients(matrix)
+
+    @cached_property
+    def goods_output_matrix_unscaled(self) -> np.ndarray:
+        """Cached read-only gross outputs per level, without throughput scaling."""
+        goods_columns = [f"goods_{good}" for good in self.goods_index]
+        matrix = np.maximum(
+            self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
+                dtype=np.float64
+            ),
+            0,
+        )
+        return _readonly_coefficients(matrix)
+
+    def goods_input_matrix(
+        self,
+        throughput_multipliers: (
+            np.ndarray[tuple[int], np.dtype[np.float64]] | None
+        ) = None,
+    ) -> np.ndarray:
+        """Return writable gross inputs using the cached unscaled matrix."""
+        return self._apply_throughput_multipliers(
+            self.goods_input_matrix_unscaled, throughput_multipliers
+        )
 
     def goods_output_matrix(
         self,
@@ -513,16 +559,12 @@ class Economy:
             np.ndarray[tuple[int], np.dtype[np.float64]] | None
         ) = None,
     ) -> np.ndarray:
-        """Return gross goods outputs, optionally scaled by configuration."""
-        goods_columns = [f"goods_{good}" for good in self.goods_index()]
-        matrix = np.maximum(
-            self.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
-                dtype=np.float64
-            ),
-            0,
+        """Return writable gross outputs using the cached unscaled matrix."""
+        return self._apply_throughput_multipliers(
+            self.goods_output_matrix_unscaled, throughput_multipliers
         )
-        return self._apply_throughput_multipliers(matrix, throughput_multipliers)
 
+    @cached_property
     def employment_matrix(self) -> np.ndarray:
         """Return employment by production configuration and profession.
 
@@ -530,16 +572,22 @@ class Economy:
         `pop_index`. Values are the number of employees per building
         level; missing profession columns are filled with zero.
         """
-        employment_columns = [f"employment_{pop}" for pop in self.pop_index()]
+        employment_columns = [f"employment_{pop}" for pop in self.pop_index]
 
-        return self.df_production.reindex(
-            columns=employment_columns, fill_value=0
-        ).to_numpy(dtype=np.float64)
+        return _readonly_coefficients(
+            self.df_production.reindex(
+                columns=employment_columns, fill_value=0
+            ).to_numpy(dtype=np.float64)
+        )
 
+    @cached_property
     def pop_wealth_init(self) -> np.ndarray:
         """Return starting wealth values aligned to `pop_index`."""
-        return self.df_pop_types["start_quality_of_life"].to_numpy(dtype=np.float64)
+        return _readonly_coefficients(
+            self.df_pop_types["start_quality_of_life"].to_numpy(dtype=np.float64)
+        )
 
+    @cached_property
     def employment_vector(self) -> np.ndarray:
         """Total employment per building level, aligned to production-table rows.
 
@@ -548,11 +596,38 @@ class Economy:
             of each building configuration per level (``"employment"`` column,
             missing values zero-filled).
         """
-        return self.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
+        return _readonly_coefficients(
+            self.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
+        )
 
+    @cached_property
     def construction_cost_vector(self) -> np.ndarray:
         """Return per-level construction cost aligned to `building_index`."""
-        return self.df_production["construction_cost"].to_numpy(dtype=np.float64)
+        return _readonly_coefficients(
+            self.df_production["construction_cost"].to_numpy(dtype=np.float64)
+        )
+
+    @cached_property
+    def infrastructure_vector(self) -> np.ndarray:
+        """Cached infrastructure usage per level; missing values default to zero."""
+        if "infrastructure_usage_per_level" not in self.df_production.columns:
+            return _readonly_coefficients(np.zeros(len(self.df_production)))
+        return _readonly_coefficients(
+            self.df_production["infrastructure_usage_per_level"]
+            .fillna(0)
+            .to_numpy(dtype=np.float64)
+        )
+
+    @cached_property
+    def _supply_chain_production(self) -> pd.DataFrame:
+        """Cache copied production metadata with supply-chain reporting defaults."""
+        production = self.df_production.copy(deep=True)
+        for column, default in _METADATA_DEFAULTS.items():
+            if column not in production.columns:
+                production[column] = default
+            else:
+                production[column] = production[column].fillna(default)
+        return production
 
     def _validate_goods_vector(
         self,
@@ -562,7 +637,7 @@ class Economy:
         """Validate a goods-aligned vector and return it as float64."""
         if vector.ndim != 1:
             raise ValueError(f"{name} must be a 1-D array.")
-        if vector.shape[0] != len(self.goods_index()):
+        if vector.shape[0] != len(self.goods_index):
             raise ValueError(f"{name} length must match the number of goods.")
         if not np.isfinite(vector).all():
             raise ValueError(f"{name} must contain only finite values.")
@@ -580,7 +655,7 @@ class Economy:
         Returns:
             A 1-D array of shape ``(n_goods,)`` containing the market prices variance.
         """
-        return (eco.market_prices / self.base_prices() - 1) * 100
+        return (eco.market_prices / self.base_prices - 1) * 100
 
     def market_prices(
         self,
@@ -605,7 +680,7 @@ class Economy:
         buy_orders = self._validate_goods_vector(buy_orders, "buy_orders")
         sell_orders = self._validate_goods_vector(sell_orders, "sell_orders")
 
-        base_prices = self.base_prices()
+        base_prices = self.base_prices
         prices = base_prices.copy()
         shared = np.minimum(buy_orders, sell_orders)
         mask = shared > 0
@@ -629,8 +704,9 @@ class Economy:
             The dot product of ``building_levels`` with the per-configuration
             construction cost vector.
         """
-        return float(np.dot(eco.building_levels, self.construction_cost_vector()))
+        return float(np.dot(eco.building_levels, self.construction_cost_vector))
 
+    @cached_property
     def arable_land_vector(self) -> np.ndarray:
         """Return arable-land consumption per production configuration.
 
@@ -640,8 +716,8 @@ class Economy:
             configurations and ``0.0`` otherwise.
         """
         if "building_group" not in self.df_production.columns:
-            return np.zeros(len(self.df_production), dtype=np.float64)
-        return (
+            return _readonly_coefficients(np.zeros(len(self.df_production)))
+        return _readonly_coefficients(
             self.df_production["building_group"]
             .isin(tuple(_ARABLE_LAND_BUILDING_GROUPS))
             .to_numpy(dtype=np.float64)
@@ -670,7 +746,7 @@ class Economy:
                 "state.building_levels shape must match the production table."
             )
 
-        return float(np.dot(state.building_levels, self.arable_land_vector()))
+        return float(np.dot(state.building_levels, self.arable_land_vector))
 
     def levels_per_building(self, state: EconomyState) -> dict[str, float]:
         """Return total levels per building across all PM configurations.
@@ -755,21 +831,21 @@ class Economy:
 
         if building_levels.ndim != 1:
             raise ValueError("building_levels must be a 1-D array.")
-        if building_levels.shape[0] != len(self.building_index()):
+        if building_levels.shape[0] != len(self.building_index):
             raise ValueError(
                 "building_levels length must match the number of rows in the "
                 "production table."
             )
         if imports is None:
-            imports = np.zeros(len(self.goods_index()), dtype=np.float64)
-        elif imports.shape[0] != len(self.goods_index()):
+            imports = np.zeros(len(self.goods_index), dtype=np.float64)
+        elif imports.shape[0] != len(self.goods_index):
             raise ValueError("imports length must match the number of goods.")
         if exports is None:
-            exports = np.zeros(len(self.goods_index()), dtype=np.float64)
-        elif exports.shape[0] != len(self.goods_index()):
+            exports = np.zeros(len(self.goods_index), dtype=np.float64)
+        elif exports.shape[0] != len(self.goods_index):
             raise ValueError("exports length must match the number of goods.")
         if pop_needs is None:
-            pop_needs = np.zeros(len(self.goods_index()), dtype=np.float64)
+            pop_needs = np.zeros(len(self.goods_index), dtype=np.float64)
         else:
             pop_needs = self._validate_goods_vector(pop_needs, "pop_needs")
         bonuses = self.economy_of_scale_bonuses(
@@ -831,7 +907,7 @@ class Economy:
         goods_output_matrix = self.goods_output_matrix(throughput_multipliers)
         building_goods_input = building_levels @ goods_input_matrix
         building_goods_output = building_levels @ goods_output_matrix
-        pops = building_levels[:, None] * self.employment_matrix()
+        pops = building_levels[:, None] * self.employment_matrix
 
         return EconomyState(
             building_levels=building_levels,
@@ -839,10 +915,10 @@ class Economy:
             building_goods_output=building_goods_output,
             imports=imports,
             exports=exports,
-            market_prices=self.base_prices(),
+            market_prices=self.base_prices,
             pops=pops,
-            pop_wealth=np.broadcast_to(self.pop_wealth_init(), pops.shape).copy(),
-            pop_balance=np.zeros((len(self.building_index()), len(self.pop_index()))),
+            pop_wealth=np.broadcast_to(self.pop_wealth_init, pops.shape).copy(),
+            pop_balance=np.zeros((len(self.building_index), len(self.pop_index))),
             pop_needs=pop_needs,
         )
 
@@ -881,9 +957,9 @@ class Economy:
         """
         df = pd.DataFrame(
             {
-                "key": self.building_index(),
+                "key": self.building_index,
                 "level": eco.building_levels,
-                "construction_cost": self.construction_cost_vector()
+                "construction_cost": self.construction_cost_vector
                 * eco.building_levels,
             }
         )
@@ -908,7 +984,7 @@ class Economy:
         """
         df = pd.DataFrame(
             {
-                "goods": self.goods_index(),
+                "goods": self.goods_index,
                 "market_prices": eco.market_prices,
                 "market_prices_variance": self.market_prices_variance(eco),
                 "sell_orders": eco.sell_orders,
@@ -942,7 +1018,7 @@ class Economy:
         """
         df = pd.DataFrame(
             {
-                "profession": self.pop_index(),
+                "profession": self.pop_index,
                 "employment": eco.employment_by_profession,
                 "employment_share": eco.profession_shares,
                 "avg_wealth": eco.wealth_by_profession,

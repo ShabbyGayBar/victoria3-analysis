@@ -38,14 +38,14 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
 
         data = self._compile_common(scenario)
         warm_start_objective = (
-            self.model.employment_vector()
+            self.model.employment_vector
             if scenario.objective == "gdp_per_capita" and scenario.produce
             else -data.gdp_vector
         )
         warm_start = self._extract_fixed_zero_bounds(
             self._linear_problem(data, warm_start_objective)
         )
-        employment = self.model.employment_vector()
+        employment = self.model.employment_vector
         economy = self.model
 
         def objective_terms(levels: np.ndarray) -> tuple[float, np.ndarray]:
@@ -58,7 +58,7 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
                 data.imports,
                 data.exports,
                 data.pop_needs,
-                economy.base_prices(),
+                economy.base_prices,
             )
             if scenario.objective == "gdp_per_capita":
                 return self._per_capita_value_and_gradient(
@@ -120,7 +120,7 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
         self._bind_problem(problem)
         warm_start_problem = problem.warm_start
         self._check_feasibility_and_boundedness(warm_start_problem)
-        n_buildings = len(self.model.building_index())
+        n_buildings = len(self.model.building_index)
 
         if x0 is None:
             warm_start = opt.linprog(

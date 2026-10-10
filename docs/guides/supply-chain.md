@@ -94,7 +94,7 @@ automobiles = sweep.result_for("automobiles")
 
 The sweep ignores a non-empty template `produce` basket and emits a
 `UserWarning`, because each target is derived from `goods` and `target_value`.
-By default, it follows `economy.producible_goods()` order and targets an equal
+By default, it follows `economy.producible_goods` order and targets an equal
 base-price value for each good. Infeasible or unbounded goods become failure
 rows and do not abort later runs. Version 1 executes sequentially.
 

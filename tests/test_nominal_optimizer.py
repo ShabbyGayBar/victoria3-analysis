@@ -43,7 +43,7 @@ def test_solve_returns_state(
 ):
     state = solver.solve(automation_scenario)
     assert isinstance(state, EconomyState)
-    assert state.building_levels.shape == (len(economy.building_index()),)
+    assert state.building_levels.shape == (len(economy.building_index),)
     assert solver.scenario is automation_scenario
     assert solver.result is not None
     assert isinstance(solver.problem, LinearProblem)
@@ -53,7 +53,7 @@ def test_solve_returns_state(
 def test_solve_satisfies_produce(economy: Economy, automation_scenario: Scenario):
     optimizer = NominalOptimizer(economy)
     state = optimizer.solve(automation_scenario)
-    idx = economy.goods_index().index(TERMINAL_GOOD)
+    idx = economy.goods_index.index(TERMINAL_GOOD)
     net = float(state.building_levels @ optimizer.goods_matrix[:, idx])
     assert net >= 1.0 - 1e-6
 
@@ -93,7 +93,7 @@ def test_solve_propagates_fixed_market_context(economy: Economy):
         pop_needs=(("grain", 4.0),),
     )
     state = NominalOptimizer(economy).solve(scenario)
-    goods = economy.goods_index()
+    goods = economy.goods_index
     assert state.imports[goods.index("tools")] == pytest.approx(2.0)
     assert state.exports[goods.index("coal")] == pytest.approx(3.0)
     assert state.pop_needs[goods.index("grain")] == pytest.approx(4.0)
@@ -185,9 +185,9 @@ def test_compile_objective_vectors(
     if vector_name == "gdp":
         expected = problem.gdp_vector
     elif vector_name == "employment":
-        expected = economy.employment_vector()
+        expected = economy.employment_vector
     else:
-        expected = economy.construction_cost_vector()
+        expected = economy.construction_cost_vector
     np.testing.assert_allclose(problem.objective_vector, sign * expected)
 
 
@@ -229,7 +229,7 @@ def test_import_marginals_after_solve(economy: Economy):
     solver.solve(scenario)
     marginals = solver.import_marginals()
     assert marginals is not None
-    assert marginals.shape == (len(economy.goods_index()),)
+    assert marginals.shape == (len(economy.goods_index),)
 
 
 def test_import_marginals_without_import_constraint(economy: Economy):

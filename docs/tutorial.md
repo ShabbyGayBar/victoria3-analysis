@@ -35,8 +35,8 @@ economy = Economy(
     df_pop_types=pd.read_csv("tables/pop_types.csv"),
 )
 
-print(f"{len(economy.building_index())} production configurations")
-print(f"{len(economy.goods_index())} goods")
+print(f"{len(economy.building_index)} production configurations")
+print(f"{len(economy.goods_index)} goods")
 ```
 
 `Economy` keeps every array aligned to the production-table and goods-table row

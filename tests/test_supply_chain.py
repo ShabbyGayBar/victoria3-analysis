@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -527,8 +527,49 @@ def test_sweep_default_goods_use_economy_order(economy: Economy):
         Scenario(objective="construction_cost"),
         target_value=100.0,
     )
-    assert sweep.summary["good"].tolist() == economy.producible_goods()
+    assert sweep.summary["good"].tolist() == list(economy.producible_goods)
     assert sweep.results == {}
+
+
+def test_sweep_reuses_economy_and_matches_standalone_results(economy: Economy):
+    template = Scenario(objective="construction_cost", name="comparison")
+    sweep = sweep_supply_chains(
+        economy,
+        template,
+        goods=["widget", "ore"],
+        target_value=1_000.0,
+        keep_results=True,
+    )
+    for good in ("widget", "ore"):
+        retained = sweep.result_for(good)
+        scenario = replace(
+            template,
+            produce=(
+                (good, 1_000.0 / economy.base_prices[economy.goods_index.index(good)]),
+            ),
+            name=f"comparison:{good}",
+        )
+        standalone = SupplyChainAnalyzer(economy, scenario, good).run()
+        assert retained.problem.economy is economy
+        assert standalone.problem.economy is economy
+        np.testing.assert_allclose(
+            retained.state.building_levels, standalone.state.building_levels
+        )
+        pd.testing.assert_series_equal(retained.summary(), standalone.summary())
+        pd.testing.assert_frame_equal(retained.processes(), standalone.processes())
+        pd.testing.assert_frame_equal(retained.flows(), standalone.flows())
+        for view in ("realized", "allowed"):
+            assert nx.utils.graphs_equal(retained.graph(view), standalone.graph(view))
+        for name in (
+            "employment_matrix",
+            "employment_vector",
+            "construction_cost_vector",
+            "arable_land_vector",
+            "infrastructure_vector",
+        ):
+            result_array = getattr(retained, name)
+            assert not np.shares_memory(result_array, getattr(economy, name))
+            assert not result_array.flags.writeable
 
 
 def test_sweep_continues_after_failure(economy: Economy):
