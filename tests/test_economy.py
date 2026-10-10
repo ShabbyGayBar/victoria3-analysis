@@ -223,6 +223,54 @@ def _make_state(
     )
 
 
+def test_state_defensively_copies_and_freezes_input_arrays():
+    source = np.arange(3, dtype=np.float64)
+    state = _make_state(building_goods_output=source)
+
+    source[0] = 999.0
+
+    assert state.building_goods_output[0] == 0.0
+    for name in (
+        "building_levels",
+        "building_goods_input",
+        "building_goods_output",
+        "imports",
+        "exports",
+        "market_prices",
+        "pops",
+        "pop_wealth",
+        "pop_balance",
+        "pop_needs",
+    ):
+        array = getattr(state, name)
+        assert array.dtype == np.float64
+        assert array.flags.owndata
+        assert not array.flags.writeable
+        with pytest.raises(ValueError, match="read-only"):
+            array.flat[0] = 999.0
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "sell_orders",
+        "buy_orders",
+        "employment_by_profession",
+        "wealth_by_profession",
+        "profession_shares",
+    ],
+)
+def test_state_cached_arrays_are_read_only(name: str):
+    state = _make_state()
+    array = getattr(state, name)
+
+    assert array is getattr(state, name)
+    assert array.flags.owndata
+    assert not array.flags.writeable
+    with pytest.raises(ValueError, match="read-only"):
+        array.flat[0] = 999.0
+
+
 @pytest.fixture(scope="module")
 def economy() -> Economy:
     return Economy()

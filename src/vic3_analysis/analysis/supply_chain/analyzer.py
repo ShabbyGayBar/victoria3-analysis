@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from vic3_analysis.analysis.economy import Economy, EconomyState
+from vic3_analysis.analysis.economy import Economy
 from vic3_analysis.analysis.supply_chain.graph import (
     allowed_process_mask,
     build_supply_graph,
@@ -18,28 +18,6 @@ from vic3_analysis.analysis.supply_chain.result import (
 )
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
-
-
-def _readonly(value: np.ndarray) -> np.ndarray:
-    result = np.array(value, dtype=np.float64, copy=True)
-    result.setflags(write=False)
-    return result
-
-
-def _freeze_state(state: EconomyState) -> EconomyState:
-    """Return an `EconomyState` whose arrays are defensive read-only copies."""
-    return EconomyState(
-        building_levels=_readonly(state.building_levels),
-        building_goods_input=_readonly(state.building_goods_input),
-        building_goods_output=_readonly(state.building_goods_output),
-        imports=_readonly(state.imports),
-        exports=_readonly(state.exports),
-        market_prices=_readonly(state.market_prices),
-        pops=_readonly(state.pops),
-        pop_wealth=_readonly(state.pop_wealth),
-        pop_balance=_readonly(state.pop_balance),
-        pop_needs=_readonly(state.pop_needs),
-    )
 
 
 def _marginals(block: object) -> np.ndarray | None:
@@ -105,7 +83,7 @@ class SupplyChainAnalyzer:
         """Solve once and return an immutable supply-chain result."""
         optimizer = NominalOptimizer(self._economy)
         problem = optimizer.compile(self._scenario)
-        state = _freeze_state(optimizer.solve_problem(problem))
+        state = optimizer.solve_problem(problem)
         solver_result = optimizer.result
         if solver_result is None:
             raise RuntimeError("Nominal optimizer returned no solver result.")

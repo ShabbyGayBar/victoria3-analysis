@@ -46,8 +46,8 @@ _METADATA_DEFAULTS: dict[str, str | bool] = {
 }
 
 
-def _readonly_coefficients(value: np.ndarray) -> np.ndarray:
-    """Return owned, read-only float64 coefficients without freezing table data."""
+def _readonly_array(value: np.ndarray) -> np.ndarray:
+    """Return an owned, read-only float64 copy of an array."""
     result = np.array(value, dtype=np.float64, copy=True)
     result.setflags(write=False)
     return result
@@ -97,6 +97,10 @@ def _weighted_std(values: np.ndarray, weights: np.ndarray) -> float:
 class EconomyState:
     """Snapshot state of a Victoria 3 economy.
 
+    Every array is defensively copied to owned, read-only float64 storage during
+    construction. The snapshot therefore cannot be changed through either the
+    caller's input arrays or its public array attributes.
+
     Attributes:
         building_levels: 1-D array of building-configuration levels (one per
             row of the production table).
@@ -128,6 +132,22 @@ class EconomyState:
     pop_balance: np.ndarray
     pop_needs: np.ndarray
 
+    def __post_init__(self) -> None:
+        """Take ownership of every state array and make it read-only."""
+        for name in (
+            "building_levels",
+            "building_goods_input",
+            "building_goods_output",
+            "imports",
+            "exports",
+            "market_prices",
+            "pops",
+            "pop_wealth",
+            "pop_balance",
+            "pop_needs",
+        ):
+            object.__setattr__(self, name, _readonly_array(getattr(self, name)))
+
     @cached_property
     def sell_orders(self) -> np.ndarray:
         """Calculate the sell orders for each good.
@@ -135,7 +155,9 @@ class EconomyState:
         Returns:
             The sell orders vector, computed as the sum of building_goods_output and imports
         """
-        return self.building_goods_output + self.imports
+        result = self.building_goods_output + self.imports
+        result.setflags(write=False)
+        return result
 
     @cached_property
     def buy_orders(self) -> np.ndarray:
@@ -144,7 +166,9 @@ class EconomyState:
         Returns:
             The buy orders vector, computed as the sum of building_goods_input, exports and pop needs.
         """
-        return self.building_goods_input + self.exports + self.pop_needs
+        result = self.building_goods_input + self.exports + self.pop_needs
+        result.setflags(write=False)
+        return result
 
     @cached_property
     def gdp_weekly(self) -> float:
@@ -219,7 +243,9 @@ class EconomyState:
             A 1-D array of shape ``(n_professions,)`` giving the column sums of
             ``pops``.
         """
-        return self.pops.sum(axis=0)
+        result = self.pops.sum(axis=0)
+        result.setflags(write=False)
+        return result
 
     @cached_property
     def total_wealth(self) -> float:
@@ -252,7 +278,9 @@ class EconomyState:
         emp = self.employment_by_profession
         weighted = (self.pop_wealth * self.pops).sum(axis=0)
         with np.errstate(divide="ignore", invalid="ignore"):
-            return np.where(emp > 0, weighted / emp, 0.0)
+            result = np.where(emp > 0, weighted / emp, 0.0)
+        result.setflags(write=False)
+        return result
 
     @cached_property
     def profession_shares(self) -> np.ndarray:
@@ -263,8 +291,11 @@ class EconomyState:
             all zeros when total population is zero.
         """
         if self.total_population == 0:
-            return np.zeros(self.pops.shape[1], dtype=np.float64)
-        return self.employment_by_profession / self.total_population
+            result = np.zeros(self.pops.shape[1], dtype=np.float64)
+        else:
+            result = self.employment_by_profession / self.total_population
+        result.setflags(write=False)
+        return result
 
     @cached_property
     def wealth_distribution(self) -> dict[str, float]:
@@ -443,7 +474,7 @@ class Economy:
     @cached_property
     def base_prices(self) -> np.ndarray:
         """Return Victoria 3 base prices aligned to `goods_index`."""
-        return _readonly_coefficients(self.df_goods["cost"].to_numpy(dtype=np.float64))
+        return _readonly_array(self.df_goods["cost"].to_numpy(dtype=np.float64))
 
     def _apply_throughput_multipliers(
         self,
@@ -528,7 +559,7 @@ class Economy:
             ),
             0,
         )
-        return _readonly_coefficients(matrix)
+        return _readonly_array(matrix)
 
     @cached_property
     def goods_output_matrix_unscaled(self) -> np.ndarray:
@@ -540,7 +571,7 @@ class Economy:
             ),
             0,
         )
-        return _readonly_coefficients(matrix)
+        return _readonly_array(matrix)
 
     def goods_input_matrix(
         self,
@@ -574,7 +605,7 @@ class Economy:
         """
         employment_columns = [f"employment_{pop}" for pop in self.pop_index]
 
-        return _readonly_coefficients(
+        return _readonly_array(
             self.df_production.reindex(
                 columns=employment_columns, fill_value=0
             ).to_numpy(dtype=np.float64)
@@ -583,7 +614,7 @@ class Economy:
     @cached_property
     def pop_wealth_init(self) -> np.ndarray:
         """Return starting wealth values aligned to `pop_index`."""
-        return _readonly_coefficients(
+        return _readonly_array(
             self.df_pop_types["start_quality_of_life"].to_numpy(dtype=np.float64)
         )
 
@@ -596,14 +627,14 @@ class Economy:
             of each building configuration per level (``"employment"`` column,
             missing values zero-filled).
         """
-        return _readonly_coefficients(
+        return _readonly_array(
             self.df_production["employment"].fillna(0).to_numpy(dtype=np.float64)
         )
 
     @cached_property
     def construction_cost_vector(self) -> np.ndarray:
         """Return per-level construction cost aligned to `building_index`."""
-        return _readonly_coefficients(
+        return _readonly_array(
             self.df_production["construction_cost"].to_numpy(dtype=np.float64)
         )
 
@@ -611,8 +642,8 @@ class Economy:
     def infrastructure_vector(self) -> np.ndarray:
         """Cached infrastructure usage per level; missing values default to zero."""
         if "infrastructure_usage_per_level" not in self.df_production.columns:
-            return _readonly_coefficients(np.zeros(len(self.df_production)))
-        return _readonly_coefficients(
+            return _readonly_array(np.zeros(len(self.df_production)))
+        return _readonly_array(
             self.df_production["infrastructure_usage_per_level"]
             .fillna(0)
             .to_numpy(dtype=np.float64)
@@ -716,8 +747,8 @@ class Economy:
             configurations and ``0.0`` otherwise.
         """
         if "building_group" not in self.df_production.columns:
-            return _readonly_coefficients(np.zeros(len(self.df_production)))
-        return _readonly_coefficients(
+            return _readonly_array(np.zeros(len(self.df_production)))
+        return _readonly_array(
             self.df_production["building_group"]
             .isin(tuple(_ARABLE_LAND_BUILDING_GROUPS))
             .to_numpy(dtype=np.float64)
