@@ -59,6 +59,42 @@ configurations, and configurations point to output goods. Cycles remain
 strongly connected components; they are never relabeled as raw-resource leaves.
 `graph()` returns a defensive copy.
 
+## Why the graph uses processes
+
+A **process** is one production-table configuration: a building type with one
+complete combination of production methods. Its input/output rates describe
+one building level, and its solved `level` scales those rates. A building key
+can therefore appear in several process nodes with different technology,
+employment, and goods flows.
+
+This terminology follows the process/product distinction explained in
+[Brightway's inventory documentation](https://docs.brightway.dev/en/latest/content/overview/inventory.html#processes-products-and-something-in-between).
+Brightway is a Python life cycle assessment (LCA) framework whose inventory
+model separates transformations from the products they consume and supply.
+Here, production configurations are the transformations and Victoria 3 goods
+are the products. Brightway also uses `activity` in its API; its
+[glossary](https://docs.brightway.dev/en/latest/content/overview/glossary.html#activity)
+shows that this term has broader usage than just production processes.
+
+The naming alternatives describe different parts of our model:
+
+| Term | Meaning here | Why it is not the graph node type |
+| --- | --- | --- |
+| Building | The game building type shared by multiple PM configurations. | It does not identify the complete technology choice. |
+| Production method | One selected method within a configuration. | One node combines a method from every applicable PM group. |
+| Production | Output or the act of producing. | It does not clearly distinguish the transformation from its output flows. |
+| Producer | A process viewed as a supplier of a particular good. | The same node consumes inputs and may supply several coproducts. |
+| Recipe | The per-level input/output coefficients. | The node also carries solved levels, employment, construction, and resource metadata. |
+
+Consequently, `process:<configuration-key>` identifies a node, `building`
+remains its source metadata, and `result.processes()` reports configuration
+economics. The term does not mean an operating-system process.
+
+The [supply-chain design references](../supply-chain-design.md) compare this
+architecture with Brightway, PyPSA, Calliope, pymrio, and openLCA. They explain
+the shared ideas behind graphs, optimization, economic accounting, and explicit
+coproduct treatment, together with the limits of each comparison.
+
 ## Visualize the result
 
 ```python

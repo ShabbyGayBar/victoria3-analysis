@@ -123,6 +123,11 @@ or expose a `pyradox.Tree` subclass with helper methods.
   workforce, constraint, bottleneck, and alternative-producer tables while
   retaining exact process-level coproduct attribution. `Economy.producible_goods`
   lists goods with at least one producer configuration.
+  The [supply-chain guide](guides/supply-chain.md#why-the-graph-uses-processes)
+  explains the process/configuration terminology. The
+  [design references](supply-chain-design.md) compare graphs, optimization,
+  accounting, and coproduct treatment with Brightway, PyPSA, Calliope, pymrio,
+  and openLCA.
 
 ### `src/vic3_analysis/optimize/` — Optimisation
 

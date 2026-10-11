@@ -98,6 +98,10 @@ in production-table row order. Let `x` be its solved level, `m` its throughput
 multiplier, `I` its adjusted input value per level, and `O` its adjusted output
 value per level. Unit economics retain all output goods.
 
+Here, **process** means a building with its complete PM combination, rather
+than the building type alone. The guide explains the
+[naming rationale and parallels with Brightway](../guides/supply-chain.md#why-the-graph-uses-processes).
+
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
 | `config` | String / configuration identifier | `Economy.building_index` key for the row. | Joins to `flows.process` and workforce/alternatives `config`. |
