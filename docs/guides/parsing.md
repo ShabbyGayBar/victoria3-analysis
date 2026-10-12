@@ -41,14 +41,17 @@ currently installed game version.
 
 ## Generate the tables
 
-Each parser has a small script under `examples/`. Run a module from the project
-root, for example:
+Run the combined parsing example from the project root to generate all eight
+parsed CSVs and the buy-package charts:
 
 ```bash
-uv run python -m examples.goods
-uv run python -m examples.buildings
-uv run python -m examples.production_analysis
+uv run python -m examples.parse
 ```
+
+You can also run it directly with `uv run python examples/parse.py`. Outputs
+use the shared paths under `artifacts/tables/` and `artifacts/figures/`. The
+artifact checkout must be initialized; otherwise the script reports the
+required `git submodule update --init --recursive` command.
 
 !!! warning "Generated data follows your installed game version"
 
@@ -57,6 +60,12 @@ uv run python -m examples.production_analysis
     replacing tracked data.
 
 ## Build the production table
+
+The production table remains a separate step using the generated CSVs:
+
+```bash
+uv run python examples/production_analysis.py
+```
 
 `production_table()` combines buildings, goods, production methods, technology,
 and pop types into one row per building/production-method configuration. Its

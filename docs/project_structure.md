@@ -151,29 +151,27 @@ or expose a `pyradox.Tree` subclass with helper methods.
 
 ## `examples/` — Table-generation Scripts
 
-Standalone scripts that exercise the parsers and write CSVs into `tables/`.
+Standalone scripts that exercise the parsers and analysis tools. Generated
+CSVs and figures use `artifacts/tables/` and `artifacts/figures/`; the committed
+snapshot paths below remain relative to an artifact collection.
 `__init__.py` defines the shared `TABLES_DIR` and `FIGURES_DIR` paths. Each
 generated artifact and its producing script is indexed in the
 [showcase](showcase/index.md).
 
 | Script | Output |
 |---|---|
-| `buildings.py` | `tables/buildings.csv` |
-| `goods.py` | `tables/goods.csv` |
-| `production_method.py` | `tables/production_methods.csv` |
+| `parse.py` | `tables/{buildings,goods,production_methods,pop_types,pop_needs,state_regions,technology,buy_packages}.csv`, `figures/buy_packages/*.svg` |
 | `production_analysis.py` | `tables/production_table.csv` |
-| `technology.py` | `tables/technology.csv` |
-| `state_regions.py` | `tables/state_regions.csv` |
-| `buy_packages.py` | `tables/buy_packages.csv`, `figures/buy_packages/*.svg` |
-| `pop_types.py` | `tables/pop_types.csv` |
 | `optimize_jap.py` | `tables/optimize_jap.csv` |
 | `supply_chain_trace.py` | `figures/supply_chain_recipe.mmd`, `figures/supply_chain_realised.mmd` |
 | `supply_chain_compare.py` | `tables/supply_chain_sweep.csv` |
 | `supply_chain_cangshulun.py` | `tables/supply_chain_cangshulun.csv` |
 | `supply_chain_market_automobiles.py` | Prints automobile market metrics |
 
-Run any script with `uv run python -m examples.<name>` or directly. They are
-the canonical "how do I use this package" reference for non-developers.
+Run the combined parser with `uv run python -m examples.parse` or
+`uv run python examples/parse.py`. Run the other examples directly with
+`uv run python examples/<name>.py`. They are the canonical "how do I use this
+package" reference for non-developers.
 
 - `supply_chain_trace.py`, `supply_chain_compare.py`,
   `supply_chain_cangshulun.py` — supply-chain analysis demos built on the
@@ -208,7 +206,7 @@ named production-method variants.
 
 Committed visualisation artefacts produced by the `examples/` scripts.
 Includes Mermaid flowchart files (`.mmd`) from `supply_chain_trace.py` and SVG
-charts from `buy_packages.py`. Tracked in git so the documentation can render
+charts from `parse.py`. Tracked in git so the documentation can render
 them without a local game install.
 
 ## `tests/` — Test Suite

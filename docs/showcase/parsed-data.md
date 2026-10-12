@@ -9,6 +9,10 @@ These tables turn Victoria 3 definitions into analysis-ready CSV files. See the
 [parsing guide](../guides/parsing.md) before regenerating them from an installed
 game.
 
+`examples/parse.py` regenerates all eight parsed tables and the buy-package
+charts in one run. The production-configuration table uses the separate
+`examples/production_analysis.py` script.
+
 Use the [parser dictionary](../data-dictionary/parsers.md) for generated parser
 fields and the [production dictionary](../data-dictionary/production.md) for
 every analytical production-table column.
@@ -23,10 +27,10 @@ land use, and resolved inherited building-group attributes. Important columns:
 <!-- table-preview: tables/buildings.csv | columns=key,building_group,required_construction_points,land_usage,economy_of_scale | rows=5 -->
 
 [:material-download: Download `tables/buildings.csv`](../tables/buildings.csv)
-· [:fontawesome-brands-github: View `examples/buildings.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/buildings.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.buildings
+uv run python -m examples.parse
 ```
 
 ## Goods
@@ -38,10 +42,10 @@ properties. Important columns: `key`, `cost`, `category`, `tradeable`, and
 <!-- table-preview: tables/goods.csv | columns=key,cost,category,tradeable,local | rows=5 -->
 
 [:material-download: Download `tables/goods.csv`](../tables/goods.csv)
-· [:fontawesome-brands-github: View `examples/goods.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/goods.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.goods
+uv run python -m examples.parse
 ```
 
 ## Population needs
@@ -53,10 +57,10 @@ Important columns: `key`, `goods`, `weight`, `min_supply_share`, and
 <!-- table-preview: tables/pop_needs.csv | columns=key,goods,weight,min_supply_share,max_supply_share | rows=5 -->
 
 [:material-download: Download `tables/pop_needs.csv`](../tables/pop_needs.csv)
-· [:fontawesome-brands-github: View `examples/pop_needs.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/pop_needs.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.pop_needs
+uv run python -m examples.parse
 ```
 
 ## Population types
@@ -67,10 +71,10 @@ weights, employment flags, and consumption multipliers.
 <!-- table-preview: tables/pop_types.csv | columns=key,start_quality_of_life,wage_weight,working_adult_ratio,consumption_mult | rows=5 -->
 
 [:material-download: Download `tables/pop_types.csv`](../tables/pop_types.csv)
-· [:fontawesome-brands-github: View `examples/pop_types.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/pop_types.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.pop_types
+uv run python -m examples.parse
 ```
 
 ## Production methods
@@ -81,10 +85,10 @@ unlock conditions, and production-method-group context.
 <!-- table-preview: tables/production_methods.csv | columns=building,production_method_group,production_method,employment,goods_tools,goods_steel | rows=5 -->
 
 [:material-download: Download `tables/production_methods.csv`](../tables/production_methods.csv)
-· [:fontawesome-brands-github: View `examples/production_method.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_method.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.production_method
+uv run python -m examples.parse
 ```
 
 ## Production configurations
@@ -111,10 +115,10 @@ columns feed directly into scenario building limits.
 <!-- table-preview: tables/state_regions.csv | columns=key,province_count,arable_land,resource_building_coal_mine,resource_building_iron_mine,resource_building_oil_rig | rows=5 -->
 
 [:material-download: Download `tables/state_regions.csv`](../tables/state_regions.csv)
-· [:fontawesome-brands-github: View `examples/state_regions.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/state_regions.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.state_regions
+uv run python -m examples.parse
 ```
 
 ## Technologies
@@ -124,8 +128,8 @@ Technology keys, eras, categories, prerequisites, and map-update behavior.
 <!-- table-preview: tables/technology.csv | columns=key,era,category,unlocking_technologies,should_update_map | rows=5 -->
 
 [:material-download: Download `tables/technology.csv`](../tables/technology.csv)
-· [:fontawesome-brands-github: View `examples/technology.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/technology.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.technology
+uv run python -m examples.parse
 ```

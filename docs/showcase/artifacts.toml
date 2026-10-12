@@ -1,25 +1,25 @@
 [[collection]]
-script = "examples/buildings.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/buildings.csv"]
 
 [[collection]]
-script = "examples/goods.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/goods.csv"]
 
 [[collection]]
-script = "examples/pop_needs.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/pop_needs.csv"]
 
 [[collection]]
-script = "examples/pop_types.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/pop_types.csv"]
 
 [[collection]]
-script = "examples/production_method.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/production_methods.csv"]
 
@@ -29,17 +29,17 @@ page = "showcase/parsed-data.md"
 artifacts = ["tables/production_table.csv"]
 
 [[collection]]
-script = "examples/state_regions.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/state_regions.csv"]
 
 [[collection]]
-script = "examples/technology.py"
+script = "examples/parse.py"
 page = "showcase/parsed-data.md"
 artifacts = ["tables/technology.csv"]
 
 [[collection]]
-script = "examples/buy_packages.py"
+script = "examples/parse.py"
 page = "showcase/buy-packages.md"
 artifacts = ["tables/buy_packages.csv", "figures/buy_packages/*.svg"]
 

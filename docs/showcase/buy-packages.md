@@ -6,13 +6,14 @@ description: Explore wealth-level political strength and population-need demand 
 # Buy packages
 
 Buy packages describe political strength and the amount assigned to each
-population-need category at every wealth level. The script writes one table and
-both linear- and log-scale SVG charts for every non-wealth column.
+population-need category at every wealth level. The combined parsing example
+writes all eight parsed tables and both linear- and log-scale SVG charts for
+every non-wealth buy-package column.
 
-[:fontawesome-brands-github: View `examples/buy_packages.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/buy_packages.py)
+[:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
-uv run python -m examples.buy_packages
+uv run python -m examples.parse
 ```
 
 ## Table preview
