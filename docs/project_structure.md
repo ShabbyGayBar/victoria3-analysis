@@ -246,12 +246,12 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
 
 - `index.md` — Purpose-built landing page with separate paths for Python users
   and readers browsing generated results.
-- `tutorial.md` — Reproducible steel-optimization quickstart using committed
-  CSV snapshots.
 - `api/` — Public API reference grouped into parsing, economy, optimization,
   and supply-chain pages and rendered from source docstrings by `mkdocstrings`.
-- `guides/` — Task-focused parsing, economy/optimization, and supply-chain
-  explanations.
+- `guides/` — Getting started tutorial (`getting-started.md`) for package setup
+  and next steps, followed by
+  task-focused parsing, economy modeling, optimization, and supply-chain
+  explanations. Economy modeling and optimization have separate guide pages.
 - `showcase/` — Curated previews and downloads for every tracked table and
   figure, plus the artifact-to-example registry used by documentation tests.
 - `hooks.py` — Adds repository-level artifacts to the site and expands CSV

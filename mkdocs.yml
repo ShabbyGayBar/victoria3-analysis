@@ -133,11 +133,12 @@ extra_css:
 
 nav:
   - Home: index.md
-  - Tutorial: tutorial.md
   - Guides:
       - guides/index.md
+      - Getting started: guides/getting-started.md
       - Parsing game data: guides/parsing.md
-      - Economy and optimization: guides/economy.md
+      - Economy modeling: guides/economy.md
+      - Optimization: guides/optimization.md
       - Supply-chain analysis: guides/supply-chain.md
   - Showcase:
       - showcase/index.md

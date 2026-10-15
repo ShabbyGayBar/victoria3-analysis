@@ -5,7 +5,7 @@ description: Scenario configuration and compiled linear and market-price optimiz
 
 # Optimization API
 
-Used in the [quickstart](../tutorial.md),
+Used in the [optimization guide](../guides/optimization.md),
 [resource-limited optimization](../showcase/resource-limited-optimization.md),
 and [supply-chain examples](../showcase/supply-chains.md).
 

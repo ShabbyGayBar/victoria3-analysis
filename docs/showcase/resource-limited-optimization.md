@@ -37,5 +37,5 @@ flowchart LR
 
 The important implementation pattern is that state-region helpers return
 ordinary limits consumed by `Scenario`; the optimizer does not need a
-country-specific code path. See the [economy guide](../guides/economy.md) and
+country-specific code path. See the [optimization guide](../guides/optimization.md) and
 [optimization API](../api/optimization.md).

@@ -21,5 +21,5 @@ the tables returned by these APIs.
 
 </div>
 
-If you are learning the package, begin with the [quickstart](../tutorial.md) or
+If you are learning the package, begin with [Getting started](../guides/getting-started.md) or
 the task-focused [guides](../guides/index.md).

@@ -1,6 +1,6 @@
 ---
 title: Parsing game data
-description: Parse a Victoria 3 installation into pandas tables or work from the committed snapshots.
+description: Generate game-data tables and use individual Victoria 3 parsers in Python.
 ---
 
 # Parsing game data
@@ -9,46 +9,16 @@ For column meanings, units, and defaults, see the
 [parser dictionary](../data-dictionary/parsers.md) and the complete
 [production-table dictionary](../data-dictionary/production.md).
 
-## Choose a data source
-
-Use the committed CSVs when you want reproducible analysis or do not have a
-local Victoria 3 installation. Use the parsers when you need data from your
-currently installed game version.
-
-=== "Committed snapshot"
-
-    ```python
-    import pandas as pd
-
-    goods = pd.read_csv("tables/goods.csv")
-    buildings = pd.read_csv("tables/buildings.csv")
-    ```
-
-    Every snapshot has a preview, download, and producing script in the
-    [parsed-data showcase](../showcase/parsed-data.md).
-
-=== "Installed game"
-
-    ```python
-    from vic3_analysis import BuildingsParser, goods
-
-    goods_df = goods()
-    buildings_df = BuildingsParser().to_dataframe()
-    ```
-
-    The package searches common Steam library locations on Windows, Linux, and
-    macOS. Pass `game_dir="/path/to/Victoria 3/game"` if detection fails.
-
 ## Generate the tables
 
-Run the combined parsing example from the project root to generate all eight
-parsed CSVs and the buy-package charts:
+Run the comprehensive `examples/parse.py` script from the project root to
+generate all parsed game tables and the buy-package charts:
 
 ```bash
 uv run python -m examples.parse
 ```
 
-You can also run it directly with `uv run python examples/parse.py`. Outputs
+You can also run it directly with `uv run examples/parse.py`. Outputs
 use the shared paths under `artifacts/tables/` and `artifacts/figures/`. The
 artifact checkout must be initialized; otherwise the script reports the
 required `git submodule update --init --recursive` command.
@@ -59,27 +29,40 @@ required `git submodule update --init --recursive` command.
     version differs from the committed snapshot. Review those changes before
     replacing tracked data.
 
+### Use individual parsers
+
+Call individual parsers when you need tables in memory for a Python analysis.
+The package searches common Steam library locations on Windows, Linux, and
+macOS. If detection fails, pass `game_dir="/path/to/Victoria 3/game"` to the
+parser constructor or function.
+
+For example, `BuildingsParser` exposes `to_dataframe()`, while `goods()`
+returns a DataFrame directly:
+
+```python
+from vic3_analysis import BuildingsParser, goods
+
+buildings_df = BuildingsParser().to_dataframe()
+goods_df = goods()
+
+print(buildings_df.head())
+print(goods_df.head())
+```
+
+For other parsers and their parameters, see the
+[parsing API reference](../api/parsing.md).
+
 ## Build the production table
 
 The production table remains a separate step using the generated CSVs:
 
 ```bash
-uv run python examples/production_analysis.py
+uv run examples/production_analysis.py
 ```
 
-`production_table()` combines buildings, goods, production methods, technology,
-and pop types into one row per building/production-method configuration. Its
-`goods_<key>` columns use positive values for outputs and negative values for
-inputs. Every goods column is immediately followed by an
-`input_ratio_goods_<key>` column. The ratio is the good's physical net-input
-quantity divided by the total physical net-input quantity across all goods;
-outputs and configurations without net inputs receive `0.0`.
+`production_table()` iterates through every possible building and production method combination, then analyzes the resulting goods flows, employment, and other metrics. For further explanation of the columns, see the [production-table dictionary](../data-dictionary/production.md).
 
-Named prestige variants of the same base good use the same ratio column. These
-ratios are analytical quantity shares, not Victoria 3's exact prestige-goods
-throughput shares: the game uses gross input base value. Multiplying a ratio by
-the 20% maximum prestige-goods throughput bonus is therefore only a
-quantity-based proxy, not the in-game bonus.
+The above script uses the tables existing in `artifacts/tables/`. You can also build the production table directly from the parsers:
 
 ```python
 from vic3_analysis import (
@@ -91,20 +74,15 @@ from vic3_analysis import (
     technology,
 )
 
-production = production_table(
+df_production = production_table(
     BuildingsParser().to_dataframe(),
     goods(),
     ProductionMethodParser().to_dataframe(),
     technology(),
     PopTypesParser().to_dataframe(),
 )
-print(production[["building", "production_method", "profit_nominal"]].head())
+df_production.to_csv("production_table.csv", index=False)
 ```
-
-`wage_normalized_employment` weights per-profession employment by `wage_weight`
-for professions whose `paid_private_wage` flag is true. The corresponding
-`profit_per_wage_normalized_employment_nominal` column divides existing nominal
-profit by that private-wage-equivalent employment; it does not subtract payroll.
 
 The technology and pop-types tables are optional enrichments. Without the
 technology table, `production_table()` keeps the raw `unlocking_tech` keys but
@@ -114,14 +92,14 @@ omits `wage_normalized_employment` and
 only the first three inputs:
 
 ```python
-production = production_table(buildings_df, goods_df, production_methods_df)
+df_production = production_table(buildings_df, goods_df, production_methods_df)
 ```
 
 To add wage-normalized metrics without technology enrichment, pass pop types by
 keyword:
 
 ```python
-production = production_table(
+df_production = production_table(
     buildings_df,
     goods_df,
     production_methods_df,

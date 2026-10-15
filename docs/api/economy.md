@@ -5,7 +5,7 @@ description: Public production-table, economy-model, and economy-state APIs.
 
 # Economy and production API
 
-Used by the [quickstart](../tutorial.md), [economy guide](../guides/economy.md),
+Used by the [economy guide](../guides/economy.md)
 and all optimization showcases.
 
 For returned columns, see the [production dictionary](../data-dictionary/production.md)

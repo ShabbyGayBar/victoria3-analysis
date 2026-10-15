@@ -1,9 +1,9 @@
 ---
-title: Economy and optimization
-description: Model Victoria 3 goods flows and solve constrained production scenarios.
+title: Economy modeling
+description: Model Victoria 3 goods flows and evaluate building levels with nominal or market prices.
 ---
 
-# Economy and optimization
+# Economy modeling
 
 See the [production-table dictionary](../data-dictionary/production.md) for
 input coefficients and the [economy-report dictionary](../data-dictionary/economy.md)
@@ -11,18 +11,24 @@ for exported state columns, formulas, and units.
 
 ## Economy data and alignment
 
-An `Economy` wraps three DataFrames: production configurations, goods, and pop
-types. Building-level vectors align with production-table rows; goods vectors
-align with goods-table rows. Use `building_index`, `goods_index`, and the
-model's matrix methods to preserve that contract.
+It takes three kinds of information to define an `Economy` model: production table, goods table, and pop types table, each of which being presented by a parsed DataFrame in [parsing](parsing.md).
 
-`Economy` is a frozen dataclass that deep-copies its input tables. Its public
-DataFrames remain mutable, but editing them is unsupported: construct a new
-`Economy` for changed model data, because cached coefficients are not invalidated.
-Indexes (`building_index`, `goods_index`, `pop_index`, and `producible_goods`) are
-cached tuples. Fixed coefficients such as `base_prices`, `employment_matrix`,
-`employment_vector`, `construction_cost_vector`, `arable_land_vector`,
-`infrastructure_vector`, and `pop_wealth_init` are cached, read-only arrays.
+You can either construct an `Economy` from the parsed tables, or let it parse them internally as below:
+
+```python
+from vic3_analysis import Economy
+economy = Economy()
+```
+
+!!! warning "Immutability"
+
+    `Economy` is a frozen dataclass that deep-copies its input tables. Its public
+    DataFrames remain mutable, but editing them is unsupported: construct a new
+    `Economy` for changed model data, because cached coefficients are not invalidated.
+    Indexes (`building_index`, `goods_index`, `pop_index`, and `producible_goods`) are
+    cached tuples. Fixed coefficients such as `base_prices`, `employment_matrix`,
+    `employment_vector`, `construction_cost_vector`, `arable_land_vector`,
+    `infrastructure_vector`, and `pop_wealth_init` are cached, read-only arrays.
 
 To display names while keeping the model's key-based alignment, request a
 language when parsing the internal tables:
@@ -38,18 +44,6 @@ Localization is added only to internally parsed DataFrames. If `df_production`,
 without adding localization or changing the supplied data.
 
 ```python
-inputs = economy.goods_input_matrix()
-outputs = economy.goods_output_matrix()
-employment = economy.employment_matrix
-```
-
-For repeated access without copying, use `economy.goods_input_matrix_unscaled`
-and `economy.goods_output_matrix_unscaled`. These public cached properties return
-read-only gross coefficients per level. The `goods_input_matrix()` and
-`goods_output_matrix()` methods return writable copies, or new arrays scaled by
-an optional per-configuration throughput multiplier:
-
-```python
 import numpy as np
 
 unscaled = economy.goods_input_matrix_unscaled
@@ -59,99 +53,38 @@ scaled = economy.goods_input_matrix(throughput_multipliers=multipliers)
 
 ## Direct solving
 
-`Economy.solve()` evaluates a building-level vector. Nominal mode uses base
-prices; market mode derives national prices from buy and sell orders.
+Now that we have a model of the economy, if we know the levels of each building, we can solve for all kinds of metrics we care about, such as employment, goods flows, and GDP, all of which stored in the `EconomyState` dataclass.
+
+```python
+import numpy as np
+# Assume we have one level of everything
+levels = np.ones(len(economy.building_index), dtype=np.float64)
+state = economy.solve(levels)
+print("Class of the state:", type(state))
+print("Annual GDP: ", state.gdp(annual=True))
+print("Total employed population: ", state.total_population)
+```
+
+`Economy.solve()` default to `nominal` mode, which ignores the market price mechanic and uses base prices for each good.
+
+You can also use `market` mode, which derives national prices from buy and sell orders, just like the game does (still no local prices though).
+
+`Economy.solve()` also supports throughput bonuses via economy of scale and parameterized `throughput_multipliers`. The two are applied additively to the raw throughput of each building, which is then used to compute goods flows.
+
+Set `economy_of_scale_level_cap=20.0` to apply up to +20% economy of scale throughput; leave it at `0.0` to disable the effect.
 
 ```python
 import numpy as np
 
-levels = np.zeros(len(economy.building_index), dtype=np.float64)
-state = economy.solve(levels, method="nominal")
-```
-
-Economy of scale is level-dependent and therefore belongs only to direct
-solving. Set `economy_of_scale_level_cap=20.0` to apply up to +20% throughput;
-leave it at `0.0` to disable the effect. Explicit throughput multipliers and
-economy-of-scale bonuses affect goods inputs and outputs, not employment.
-
-## Scenario optimization
-
-A frozen `Scenario` expresses the objective and constraints as data. Supported
-objectives are:
-
-| Objective | Direction | Meaning |
-| --- | --- | --- |
-| `gdp` | maximize | Gross GDP valued at base prices |
-| `gdp_per_capita` | maximize | Market-price GDP per employed person |
-| `employment` | maximize | Total employed population |
-| `automation` | minimize | Employment required by the scenario |
-| `construction_cost` | minimize | Construction cost required by the scenario |
-
-```python
-from vic3_analysis import NominalOptimizer, Scenario
-
-scenario = Scenario(
-    produce=(("automobiles", 100.0),),
-    objective="automation",
-    import_limit=0.0,
-    era_cap=5,
-    banned_pms=("pm_diesel_engines",),
-)
-state = NominalOptimizer(economy).solve(scenario)
-```
-
-Other fields cap construction cost, employment, arable land, individual
-buildings, or resource availability; ban building groups; apply fixed
-throughput bonuses; and enforce infrastructure or urban-center relationships.
-The optimizer disables economy of scale because level-dependent flows are not
-linear.
-
-Use `optimizer.compile(scenario)` to inspect the resulting `LinearProblem`
-before solving it, or `optimizer.solve_problem(problem)` to solve an already
-compiled problem. Shared context and constraints are compiled by
-`BaseOptimizer`; `Scenario` remains configuration-only.
-
-For endogenous national prices, use `MarketOptimizer`. It supports `gdp` and
-`gdp_per_capita`, requires `import_limit=None`, and treats `imports`, `exports`,
-and `pop_needs` as fixed market orders that affect prices rather than goods
-balance constraints. Its SLSQP solve is local and requires a bounded scenario.
-The model excludes shortages, MAPI and local prices, wealth feedback,
-endogenous demand, and economy-of-scale bonuses.
-
-```python
-from vic3_analysis import MarketOptimizer, Scenario
-
-scenario = Scenario(
-    produce=(("automobiles", 100.0),),
-    objective="gdp_per_capita",
-    import_limit=None,
-    exports=(("automobiles", 100.0),),
-    employment_cap=1_000_000.0,
-)
-state = MarketOptimizer(economy).solve(scenario)
-```
-
-## State-region limits
-
-```python
-from vic3_analysis import (
-    StateRegionsParser,
-    state_region_arable_land_limit,
-    state_region_resource_limits,
-)
-
-regions = StateRegionsParser().to_dataframe()
-keys = ("STATE_KANTO", "STATE_KANSAI")
-limits = state_region_resource_limits(regions, keys)
-land = state_region_arable_land_limit(regions, keys)
-
-scenario = Scenario(
-    objective="gdp",
-    building_limits=tuple(limits.items()),
-    arable_land_cap=land,
+levels = np.ones(len(economy.building_index), dtype=np.float64)
+state = economy.solve(
+    levels,
+    method="market",
+    throughput_multipliers=np.full(len(economy.building_index), 1.5),
+    economy_of_scale_level_cap=20.0
 )
 ```
 
-See the [economy API](../api/economy.md), [optimization API](../api/optimization.md),
-and [resource-limited optimization showcase](../showcase/resource-limited-optimization.md)
-for a complete regional experiment.
+To choose building levels from objectives and constraints, continue with the
+[optimization guide](optimization.md). See the [economy API](../api/economy.md)
+for model parameters and state reports.
