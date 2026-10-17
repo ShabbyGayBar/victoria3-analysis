@@ -42,6 +42,11 @@
 
 - **Use `warnings.warn()` for non-fatal issues.** Never `print()` warnings (e.g. missing columns, unresolved references). `warnings.warn()` integrates with Python's warning filters, can be captured by `pytest`, and is the pattern used in `parse/buildings.py`. Reserve `print()` for user-facing CLI output only.
 
+## Text Encoding
+
+- Use `utf-8` without BOM for all text outputs and ordinary inputs.
+- Use `utf-8-sig` only when reading Paradox game files, including localization.
+
 ## Game File Parsing
 
 - **Use `pyradox` for parsing Paradox `.txt` files.** Always parse vanilla or mod game files (states, countries, cultures, history, defines) through the `pyradox` library — never hand-roll a parser. PyPI package name is `pyradox-txt-parser` (`uv pip install pyradox-txt-parser`).
@@ -138,7 +143,6 @@ def serialize(tree, level=0, indent="\t"):
 - `[]` access returns the **last** match, not the first; for singletons both are equivalent, but for groups use `find_all`.
 - `find_all` is a generator, not a list — wrap in `list(...)` if you need length or reiteration.
 - pyradox has **no type stubs**; every subscript result must be narrowed with `_tree()` / `_tree_iter()` (see "Type Narrowing for Untyped Libraries"). `tree["key"]` returns `tuple[Unknown, ...] | None` to Pylance.
-- `parse_file` without `game=` raises `KeyError` because `game_encodings` has no Vic3 entry — read the file yourself and use `parse(string)`.
 - `Tree.__setitem__` replaces only the **last** matching item; to replace all, delete then append, or use `merge`.
 
 ## Rationale
