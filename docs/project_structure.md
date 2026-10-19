@@ -166,10 +166,8 @@ studies also read `artifacts/datasets/production/production_table.csv`.
 | `parse.py` | `datasets/parsed/*.csv`; `datasets/parsed/buy_packages/buy_packages.csv` and `figures/*.svg` within that buy-package collection |
 | `production_analysis.py` | `datasets/production/production_table.csv` |
 | `optimize_jap.py` | `analyses/optimization/japan/employment_sweep.csv` |
-| `supply_chain_trace.py` | `analyses/supply_chains/automobiles/` scenario comparison and sensitivity, with `minimum_employment/` baseline reports and plots and `capital_budget/` diagnostics; optional `all_goods/era_5_automation/summary.csv` and `failures.csv` |
-| `supply_chain_compare.py` | `analyses/supply_chains/all_goods/scenario_comparison.csv` |
-| `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun/supply_chain_cangshulun.csv` |
-| `supply_chain_market_automobiles.py` | Prints automobile market metrics |
+| `supply_chain_compare.py` | `analyses/supply_chains/<configuration>/<good>/` reports, plots, and diagrams; each configuration's `summary.csv`; combined `comparison/summary.csv` with `pop.svg` and `construction_points.svg` grouped by good and configuration |
+| `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun_video/summary.csv`, containing all goods and variants |
 
 ## `artifacts/` — Separate Artifact Repository
 

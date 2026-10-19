@@ -46,30 +46,23 @@ artifacts = ["artifacts/datasets/parsed/buy_packages/buy_packages.csv", "artifac
 [[collection]]
 script = "examples/supply_chain_compare.py"
 page = "showcase/supply-chains.md"
-artifacts = ["artifacts/analyses/supply_chains/all_goods/scenario_comparison.csv"]
+artifacts = [
+    "artifacts/analyses/supply_chains/comparison/summary.csv",
+    "artifacts/analyses/supply_chains/comparison/pop.svg",
+    "artifacts/analyses/supply_chains/comparison/construction_points.svg",
+    "artifacts/analyses/supply_chains/era_3_construction/summary.csv",
+    "artifacts/analyses/supply_chains/era_3_construction/*/*",
+    "artifacts/analyses/supply_chains/era_5_automation/summary.csv",
+    "artifacts/analyses/supply_chains/era_5_automation/*/*",
+    "artifacts/analyses/supply_chains/cangshulun/summary.csv",
+    "artifacts/analyses/supply_chains/cangshulun/*/*",
+]
 
 [[collection]]
 script = "examples/supply_chain_cangshulun.py"
 page = "showcase/supply-chains.md"
-artifacts = ["artifacts/analyses/supply_chains/cangshulun/supply_chain_cangshulun.csv"]
-
-[[collection]]
-script = "examples/supply_chain_market_automobiles.py"
-page = "showcase/supply-chains.md"
-artifacts = []
-
-[[collection]]
-script = "examples/supply_chain_trace.py"
-page = "showcase/supply-chains.md"
 artifacts = [
-    "artifacts/analyses/supply_chains/automobiles/minimum_employment/*.csv",
-    "artifacts/analyses/supply_chains/automobiles/minimum_employment/*.svg",
-    "artifacts/analyses/supply_chains/automobiles/minimum_employment/*.mmd",
-    "artifacts/analyses/supply_chains/automobiles/scenario_comparison.csv",
-    "artifacts/analyses/supply_chains/automobiles/scenario_comparison.svg",
-    "artifacts/analyses/supply_chains/automobiles/sensitivity.csv",
-    "artifacts/analyses/supply_chains/automobiles/capital_budget/*",
-    "artifacts/analyses/supply_chains/all_goods/era_5_automation/*.csv",
+    "artifacts/analyses/supply_chains/cangshulun_video/summary.csv",
 ]
 
 [[collection]]

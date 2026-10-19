@@ -278,39 +278,20 @@ becoming failure rows. A template's `produce` basket is ignored with a warning.
 ## Example CSV additions
 
 The nominal example exports retain every sweep field, including its failure
-policy, and add these labels. `supply_chain_sweep.csv` has one row per
-configuration/good pair; `supply_chain_cangshulun.csv` has one row per
-variant/good pair. Labels describe presets, not additional economic metrics.
+policy, and add these labels. The comparison `summary.csv` has one row per
+configuration/good pair; video `summary.csv` files have one row per
+variant/good pair. Detailed results live under
+`analyses/supply_chains/<configuration>/<good>/`; cross-good `summary.csv`
+files live at configuration level. Cross-configuration comparisons live under
+`analyses/supply_chains/comparison/summary.csv`, alongside the population and
+construction charts `pop.svg` and `construction_points.svg`.
+Labels describe presets, not additional economic metrics.
 
 | Column | Type / unit | Meaning / source | Presence / edge cases |
 | --- | --- | --- | --- |
-| `configuration` | String / preset label | Scenario preset in `examples/supply_chain_compare.py`. | Only in `supply_chain_sweep.csv`; rows retain it on failure. |
-| `variant` | String / preset label | `base` or a named product-specific variant in `examples/supply_chain_cangshulun.py`. | Only in `supply_chain_cangshulun.csv`; base covers all producible goods, named variants selected goods. |
+| `configuration` | String / preset label | Scenario preset in `examples/supply_chain_compare.py`. | In comparison and preset summary CSVs; rows retain it on failure. |
+| `variant` | String / preset label | `base` or a named product-specific variant in `examples/supply_chain_cangshulun.py`. | Only in video summary CSVs; base covers all producible goods, named variants selected goods. |
 | `ban_config` | String / preset label | Ban-policy label supplied by the example. | Retained on failure; an empty label in the comparison export does not mean no default building-group bans. |
-
-## Automobile market example
-
-`examples/supply_chain_market_automobiles.py` prints the following fixed fields
-without writing a CSV. It uses `MarketOptimizer`, with 100 weekly automobile
-export orders, no imports, a 1,000,000-worker cap, and the market-price
-`gdp_per_capita` objective. These values describe the **whole solved system**;
-they do not use nominal analyzer summary columns. No failure rows are emitted.
-
-| Field | Type / unit | Meaning / calculation | Presence / edge cases |
-| --- | --- | --- | --- |
-| `scenario` | String / label | Scenario display name (`automobiles_market`). | Printed after a successful solve. |
-| `goods` | String / identifier | `automobiles`, the example's selected good. | Distinct from analyzer `terminal_good`. |
-| `objective` | String / category | `gdp_per_capita`. | Optimized using endogenous national prices. |
-| `ban_config` | String / preset label | `default`, referring to the example's default banned building groups. | Does not list each banned group. |
-| `production` | Float / goods units per week | The constant 100 used for both the automobile production target and export orders. | **Requested quantity**, not measured solved gross or net production; `produce` also imposes a net-production floor in this market scenario. |
-| `base_price` | Float / £ per goods unit | Automobile price from `economy.base_prices`. | Remains a base price even though GDP uses market prices. |
-| `annual_gdp` | Float / £ per year | `52 * state.gdp_weekly`. | Uses solved market prices. |
-| `employment` | Float / workers | Sum of all state employment. | Per-capita denominator excludes dependents/unemployed. |
-| `gdp_per_capita` | Float / £ per worker per year | Annual GDP divided by employment. | Zero if employment is zero. |
-| `construction_cost` | Float / construction points | Levels dotted with construction coefficients. | Total required construction, not an annual flow. |
-| `gdp_per_construction` | Float / £ per year per construction point | Annual GDP divided by construction cost. | Returns zero when construction cost is at or below zero. |
-| `era_cap` | Integer or None / era limit | The scenario's era cap. | `None` in this example means no era restriction. |
-| `arable_land_consumption` | Float / arable-land units | Levels dotted with immediate-group land coefficients. | Same coefficient rule as the economy report. |
 
 See the [supply-chain API](../api/supply-chain.md) for report calls and the
 [showcase](../showcase/supply-chains.md) for example downloads and commands.

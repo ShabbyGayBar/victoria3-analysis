@@ -13,8 +13,8 @@ TABLE_PATH = (
     / "artifacts"
     / "analyses"
     / "supply_chains"
-    / "cangshulun"
-    / "supply_chain_cangshulun.csv"
+    / "cangshulun_video"
+    / "summary.csv"
 )
 
 VARIANT_NAMES = {
@@ -52,3 +52,8 @@ def test_product_details_chain_metrics_are_bounded_by_system_metrics():
     assert np.asarray(df["chain_employment_share"] <= 1.0 + 1e-9).all()
     assert np.asarray(df["chain_construction_share"] <= 1.0 + 1e-9).all()
     assert np.asarray(df["realized_process_count"] > 0).all()
+
+
+def test_product_details_have_only_configuration_summary():
+    assert TABLE_PATH.is_file()
+    assert not list(TABLE_PATH.parent.glob("*/summary.csv"))

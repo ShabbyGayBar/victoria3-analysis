@@ -119,11 +119,29 @@ def test_showcase_pages_reference_registered_outputs() -> None:
             for path in ROOT.glob(pattern):
                 if path.is_file():
                     relative = path.relative_to(ROOT).as_posix()
+                    directories = re.findall(
+                        r"`(analyses/supply_chains/[^`]+/)`", markdown
+                    )
+                    documented_directory = any(
+                        re.fullmatch(
+                            re.escape(directory)
+                            .replace(r"<good>", r"[^/]+")
+                            .replace(r"<configuration>", r"[^/]+"),
+                            path.parent.relative_to(ROOT)
+                            .as_posix()
+                            .removeprefix("artifacts/")
+                            + "/",
+                        )
+                        for directory in directories
+                    )
                     assert relative in markdown or (
-                        path.parent.relative_to(ROOT)
-                        .as_posix()
-                        .removeprefix("artifacts/")
-                        in markdown
+                        (
+                            documented_directory
+                            or path.parent.relative_to(ROOT)
+                            .as_posix()
+                            .removeprefix("artifacts/")
+                            in markdown
+                        )
                         and f"`{path.name}`" in markdown
                     )
 
@@ -252,12 +270,12 @@ def test_dictionary_covers_analytical_csv_headers() -> None:
     for filename, page, sections in (
         ("datasets/production/production_table.csv", "production.md", ()),
         (
-            "analyses/supply_chains/all_goods/scenario_comparison.csv",
+            "analyses/supply_chains/comparison/summary.csv",
             "supply-chain.md",
             ("Summary", "Sweep summary and failures", "Example CSV additions"),
         ),
         (
-            "analyses/supply_chains/cangshulun/supply_chain_cangshulun.csv",
+            "analyses/supply_chains/cangshulun_video/summary.csv",
             "supply-chain.md",
             ("Summary", "Sweep summary and failures", "Example CSV additions"),
         ),
@@ -323,19 +341,6 @@ def test_dictionary_covers_economy_report_columns() -> None:
         }
         assert columns
         assert _dictionary_columns("economy.md", section) == columns
-
-
-def test_dictionary_covers_market_example_fields() -> None:
-    """The printed market report has its own reference rather than nominal aliases."""
-    columns = ast.literal_eval(
-        _schema_assignment(
-            "examples/supply_chain_market_automobiles.py", "FIXED_COLUMNS"
-        )
-    )
-    assert isinstance(columns, tuple)
-    assert _dictionary_columns("supply-chain.md", "Automobile market example") == set(
-        columns
-    )
 
 
 def test_dictionary_covers_normalized_parser_columns() -> None:

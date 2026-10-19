@@ -6,29 +6,30 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 
 if __package__:
     from . import (
+        ARTIFACTS_DIR,
         CANGSHULUN_BUILDING_LIMITS,
         CANGSHULUN_THROUGHPUT_GROUPS,
         CANGSHULUN_VIDEO_BANNED_PMS,
+        DATASETS_DIR,
         DEFAULT_BANNED_BGS,
-        PARSED_DIR,
-        PRODUCTION_DIR,
-        SUPPLY_CHAINS_DIR,
     )
+    from .supply_chain_compare import load_economy
 else:
     from __init__ import (
+        ARTIFACTS_DIR,
         CANGSHULUN_BUILDING_LIMITS,
         CANGSHULUN_THROUGHPUT_GROUPS,
         CANGSHULUN_VIDEO_BANNED_PMS,
+        DATASETS_DIR,
         DEFAULT_BANNED_BGS,
-        PARSED_DIR,
-        PRODUCTION_DIR,
-        SUPPLY_CHAINS_DIR,
     )
+    from supply_chain_compare import load_economy
 
 from vic3_analysis import Economy, Scenario, sweep_supply_chains
 
@@ -145,12 +146,11 @@ def _template(
     )
 
 
-def main() -> pd.DataFrame:
-    """Solve the detail basket and write ``supply_chain_cangshulun.csv``."""
-    production = pd.read_csv(PRODUCTION_DIR / "production_table.csv")
-    goods = pd.read_csv(PARSED_DIR / "goods.csv")
-    pop_types = pd.read_csv(PARSED_DIR / "pop_types.csv")
-    economy = Economy(df_production=production, df_goods=goods, df_pop_types=pop_types)
+def main(
+    *, datasets_dir: Path = DATASETS_DIR, output_dir: Path = ARTIFACTS_DIR
+) -> pd.DataFrame:
+    """Solve the detail basket and save one configuration-level summary."""
+    economy = load_economy(datasets_dir)
     bonuses = _video_throughput_bonuses(economy)
 
     base = sweep_supply_chains(
@@ -181,9 +181,10 @@ def main() -> pd.DataFrame:
 
     result = pd.concat(frames, ignore_index=True)
     result.insert(2, "ban_config", VIDEO_BAN_CONFIG)
-    output_dir = SUPPLY_CHAINS_DIR / "cangshulun"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    result.to_csv(output_dir / "supply_chain_cangshulun.csv", index=False)
+    root = output_dir / "analyses" / "supply_chains"
+    index_dir = root / VIDEO_BAN_CONFIG
+    index_dir.mkdir(parents=True, exist_ok=True)
+    result.to_csv(index_dir / "summary.csv", index=False, encoding="utf-8")
     return result
 
 
