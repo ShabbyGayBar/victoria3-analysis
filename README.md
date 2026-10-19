@@ -47,12 +47,11 @@ analytical methods in this repository are licensed under the
 [GNU General Public License](LICENSE), version 3 or (at your option) any later
 version, except where stated otherwise.
 
-Generated data and analytical artifacts under `tables/` and `figures/` are
-derived from Victoria 3 game content and are excluded from the GPL license
-grant. A checked-out `artifacts/` repository is a separate work and is not
-licensed by this repository's GPL.
-See [Third-Party Content](THIRD_PARTY_CONTENT.md) for their provenance, terms,
-and the project's affiliation disclaimer.
+Generated data and analytical artifacts under `artifacts/datasets/` and
+`artifacts/analyses/` are derived from Victoria 3 game content and are excluded
+from the GPL license grant. The separate artifact repository's
+[LICENSE](https://github.com/ShabbyGayBar/victoria3-analysis-artifacts/blob/main/LICENSE)
+describes their provenance, applicable terms, and affiliation disclaimer.
 
 Revisions published before the commit that introduced GPL-3.0-or-later remain
 available under the MIT License terms that accompanied those revisions. This

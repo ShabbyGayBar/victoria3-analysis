@@ -12,7 +12,9 @@ import pytest
 
 from vic3_analysis import production_table
 
-TABLES_DIR = Path(__file__).resolve().parent.parent / "tables"
+PARSED_DIR = (
+    Path(__file__).resolve().parent.parent / "artifacts" / "datasets" / "parsed"
+)
 
 META_COLUMNS = [
     "building",
@@ -43,27 +45,27 @@ META_COLUMNS = [
 
 @pytest.fixture(scope="module")
 def df_buildings() -> pd.DataFrame:
-    return pd.read_csv(TABLES_DIR / "buildings.csv")
+    return pd.read_csv(PARSED_DIR / "buildings.csv")
 
 
 @pytest.fixture(scope="module")
 def df_goods() -> pd.DataFrame:
-    return pd.read_csv(TABLES_DIR / "goods.csv")
+    return pd.read_csv(PARSED_DIR / "goods.csv")
 
 
 @pytest.fixture(scope="module")
 def df_pm() -> pd.DataFrame:
-    return pd.read_csv(TABLES_DIR / "production_methods.csv")
+    return pd.read_csv(PARSED_DIR / "production_methods.csv")
 
 
 @pytest.fixture(scope="module")
 def df_tech() -> pd.DataFrame:
-    return pd.read_csv(TABLES_DIR / "technology.csv")
+    return pd.read_csv(PARSED_DIR / "technology.csv")
 
 
 @pytest.fixture(scope="module")
 def df_pop_types() -> pd.DataFrame:
-    return pd.read_csv(TABLES_DIR / "pop_types.csv")
+    return pd.read_csv(PARSED_DIR / "pop_types.csv")
 
 
 @pytest.fixture(scope="module")

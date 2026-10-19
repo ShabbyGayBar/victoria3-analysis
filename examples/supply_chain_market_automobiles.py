@@ -4,7 +4,11 @@
 """Optimize an automobiles export supply chain using endogenous prices."""
 
 import pandas as pd
-from __init__ import DEFAULT_BANNED_BGS, TABLES_DIR
+
+if __package__:
+    from . import DEFAULT_BANNED_BGS, PARSED_DIR, PRODUCTION_DIR
+else:
+    from __init__ import DEFAULT_BANNED_BGS, PARSED_DIR, PRODUCTION_DIR
 
 from vic3_analysis import Economy, MarketOptimizer, Scenario
 from vic3_analysis.analysis.economy import EconomyState
@@ -30,9 +34,9 @@ FIXED_COLUMNS = (
 
 def main() -> EconomyState:
     """Solve and print the fixed-column automobile market metrics."""
-    production = pd.read_csv(TABLES_DIR / "production_table.csv")
-    goods = pd.read_csv(TABLES_DIR / "goods.csv")
-    pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
+    production = pd.read_csv(PRODUCTION_DIR / "production_table.csv")
+    goods = pd.read_csv(PARSED_DIR / "goods.csv")
+    pop_types = pd.read_csv(PARSED_DIR / "pop_types.csv")
     economy = Economy(
         df_production=production,
         df_goods=goods,

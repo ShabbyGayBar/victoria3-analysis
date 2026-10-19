@@ -19,9 +19,20 @@ uv run python -m examples.parse
 ```
 
 You can also run it directly with `uv run examples/parse.py`. Outputs
-use the shared paths under `artifacts/tables/` and `artifacts/figures/`. The
-artifact checkout must be initialized; otherwise the script reports the
-required `git submodule update --init --recursive` command.
+write to `artifacts/datasets/parsed/`. The buy-package CSV is stored at
+`artifacts/datasets/parsed/buy_packages/buy_packages.csv`, with its linear and
+log-scale charts in the adjacent `figures/` directory. These charts are views
+of the parsed dataset.
+
+Clone the separate artifact repository before running the examples:
+
+```bash
+git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts
+```
+
+Regenerate in dependency order: run `examples/parse.py` first, then
+`examples/production_analysis.py`, then the desired analysis scripts. Existing
+files at old artifact paths are not used as fallback inputs.
 
 !!! warning "Generated data follows your installed game version"
 
@@ -62,7 +73,8 @@ uv run examples/production_analysis.py
 
 `production_table()` iterates through every possible building and production method combination, then analyzes the resulting goods flows, employment, and other metrics. For further explanation of the columns, see the [production-table dictionary](../data-dictionary/production.md).
 
-The above script uses the tables existing in `artifacts/tables/`. You can also build the production table directly from the parsers:
+The above script reads `artifacts/datasets/parsed/` and writes
+`artifacts/datasets/production/production_table.csv`. You can also build the production table directly from the parsers:
 
 ```python
 from vic3_analysis import (

@@ -50,7 +50,7 @@
 
 ## Vanilla sync cadence
 
-- Adapted `tables/*.csv` to vanilla versions:
+- Adapted parsed CSV snapshots to vanilla versions (historical releases):
   - [x] `1.13.1`
   - [x] `1.13.8`
   - [x] `1.13.9`

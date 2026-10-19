@@ -2,18 +2,31 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import pandas as pd
-from __init__ import (
-    CANGSHULUN_BANNED_PMS,
-    CANGSHULUN_BUILDING_LIMITS,
-    DEFAULT_BANNED_BGS,
-    TABLES_DIR,
-)
+
+if __package__:
+    from . import (
+        CANGSHULUN_BANNED_PMS,
+        CANGSHULUN_BUILDING_LIMITS,
+        DEFAULT_BANNED_BGS,
+        PARSED_DIR,
+        PRODUCTION_DIR,
+        SUPPLY_CHAINS_DIR,
+    )
+else:
+    from __init__ import (
+        CANGSHULUN_BANNED_PMS,
+        CANGSHULUN_BUILDING_LIMITS,
+        DEFAULT_BANNED_BGS,
+        PARSED_DIR,
+        PRODUCTION_DIR,
+        SUPPLY_CHAINS_DIR,
+    )
 
 from vic3_analysis import Economy, Scenario, sweep_supply_chains
 
-df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
-df_goods = pd.read_csv(TABLES_DIR / "goods.csv")
-df_pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
+df_production_table = pd.read_csv(PRODUCTION_DIR / "production_table.csv")
+df_goods = pd.read_csv(PARSED_DIR / "goods.csv")
+df_pop_types = pd.read_csv(PARSED_DIR / "pop_types.csv")
 
 NORMALIZED_VALUE = 100000.0
 
@@ -86,4 +99,6 @@ for configuration, template, ban_config in templates:
 
 df = pd.concat(frames, ignore_index=True)
 
-df.to_csv(TABLES_DIR / "supply_chain_sweep.csv", index=False)
+output_dir = SUPPLY_CHAINS_DIR / "all_goods"
+output_dir.mkdir(parents=True, exist_ok=True)
+df.to_csv(output_dir / "scenario_comparison.csv", index=False)

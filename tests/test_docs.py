@@ -93,7 +93,7 @@ def test_artifact_registry_covers_outputs_and_examples() -> None:
 
     expected_artifacts = {
         path.relative_to(ROOT).as_posix()
-        for directory in (ROOT / "tables", ROOT / "figures")
+        for directory in (ROOT / "artifacts/datasets", ROOT / "artifacts/analyses")
         for path in directory.rglob("*")
         if path.is_file() and not path.name.startswith(".")
     }
@@ -119,7 +119,13 @@ def test_showcase_pages_reference_registered_outputs() -> None:
             for path in ROOT.glob(pattern):
                 if path.is_file():
                     relative = path.relative_to(ROOT).as_posix()
-                    assert relative in markdown
+                    assert relative in markdown or (
+                        path.parent.relative_to(ROOT)
+                        .as_posix()
+                        .removeprefix("artifacts/")
+                        in markdown
+                        and f"`{path.name}`" in markdown
+                    )
 
 
 def test_api_reference_covers_package_exports_once() -> None:
@@ -162,7 +168,7 @@ def test_exported_objects_and_public_methods_have_docstrings() -> None:
 
 def _dictionary_columns(page: str, section: str | None = None) -> set[str]:
     """Read named first-column entries, requiring complete four-cell rows."""
-    markdown = (DOCS / "data-dictionary" / page).read_text(encoding="utf-8-sig")
+    markdown = (DOCS / "data-dictionary" / page).read_text(encoding="utf-8")
     if section is not None:
         heading = f"## {section}\n"
         assert heading in markdown, f"missing dictionary section: {section}"
@@ -182,7 +188,7 @@ def _dictionary_columns(page: str, section: str | None = None) -> set[str]:
 
 def _schema_assignment(relative: str, name: str) -> ast.expr:
     """Locate one schema assignment without importing parsers or examples."""
-    tree = ast.parse((ROOT / relative).read_text(encoding="utf-8-sig"))
+    tree = ast.parse((ROOT / relative).read_text(encoding="utf-8"))
     values = [
         node.value
         for node in ast.walk(tree)
@@ -244,26 +250,30 @@ def test_dictionary_covers_supply_chain_schemas() -> None:
 def test_dictionary_covers_analytical_csv_headers() -> None:
     """Analytical CSVs have no uncovered columns, including dynamic families."""
     for filename, page, sections in (
-        ("production_table.csv", "production.md", ()),
+        ("datasets/production/production_table.csv", "production.md", ()),
         (
-            "supply_chain_sweep.csv",
+            "analyses/supply_chains/all_goods/scenario_comparison.csv",
             "supply-chain.md",
             ("Summary", "Sweep summary and failures", "Example CSV additions"),
         ),
         (
-            "supply_chain_cangshulun.csv",
+            "analyses/supply_chains/cangshulun/supply_chain_cangshulun.csv",
             "supply-chain.md",
             ("Summary", "Sweep summary and failures", "Example CSV additions"),
         ),
-        ("optimize_jap.csv", "economy.md", ("Japan optimization comparison",)),
+        (
+            "analyses/optimization/japan/employment_sweep.csv",
+            "economy.md",
+            ("Japan optimization comparison",),
+        ),
     ):
         entries = (
             set().union(*(_dictionary_columns(page, section) for section in sections))
             if sections
             else _dictionary_columns(page)
         )
-        with (ROOT / "tables" / filename).open(
-            encoding="utf-8-sig", newline=""
+        with (ROOT / "artifacts" / filename).open(
+            encoding="utf-8", newline=""
         ) as handle:
             columns = set(next(csv.reader(handle)))
         _assert_columns_documented(columns, entries)
@@ -291,7 +301,7 @@ def test_dictionary_covers_optional_production_fields() -> None:
 def test_dictionary_covers_economy_report_columns() -> None:
     """Public state export dictionaries have a complete table-specific reference."""
     tree = ast.parse(
-        (SRC_PACKAGE / "analysis" / "economy.py").read_text(encoding="utf-8-sig")
+        (SRC_PACKAGE / "analysis" / "economy.py").read_text(encoding="utf-8")
     )
     for method, section in (
         ("df_buildings", "Building registry"),
@@ -331,7 +341,7 @@ def test_dictionary_covers_market_example_fields() -> None:
 def test_dictionary_covers_normalized_parser_columns() -> None:
     """Explicit population-need and buy-package schemas are fully documented."""
     tree = ast.parse(
-        (SRC_PACKAGE / "parse" / "pop_needs.py").read_text(encoding="utf-8-sig")
+        (SRC_PACKAGE / "parse" / "pop_needs.py").read_text(encoding="utf-8")
     )
     columns_lists = [
         keyword.value

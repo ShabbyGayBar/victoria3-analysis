@@ -12,8 +12,7 @@ watch:
   - README.md
   - docs
   - examples
-  - figures
-  - tables
+  - artifacts
   - src/vic3_analysis
 
 theme:

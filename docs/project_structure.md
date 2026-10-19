@@ -22,9 +22,6 @@ purpose of each directory, and the key modules/files within them.
   `api.md` nav. Watched paths include `src/vic3_analysis` for live reload.
 - `LICENSE` — GNU General Public License version 3 text for original project
   material licensed under GPL-3.0-or-later.
-- `THIRD_PARTY_CONTENT.md` — License boundary, provenance, and attribution for
-  the Victoria 3-derived artifacts under `tables/` and `figures/`, and for the
-  separate `artifacts/` repository when checked out.
 - `README.md` — Project overview, features, and install instructions. Included
   verbatim on the docs home page via `docs/index.md`.
 - `.gitattribute` / `.gitignore` — Git metadata and ignore rules.
@@ -149,65 +146,46 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `solve()` and `solve_problem()` use SLSQP for endogenous-price GDP or GDP per
   capita.
 
-## `examples/` — Table-generation Scripts
+## `examples/` — Artifact-generation Scripts
 
-Standalone scripts that exercise the parsers and analysis tools. Generated
-CSVs and figures use `artifacts/tables/` and `artifacts/figures/`; the committed
-snapshot paths below remain relative to an artifact collection.
-`__init__.py` defines the shared `TABLES_DIR` and `FIGURES_DIR` paths. Each
-generated artifact and its producing script is indexed in the
-[showcase](showcase/index.md).
+Standalone examples write into the separate `artifacts/` checkout. Shared
+dataset and analysis paths are defined in `examples/__init__.py`; importing
+them does not create output directories. Clone the artifact repository first:
 
-| Script | Output |
+```bash
+git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts
+```
+
+Run `uv run python examples/parse.py`, then
+`uv run python examples/production_analysis.py`, then the desired analysis
+scripts. Parsed inputs are read from `artifacts/datasets/parsed/`; downstream
+studies also read `artifacts/datasets/production/production_table.csv`.
+
+| Script | Output collection relative to `artifacts/` |
 |---|---|
-| `parse.py` | `tables/{buildings,goods,production_methods,pop_types,pop_needs,state_regions,technology,buy_packages}.csv`, `figures/buy_packages/*.svg` |
-| `production_analysis.py` | `tables/production_table.csv` |
-| `optimize_jap.py` | `tables/optimize_jap.csv` |
-| `supply_chain_trace.py` | `figures/supply_chain_recipe.mmd`, `figures/supply_chain_realised.mmd` |
-| `supply_chain_compare.py` | `tables/supply_chain_sweep.csv` |
-| `supply_chain_cangshulun.py` | `tables/supply_chain_cangshulun.csv` |
+| `parse.py` | `datasets/parsed/*.csv`; `datasets/parsed/buy_packages/buy_packages.csv` and `figures/*.svg` within that buy-package collection |
+| `production_analysis.py` | `datasets/production/production_table.csv` |
+| `optimize_jap.py` | `analyses/optimization/japan/employment_sweep.csv` |
+| `supply_chain_trace.py` | `analyses/supply_chains/automobiles/` scenario comparison and sensitivity, with `minimum_employment/` baseline reports and plots and `capital_budget/` diagnostics; optional `all_goods/era_5_automation/summary.csv` and `failures.csv` |
+| `supply_chain_compare.py` | `analyses/supply_chains/all_goods/scenario_comparison.csv` |
+| `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun/supply_chain_cangshulun.csv` |
 | `supply_chain_market_automobiles.py` | Prints automobile market metrics |
 
-Run the combined parser with `uv run python -m examples.parse` or
-`uv run python examples/parse.py`. Run the other examples directly with
-`uv run python examples/<name>.py`. They are the canonical "how do I use this
-package" reference for non-developers.
+## `artifacts/` — Separate Artifact Repository
 
-- `supply_chain_trace.py`, `supply_chain_compare.py`,
-  `supply_chain_cangshulun.py` — supply-chain analysis demos built on the
-  `vic3_analysis.analysis.supply_chain` module: scenario-based optimisation
-  (reproduces the historical `cangshulun_1` recipe via `Scenario` — the
-  original `cangshulun_1.py` / `cangshulun_2.py` scripts were removed once the
-  recipe became a `Scenario`), recipe/realised upstream tracing (writes
-  Mermaid `.mmd` files), and a full sweep of all producible terminal goods
-  with normalised target value and `construction_cost` objective (writes
-  `tables/supply_chain_sweep.csv` and summary charts). The product-details
-  script writes `tables/supply_chain_cangshulun.csv` with `annual_gdp`,
-  `gdp_per_capita`, and per-employment building-level metrics.
-  Runnable as `__main__` scripts; not collected by pytest.
-- `supply_chain_market_automobiles.py` — maximizes market-price GDP per capita
-  for a bounded automobile supply chain with 100 weekly automobile export
-  orders and prints the cangshulun fixed-column metrics.
-- `optimize_jap.py` — maximises an autarkic, era-5 Japanese economy across an
-  employment-cap sweep while enforcing the selected regions' extractive and
-  arable-land capacity; writes `tables/optimize_jap.csv`.
+- `datasets/parsed/` contains parsed game datasets. Supporting visualizations
+  stay with their dataset: the buy-package collection contains its CSV and
+  a local `figures/` directory.
+- `datasets/production/` contains the reusable production-configuration table.
+- `analyses/` groups study-specific tables, plots, and diagrams by subject and
+  scenario, with shared input datasets referenced from `datasets/`.
 
-## `tables/` — Generated CSV Output
-
-Committed CSV exports produced by the `examples/` scripts. Consumed by the
-documentation (`docs/usage/parse.md` links to them on GitHub) and usable for
-downstream analysis without a local game install. The flagship
-`production_table.csv` feeds the optimisation workflow.
-`supply_chain_sweep.csv` contains the full terminal-good sweep results.
-`supply_chain_cangshulun.csv` contains the cangshulun per-good report and
-named production-method variants.
-
-## `figures/` — Generated Visualisation Output
-
-Committed visualisation artefacts produced by the `examples/` scripts.
-Includes Mermaid flowchart files (`.mmd`) from `supply_chain_trace.py` and SVG
-charts from `parse.py`. Tracked in git so the documentation can render
-them without a local game install.
+There are no main-repository table or figure snapshots. The showcase, tests,
+and MkDocs hooks consume only the new artifact collection paths. These paths
+must be populated by the generation scripts before snapshot checks and the
+complete documentation build can pass; old artifact paths are not fallbacks.
+Generated collections retain their repository-relative `artifacts/` prefix
+when published on the documentation site.
 
 ## `tests/` — Test Suite
 
@@ -254,7 +232,7 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
   explanations. Economy modeling and optimization have separate guide pages.
 - `showcase/` — Curated previews and downloads for every tracked table and
   figure, plus the artifact-to-example registry used by documentation tests.
-- `hooks.py` — Adds repository-level artifacts to the site and expands CSV
+- `hooks.py` — Adds artifact-checkout collections to the site and expands CSV
   preview directives during builds.
 - `stylesheets/extra.css` — Responsive gallery and table-preview styling.
 - `license.md` — License page.
@@ -282,5 +260,6 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
 
 ## `.github/workflows/` — CI
 
-- `ci.yml` — On push to `master`/`main`, installs the `dev` dependency group
-  and runs `mkdocs gh-deploy --force` to publish the documentation site.
+- `deploy-docs.yml` — On push to `master`/`main`, checks out the artifact
+  repository into `artifacts/`, installs development dependencies, checks types
+  and documentation coverage, and builds and publishes the documentation site.

@@ -9,7 +9,12 @@ import pandas as pd
 from vic3_analysis.analysis.supply_chain.sweep import SWEEP_COLUMNS
 
 TABLE_PATH = (
-    Path(__file__).resolve().parent.parent / "tables" / "supply_chain_cangshulun.csv"
+    Path(__file__).resolve().parent.parent
+    / "artifacts"
+    / "analyses"
+    / "supply_chains"
+    / "cangshulun"
+    / "supply_chain_cangshulun.csv"
 )
 
 VARIANT_NAMES = {

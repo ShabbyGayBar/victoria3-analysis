@@ -5,10 +5,11 @@ description: Browse every generated Victoria 3 table and figure with its source 
 
 # Generated results showcase
 
-Every tracked table and figure is represented here. Previews are generated from
-the committed files during the MkDocs build, while download links expose the
-complete artifacts. Each page also links to the example script that regenerates
-the result.
+Generated datasets and study outputs are indexed here. Previews and downloads
+read the `datasets/` and `analyses/` collections in the separate artifact
+checkout. Generate these collections before building the complete showcase;
+legacy snapshots are not used as fallbacks. Each page links to the example
+script that regenerates the result.
 
 <div class="grid cards" markdown>
 

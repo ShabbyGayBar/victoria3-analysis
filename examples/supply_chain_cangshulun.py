@@ -8,13 +8,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pandas as pd
-from __init__ import (
-    CANGSHULUN_BUILDING_LIMITS,
-    CANGSHULUN_THROUGHPUT_GROUPS,
-    CANGSHULUN_VIDEO_BANNED_PMS,
-    DEFAULT_BANNED_BGS,
-    TABLES_DIR,
-)
+
+if __package__:
+    from . import (
+        CANGSHULUN_BUILDING_LIMITS,
+        CANGSHULUN_THROUGHPUT_GROUPS,
+        CANGSHULUN_VIDEO_BANNED_PMS,
+        DEFAULT_BANNED_BGS,
+        PARSED_DIR,
+        PRODUCTION_DIR,
+        SUPPLY_CHAINS_DIR,
+    )
+else:
+    from __init__ import (
+        CANGSHULUN_BUILDING_LIMITS,
+        CANGSHULUN_THROUGHPUT_GROUPS,
+        CANGSHULUN_VIDEO_BANNED_PMS,
+        DEFAULT_BANNED_BGS,
+        PARSED_DIR,
+        PRODUCTION_DIR,
+        SUPPLY_CHAINS_DIR,
+    )
 
 from vic3_analysis import Economy, Scenario, sweep_supply_chains
 
@@ -133,9 +147,9 @@ def _template(
 
 def main() -> pd.DataFrame:
     """Solve the detail basket and write ``supply_chain_cangshulun.csv``."""
-    production = pd.read_csv(TABLES_DIR / "production_table.csv")
-    goods = pd.read_csv(TABLES_DIR / "goods.csv")
-    pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
+    production = pd.read_csv(PRODUCTION_DIR / "production_table.csv")
+    goods = pd.read_csv(PARSED_DIR / "goods.csv")
+    pop_types = pd.read_csv(PARSED_DIR / "pop_types.csv")
     economy = Economy(df_production=production, df_goods=goods, df_pop_types=pop_types)
     bonuses = _video_throughput_bonuses(economy)
 
@@ -167,7 +181,9 @@ def main() -> pd.DataFrame:
 
     result = pd.concat(frames, ignore_index=True)
     result.insert(2, "ban_config", VIDEO_BAN_CONFIG)
-    result.to_csv(TABLES_DIR / "supply_chain_cangshulun.csv", index=False)
+    output_dir = SUPPLY_CHAINS_DIR / "cangshulun"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    result.to_csv(output_dir / "supply_chain_cangshulun.csv", index=False)
     return result
 
 

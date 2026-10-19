@@ -2,7 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import pandas as pd
-from __init__ import DEFAULT_BANNED_BGS, TABLES_DIR
+
+if __package__:
+    from . import DEFAULT_BANNED_BGS, JAPAN_DIR, PARSED_DIR, PRODUCTION_DIR
+else:
+    from __init__ import DEFAULT_BANNED_BGS, JAPAN_DIR, PARSED_DIR, PRODUCTION_DIR
 
 from vic3_analysis import (
     Economy,
@@ -26,10 +30,10 @@ JAPAN_STATES = (
     "STATE_SHIKOKU",
 )
 
-df_production_table = pd.read_csv(TABLES_DIR / "production_table.csv")
-df_goods = pd.read_csv(TABLES_DIR / "goods.csv")
-df_pop_types = pd.read_csv(TABLES_DIR / "pop_types.csv")
-df_state_regions = pd.read_csv(TABLES_DIR / "state_regions.csv")
+df_production_table = pd.read_csv(PRODUCTION_DIR / "production_table.csv")
+df_goods = pd.read_csv(PARSED_DIR / "goods.csv")
+df_pop_types = pd.read_csv(PARSED_DIR / "pop_types.csv")
+df_state_regions = pd.read_csv(PARSED_DIR / "state_regions.csv")
 
 economy = Economy(
     df_production=df_production_table, df_goods=df_goods, df_pop_types=df_pop_types
@@ -84,4 +88,5 @@ for employment_cap, scenario in zip(employment_caps, scenarios):
         )
 
 state_comparison = pd.DataFrame(rows)
-state_comparison.to_csv(TABLES_DIR / "optimize_jap.csv", index=False)
+JAPAN_DIR.mkdir(parents=True, exist_ok=True)
+state_comparison.to_csv(JAPAN_DIR / "employment_sweep.csv", index=False)

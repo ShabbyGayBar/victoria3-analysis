@@ -1,57 +1,57 @@
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/buildings.csv"]
+artifacts = ["artifacts/datasets/parsed/buildings.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/goods.csv"]
+artifacts = ["artifacts/datasets/parsed/goods.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/pop_needs.csv"]
+artifacts = ["artifacts/datasets/parsed/pop_needs.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/pop_types.csv"]
+artifacts = ["artifacts/datasets/parsed/pop_types.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/production_methods.csv"]
+artifacts = ["artifacts/datasets/parsed/production_methods.csv"]
 
 [[collection]]
 script = "examples/production_analysis.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/production_table.csv"]
+artifacts = ["artifacts/datasets/production/production_table.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/state_regions.csv"]
+artifacts = ["artifacts/datasets/parsed/state_regions.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/parsed-data.md"
-artifacts = ["tables/technology.csv"]
+artifacts = ["artifacts/datasets/parsed/technology.csv"]
 
 [[collection]]
 script = "examples/parse.py"
 page = "showcase/buy-packages.md"
-artifacts = ["tables/buy_packages.csv", "figures/buy_packages/*.svg"]
+artifacts = ["artifacts/datasets/parsed/buy_packages/buy_packages.csv", "artifacts/datasets/parsed/buy_packages/figures/*.svg"]
 
 [[collection]]
 script = "examples/supply_chain_compare.py"
 page = "showcase/supply-chains.md"
-artifacts = ["tables/supply_chain_sweep.csv"]
+artifacts = ["artifacts/analyses/supply_chains/all_goods/scenario_comparison.csv"]
 
 [[collection]]
 script = "examples/supply_chain_cangshulun.py"
 page = "showcase/supply-chains.md"
-artifacts = ["tables/supply_chain_cangshulun.csv"]
+artifacts = ["artifacts/analyses/supply_chains/cangshulun/supply_chain_cangshulun.csv"]
 
 [[collection]]
 script = "examples/supply_chain_market_automobiles.py"
@@ -61,9 +61,18 @@ artifacts = []
 [[collection]]
 script = "examples/supply_chain_trace.py"
 page = "showcase/supply-chains.md"
-artifacts = ["figures/supply_chain_recipe.mmd", "figures/supply_chain_realised.mmd"]
+artifacts = [
+    "artifacts/analyses/supply_chains/automobiles/minimum_employment/*.csv",
+    "artifacts/analyses/supply_chains/automobiles/minimum_employment/*.svg",
+    "artifacts/analyses/supply_chains/automobiles/minimum_employment/*.mmd",
+    "artifacts/analyses/supply_chains/automobiles/scenario_comparison.csv",
+    "artifacts/analyses/supply_chains/automobiles/scenario_comparison.svg",
+    "artifacts/analyses/supply_chains/automobiles/sensitivity.csv",
+    "artifacts/analyses/supply_chains/automobiles/capital_budget/*",
+    "artifacts/analyses/supply_chains/all_goods/era_5_automation/*.csv",
+]
 
 [[collection]]
 script = "examples/optimize_jap.py"
 page = "showcase/resource-limited-optimization.md"
-artifacts = ["tables/optimize_jap.csv"]
+artifacts = ["artifacts/analyses/optimization/japan/employment_sweep.csv"]

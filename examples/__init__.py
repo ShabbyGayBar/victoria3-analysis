@@ -9,19 +9,23 @@ ARTIFACTS_DIR = REPOSITORY_DIR / "artifacts"
 
 
 def _artifact_directory(name: str) -> Path:
-    """Return a writable directory inside the initialized artifact checkout."""
+    """Return a path inside the initialized artifact checkout without creating it."""
     if not (ARTIFACTS_DIR / ".git").exists():
         raise RuntimeError(
             "Artifact repository is not initialized. Run "
-            "`git submodule update --init --recursive`."
+            "`git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts`."
         )
     directory = ARTIFACTS_DIR / name
-    directory.mkdir(parents=True, exist_ok=True)
     return directory
 
 
-TABLES_DIR = _artifact_directory("tables")
-FIGURES_DIR = _artifact_directory("figures")
+DATASETS_DIR = _artifact_directory("datasets")
+PARSED_DIR = DATASETS_DIR / "parsed"
+BUY_PACKAGES_DIR = PARSED_DIR / "buy_packages"
+PRODUCTION_DIR = DATASETS_DIR / "production"
+ANALYSES_DIR = _artifact_directory("analyses")
+SUPPLY_CHAINS_DIR = ANALYSES_DIR / "supply_chains"
+JAPAN_DIR = ANALYSES_DIR / "optimization" / "japan"
 
 DEFAULT_BANNED_BGS = (
     "bg_gold_fields",

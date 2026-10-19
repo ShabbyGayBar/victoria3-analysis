@@ -44,7 +44,7 @@ game_version: 1.13.11
 
     排名不包含奇观、军队、政府、自给农业、公司总部等非一般商品生产建筑，只保留具有正产出、正就业、正建筑力成本和正名义净利的生产单元。排名对象是生产单元而不是建筑，所以同一建筑的多套生产方式可以同时进入前十。指标相同时，以名义净利更高者优先。
 
-在 AI 的帮助下，我们得到了这张[表格](../tables/production_table.csv)，收录了所有生产单元的以上相关信息。让我们根据不同指标排序，看看游戏中有哪些最强生产单元。
+在 AI 的帮助下，我们得到了这张[表格](../artifacts/datasets/production/production_table.csv)，收录了所有生产单元的以上相关信息。让我们根据不同指标排序，看看游戏中有哪些最强生产单元。
 
 ## 尾盘
 
@@ -150,6 +150,6 @@ game_version: 1.13.11
 
 敬请期待下期维多利亚3全产业链分析。
 
-[:material-download: 下载完整生产单元表 tables/production_table.csv](../tables/production_table.csv)
+[:material-download: 下载完整生产单元表 artifacts/datasets/production/production_table.csv](../artifacts/datasets/production/production_table.csv)
 
 [:fontawesome-brands-github: 查看生成脚本 examples/production_analysis.py](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_analysis.py)

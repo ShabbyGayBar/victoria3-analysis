@@ -18,30 +18,32 @@ from vic3_analysis import (
 def main() -> None:
     """Generate the eight parsed CSVs and linear/log-scale buy-package SVGs."""
     if __package__:
-        from . import FIGURES_DIR, TABLES_DIR
+        from . import BUY_PACKAGES_DIR, PARSED_DIR
     else:
-        from __init__ import FIGURES_DIR, TABLES_DIR
+        from __init__ import BUY_PACKAGES_DIR, PARSED_DIR
 
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    BuildingsParser().to_dataframe().to_csv(TABLES_DIR / "buildings.csv", index=False)
-    goods().to_csv(TABLES_DIR / "goods.csv", index=False)
+    PARSED_DIR.mkdir(parents=True, exist_ok=True)
+    BUY_PACKAGES_DIR.mkdir(parents=True, exist_ok=True)
+    BuildingsParser().to_dataframe().to_csv(PARSED_DIR / "buildings.csv", index=False)
+    goods().to_csv(PARSED_DIR / "goods.csv", index=False)
     ProductionMethodParser().to_dataframe().to_csv(
-        TABLES_DIR / "production_methods.csv", index=False
+        PARSED_DIR / "production_methods.csv", index=False
     )
-    PopTypesParser().to_dataframe().to_csv(TABLES_DIR / "pop_types.csv", index=False)
-    PopNeedsParser().to_dataframe().to_csv(TABLES_DIR / "pop_needs.csv", index=False)
+    PopTypesParser().to_dataframe().to_csv(PARSED_DIR / "pop_types.csv", index=False)
+    PopNeedsParser().to_dataframe().to_csv(PARSED_DIR / "pop_needs.csv", index=False)
     StateRegionsParser().to_dataframe().to_csv(
-        TABLES_DIR / "state_regions.csv", index=False
+        PARSED_DIR / "state_regions.csv", index=False
     )
-    technology().to_csv(TABLES_DIR / "technology.csv", index=False)
+    technology().to_csv(PARSED_DIR / "technology.csv", index=False)
     data = buy_packages()
-    data.to_csv(TABLES_DIR / "buy_packages.csv", index=False)
+    data.to_csv(BUY_PACKAGES_DIR / "buy_packages.csv", index=False)
 
-    figures_dir = FIGURES_DIR / "buy_packages"
+    figures_dir = BUY_PACKAGES_DIR / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
     wealth = data["wealth"].to_numpy()
     for column in data.columns:

@@ -24,9 +24,9 @@ land use, and resolved inherited building-group attributes. Important columns:
 `key`, `building_group`, `required_construction_points`, `land_usage`, and
 `economy_of_scale`.
 
-<!-- table-preview: tables/buildings.csv | columns=key,building_group,required_construction_points,land_usage,economy_of_scale | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/buildings.csv | columns=key,building_group,required_construction_points,land_usage,economy_of_scale | rows=5 -->
 
-[:material-download: Download `tables/buildings.csv`](../tables/buildings.csv)
+[:material-download: Download `artifacts/datasets/parsed/buildings.csv`](../artifacts/datasets/parsed/buildings.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
@@ -39,9 +39,9 @@ One row per tradeable good with its base cost, category, and trade or consumptio
 properties. Important columns: `key`, `cost`, `category`, `tradeable`, and
 `local`.
 
-<!-- table-preview: tables/goods.csv | columns=key,cost,category,tradeable,local | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/goods.csv | columns=key,cost,category,tradeable,local | rows=5 -->
 
-[:material-download: Download `tables/goods.csv`](../tables/goods.csv)
+[:material-download: Download `artifacts/datasets/parsed/goods.csv`](../artifacts/datasets/parsed/goods.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
@@ -54,9 +54,9 @@ Maps each population need to eligible goods and substitution constraints.
 Important columns: `key`, `goods`, `weight`, `min_supply_share`, and
 `max_supply_share`.
 
-<!-- table-preview: tables/pop_needs.csv | columns=key,goods,weight,min_supply_share,max_supply_share | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/pop_needs.csv | columns=key,goods,weight,min_supply_share,max_supply_share | rows=5 -->
 
-[:material-download: Download `tables/pop_needs.csv`](../tables/pop_needs.csv)
+[:material-download: Download `artifacts/datasets/parsed/pop_needs.csv`](../artifacts/datasets/parsed/pop_needs.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
@@ -68,9 +68,9 @@ uv run python -m examples.parse
 One row per profession or dependent type, including starting wealth, wage
 weights, employment flags, and consumption multipliers.
 
-<!-- table-preview: tables/pop_types.csv | columns=key,start_quality_of_life,wage_weight,working_adult_ratio,consumption_mult | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/pop_types.csv | columns=key,start_quality_of_life,wage_weight,working_adult_ratio,consumption_mult | rows=5 -->
 
-[:material-download: Download `tables/pop_types.csv`](../tables/pop_types.csv)
+[:material-download: Download `artifacts/datasets/parsed/pop_types.csv`](../artifacts/datasets/parsed/pop_types.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
@@ -82,9 +82,9 @@ uv run python -m examples.parse
 Flattened production methods with employment, goods flows, state modifiers,
 unlock conditions, and production-method-group context.
 
-<!-- table-preview: tables/production_methods.csv | columns=building,production_method_group,production_method,employment,goods_tools,goods_steel | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/production_methods.csv | columns=building,production_method_group,production_method,employment,goods_tools,goods_steel | rows=5 -->
 
-[:material-download: Download `tables/production_methods.csv`](../tables/production_methods.csv)
+[:material-download: Download `artifacts/datasets/parsed/production_methods.csv`](../artifacts/datasets/parsed/production_methods.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
@@ -98,9 +98,9 @@ methods for a building. It contains input/output flows, employment,
 private-wage-normalized employment, construction cost, unlock era, and nominal
 profitability.
 
-<!-- table-preview: tables/production_table.csv | columns=building,production_method,building_group,era,employment,wage_normalized_employment,profit_per_wage_normalized_employment_nominal | rows=5 -->
+<!-- table-preview: artifacts/datasets/production/production_table.csv | columns=building,production_method,building_group,era,employment,wage_normalized_employment,profit_per_wage_normalized_employment_nominal | rows=5 -->
 
-[:material-download: Download `tables/production_table.csv`](../tables/production_table.csv)
+[:material-download: Download `artifacts/datasets/production/production_table.csv`](../artifacts/datasets/production/production_table.csv)
 · [:fontawesome-brands-github: View `examples/production_analysis.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_analysis.py)
 
 ```bash
@@ -112,9 +112,9 @@ uv run python -m examples.production_analysis
 One row per state region with arable land and total resource potential. Resource
 columns feed directly into scenario building limits.
 
-<!-- table-preview: tables/state_regions.csv | columns=key,province_count,arable_land,resource_building_coal_mine,resource_building_iron_mine,resource_building_oil_rig | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/state_regions.csv | columns=key,province_count,arable_land,resource_building_coal_mine,resource_building_iron_mine,resource_building_oil_rig | rows=5 -->
 
-[:material-download: Download `tables/state_regions.csv`](../tables/state_regions.csv)
+[:material-download: Download `artifacts/datasets/parsed/state_regions.csv`](../artifacts/datasets/parsed/state_regions.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
@@ -125,9 +125,9 @@ uv run python -m examples.parse
 
 Technology keys, eras, categories, prerequisites, and map-update behavior.
 
-<!-- table-preview: tables/technology.csv | columns=key,era,category,unlocking_technologies,should_update_map | rows=5 -->
+<!-- table-preview: artifacts/datasets/parsed/technology.csv | columns=key,era,category,unlocking_technologies,should_update_map | rows=5 -->
 
-[:material-download: Download `tables/technology.csv`](../tables/technology.csv)
+[:material-download: Download `artifacts/datasets/parsed/technology.csv`](../artifacts/datasets/parsed/technology.csv)
 · [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
 
 ```bash
