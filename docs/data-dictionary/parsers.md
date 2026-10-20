@@ -66,7 +66,7 @@ containers are omitted. The computed families below are zero-filled.
 | `production_method` | String / identifier | Single chosen method in that group. | Fixed row identifier; complete combinations are formed by `production_table()`. |
 | `employment` | Number / workers per level | Sum of `building_employment_*` values in the method's `level_scaled` building modifiers. | Zero when absent; negative automation adjustments are retained. |
 | `employment_<profession>` | Number / workers per level | Value of `building_employment_<profession>_add`; e.g. `employment_laborers`. | Family discovered from employment modifiers; absent method/profession values are zero. |
-| `goods_<good>` | Number / goods units per week per level | Signed `workforce_scaled` goods modifier: output positive, input negative; e.g. `goods_tools`. | One column per supplied/parsed good; absent flows zero. The parser assigns matched modifiers rather than resolving arbitrary game effects. |
+| `goods_<good>` | Number / goods units per week per level | Signed `workforce_scaled` goods modifier: output positive, input negative; e.g. `goods_tools`. Accepts `goods_(output\|input)_<good>_add` and legacy `building_(output\|input)_<good>_add` names. | One column per supplied/parsed good; absent flows zero. The parser assigns matched modifiers rather than resolving arbitrary game effects. |
 
 State-modifier keys are also flattened from `unscaled`, `level_scaled`, and
 `workforce_scaled` blocks and zero-filled across rows. Their concrete names and

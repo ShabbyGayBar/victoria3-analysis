@@ -29,6 +29,8 @@ from vic3_analysis.parse.localization import (
 from vic3_analysis.parse.production_method_groups import production_method_groups
 from vic3_analysis.utils import get_vic3_directory, parse_merge
 
+GOODS_IO_PATTERN = re.compile(r"(?:goods|building)_(output|input)_(.+)_add$")
+
 
 class ProductionMethodParser(Tree):
     """A ``pyradox.Tree`` populated with Victoria 3 production-method definitions.
@@ -171,7 +173,8 @@ class ProductionMethodParser(Tree):
         defines ``building_modifiers``, reads its ``workforce_scaled`` modifiers
         to compute the net flow of each good (positive for output, negative for
         input).  Methods without ``workforce_scaled`` still appear with an empty
-        flows dict.
+        flows dict. Both ``goods_(output|input)_<good>_add`` and the legacy
+        ``building_(output|input)_<good>_add`` modifier names are supported.
 
         Args:
             goods_keys: Set of known good keys used for validation.
@@ -193,7 +196,7 @@ class ProductionMethodParser(Tree):
             if not isinstance(workforce_scaled, dict):
                 continue
             for goods_str, value in workforce_scaled.items():
-                match = re.match(r"goods_(output|input)_(.+)_add$", goods_str)
+                match = GOODS_IO_PATTERN.match(goods_str)
                 if not match:
                     continue
                 good = match.group(2)

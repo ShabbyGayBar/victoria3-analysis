@@ -3,7 +3,79 @@
 
 """Tests for :class:`vic3_analysis.ProductionMethodParser`."""
 
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
 from vic3_analysis import ProductionMethodParser
+
+
+def _goods_parser(tmp_path: Path, modifiers: str) -> ProductionMethodParser:
+    directory = tmp_path / "common" / "production_methods"
+    directory.mkdir(parents=True)
+    (directory / "test.txt").write_text(
+        "pm_test = { building_modifiers = { workforce_scaled = { "
+        + modifiers
+        + " } } }",
+        encoding="utf-8",
+    )
+    return ProductionMethodParser(game_dir=tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("input_prefix", "output_prefix"),
+    [
+        ("goods", "goods"),
+        ("building", "building"),
+        ("building", "goods"),
+        ("goods", "building"),
+    ],
+)
+def test_goods_flows_support_modern_and_legacy_modifiers(
+    tmp_path: Path, input_prefix: str, output_prefix: str
+) -> None:
+    parser = _goods_parser(
+        tmp_path,
+        f"{input_prefix}_input_tools_add = 5\n"
+        f"{output_prefix}_output_coal_add = 25.5\n"
+        f"{input_prefix}_input_small_arms_add = -2\n"
+        f"{output_prefix}_output_grain_add = -1.5\n"
+        f"{output_prefix}_output_tools_mult = 99\n"
+        "building_employment_laborers_add = 99\n",
+    )
+    frame = parser.to_dataframe(
+        df_goods=pd.DataFrame(
+            {"key": ["tools", "coal", "small_arms", "grain", "wood"]}
+        ),
+        df_buildings=pd.DataFrame(
+            {"key": ["building_test"], "production_method_groups": [["pmg_test"]]}
+        ),
+        pmg_dict={"pmg_test": ["pm_test"]},
+    )
+
+    assert len(frame) == 1
+    assert frame.filter(like="goods_").iloc[0].to_dict() == {
+        "goods_tools": -5,
+        "goods_coal": 25.5,
+        "goods_small_arms": 2,
+        "goods_grain": -1.5,
+        "goods_wood": 0,
+    }
+
+
+@pytest.mark.parametrize("prefix", ["goods", "building"])
+def test_goods_flows_reject_unknown_good(tmp_path: Path, prefix: str) -> None:
+    parser = _goods_parser(tmp_path, f"{prefix}_input_unknown_add = 5")
+
+    with pytest.raises(ValueError, match=f"{prefix}_input_unknown_add"):
+        parser.to_dataframe(
+            df_goods=pd.DataFrame({"key": ["tools"]}),
+            df_buildings=pd.DataFrame(
+                {"key": ["building_test"], "production_method_groups": [["pmg_test"]]}
+            ),
+            pmg_dict={"pmg_test": ["pm_test"]},
+        )
 
 
 def test_production_method() -> None:
