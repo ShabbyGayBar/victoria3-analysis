@@ -2,7 +2,7 @@
 name = "vic3-analysis"
 authors = [{ name = "Brian Li", email = "brianlizsy@qq.com" }]
 version = "0.1.0"
-description = "Add your description here"
+description = "Play Victoria 3 with scripts and excel tables."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -16,6 +16,10 @@ dependencies = [
 ]
 license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/ShabbyGayBar/victoria3-analysis"
+Issues = "https://github.com/ShabbyGayBar/victoria3-analysis/issues"
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13"]
@@ -54,3 +58,5 @@ exclude = ["**/__pycache__", "**/node_modules", "**/.*", ".venv"]
 typeCheckingMode = "standard"
 venvPath = "."
 venv = ".venv"
+
+[tool.ruff]
