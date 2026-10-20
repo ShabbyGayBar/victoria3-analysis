@@ -41,7 +41,7 @@ bonuses, and use goods base prices. See [shared conventions](index.md).
 | --- | --- | --- | --- |
 | `employment` | Number / workers per level | Sum of chosen methods' total employment. | Always included; includes automation adjustments. |
 | `employment_<profession>` | Number / workers per level | Sum of chosen methods' profession-specific employment; e.g. `employment_engineers`. | One column per profession present in the methods input. |
-| `wage_normalized_employment` | Number / private-wage-equivalent workers per level | Sum of profession employment times `wage_weight`, counting only professions whose `paid_private_wage` flag is true. | Only with `df_pop_types`; missing private-wage flag values count as false. Invalid or missing required profession weights raise an error. |
+| `wage_normalized_employment` | Number / private-wage-equivalent workers per level | Sum of profession employment times `wage_weight`, counting only professions whose `paid_private_wage` flag is true. | Only with `df_pop_types`; missing private-wage flags default to true, including when the column is absent in older game data. Invalid or missing required profession weights raise an error. |
 | `goods_<good>` | Number / goods units per week per level | Sum of the chosen methods' signed flow for the good: positive output, negative input. | One per goods-table key, in goods-table row order; missing methods input columns warn and are zero-filled. Unpriced goods columns are ignored with a warning. |
 | `input_ratio_goods_<good>` | Float / fraction | `max(-goods_<good>, 0) / sum(max(-goods_<all goods>, 0))`. | Immediately follows its goods column. Zero for outputs, zero flows, and configurations without net inputs. |
 

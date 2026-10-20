@@ -795,7 +795,7 @@ def test_wage_normalized_employment_filters_private_wages_and_preserves_sign() -
     df_pop_types = pd.DataFrame(
         {
             "key": ["laborers", "capitalists", "aristocrats"],
-            "wage_weight": [1.5, -1.0, "not used"],
+            "wage_weight": [1.5, -1.0, 2.0],
             "paid_private_wage": [True, False, None],
         }
     )
@@ -808,7 +808,28 @@ def test_wage_normalized_employment_filters_private_wages_and_preserves_sign() -
     assert row["employment_laborers"] == 50
     assert row["employment_capitalists"] == 20
     assert row["employment_aristocrats"] == 10
-    assert row["wage_normalized_employment"] == 75.0
+    assert row["wage_normalized_employment"] == 95.0
+
+
+@pytest.mark.parametrize("missing_flag", ["absent_column", None, np.nan, pd.NA])
+def test_undefined_private_wage_flag_defaults_to_true(missing_flag: object) -> None:
+    df_pop_types = _pop_types_frame().assign(wage_weight=2.5)
+    if isinstance(missing_flag, str):
+        df_pop_types = df_pop_types.drop(columns="paid_private_wage")
+    else:
+        df_pop_types["paid_private_wage"] = pd.Series(
+            [missing_flag], index=df_pop_types.index
+        )
+    original = df_pop_types.copy(deep=True)
+
+    result = production_table(
+        _buildings_frame(), _goods_frame(), _pm_frame(), _tech_frame(), df_pop_types
+    )
+
+    np.testing.assert_allclose(
+        result["wage_normalized_employment"], result["employment_laborers"] * 2.5
+    )
+    pd.testing.assert_frame_equal(df_pop_types, original)
 
 
 def test_wage_normalized_division_by_zero() -> None:
@@ -832,7 +853,7 @@ def test_wage_normalized_division_by_zero() -> None:
     )
 
 
-@pytest.mark.parametrize("column", ["key", "wage_weight", "paid_private_wage"])
+@pytest.mark.parametrize("column", ["key", "wage_weight"])
 def test_pop_types_required_columns(column: str) -> None:
     df_pop_types = _pop_types_frame().drop(columns=column)
 

@@ -68,7 +68,7 @@ def production_table(
     output, negative = input). When pop types are supplied, wage-normalized
     employment is the sum of each profession's employment multiplied by its
     wage weight, restricted to pop types whose ``paid_private_wage`` flag is
-    true. The
+    true (defaulting to true when undefined). The
     ``infrastructure_usage_per_level``
     column holds the net per-level footprint: the building group's usage
     minus the ``state_infrastructure_add`` generation summed over the chosen
@@ -116,8 +116,10 @@ def production_table(
             produced.
         df_pop_types: Optional pop-types table
             (`PopTypesParser.to_dataframe()` or ``tables/pop_types.csv``) with
-            ``key``, ``wage_weight``, and ``paid_private_wage`` columns. Missing
-            private-wage flags are treated as false. When the table is omitted,
+            ``key`` and ``wage_weight`` columns, plus an optional
+            ``paid_private_wage`` column. Missing private-wage flags default
+            to true, including when the column is absent in older game data.
+            When the table is omitted,
             the wage-normalized employment columns are not produced.
 
     Returns:
@@ -158,7 +160,7 @@ def production_table(
 
     wage_weights: np.ndarray | None = None
     if df_pop_types is not None:
-        required_pop_columns = {"key", "wage_weight", "paid_private_wage"}
+        required_pop_columns = {"key", "wage_weight"}
         missing_pop_columns = required_pop_columns - set(df_pop_types.columns)
         if missing_pop_columns:
             raise ValueError(
@@ -186,7 +188,10 @@ def production_table(
             )
 
         profession_pop_types = pop_types_by_key.reindex(profession_keys)
-        private_wage_flags = profession_pop_types["paid_private_wage"].fillna(False)
+        if "paid_private_wage" in profession_pop_types.columns:
+            private_wage_flags = profession_pop_types["paid_private_wage"].fillna(True)
+        else:
+            private_wage_flags = pd.Series(True, index=profession_pop_types.index)
         invalid_private_wage_flags = ~private_wage_flags.map(
             lambda value: isinstance(value, (bool, np.bool_))
         )
