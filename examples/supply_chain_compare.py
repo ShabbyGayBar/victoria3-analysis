@@ -59,7 +59,13 @@ TEMPLATES = (
         building_limits=CANGSHULUN_BUILDING_LIMITS,
     ),
 )
-COMPARISON_COLUMNS = ["good", "configuration", "ban_config", *SWEEP_COLUMNS[1:]]
+COMPARISON_COLUMNS = [
+    "good",
+    "configuration",
+    "ban_config",
+    *SWEEP_COLUMNS[1:],
+    "system_gdp_per_capita_annual",
+]
 
 
 def load_economy(datasets_dir: Path) -> Economy:
@@ -246,7 +252,7 @@ def _comparison_figure(comparison: pd.DataFrame, *, metric: str, label: str) -> 
 
 
 def _export_comparison(comparison: pd.DataFrame, directory: Path) -> None:
-    """Write the combined summary and separate population/construction charts."""
+    """Write the combined summary and grouped comparison charts."""
     _write_csv(comparison, directory / "summary.csv")
     for metric, label, filename in (
         ("system_employment", "Population (workers)", "pop.svg"),
@@ -254,6 +260,11 @@ def _export_comparison(comparison: pd.DataFrame, directory: Path) -> None:
             "system_construction_cost",
             "Construction (points)",
             "construction_points.svg",
+        ),
+        (
+            "system_gdp_per_capita_annual",
+            "Annual GDP per capita (£/worker/year)",
+            "gdp_per_capita.svg",
         ),
     ):
         _save_figure(
@@ -316,6 +327,13 @@ def run_supply_chain_compare(
         pd.concat(frames, ignore_index=True)
         if frames
         else pd.DataFrame(columns=COMPARISON_COLUMNS)
+    )
+    employment = np.asarray(combined["system_employment"], dtype=float)
+    combined["system_gdp_per_capita_annual"] = np.divide(
+        np.asarray(combined["system_gdp_annual"], dtype=float),
+        employment,
+        out=np.zeros(len(combined)),
+        where=employment != 0,
     )
     for template in TEMPLATES:
         configuration = template.display_name()

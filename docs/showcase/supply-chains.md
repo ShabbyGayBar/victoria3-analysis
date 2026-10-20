@@ -164,14 +164,17 @@ Use a single configuration when ranking goods under common assumptions.
 
 [:material-download: Download all-good comparison](../artifacts/analyses/supply_chains/comparison/summary.csv)
 
-The comparison directory contains only this summary and two grouped bar charts:
+The comparison directory contains this summary and three grouped bar charts:
 
 - `pop.svg` plots `system_employment`, the whole-system employed population
   in workers. It excludes dependents and unemployed people.
 - `construction_points.svg` plots `system_construction_cost` in construction
   points.
+- `gdp_per_capita.svg` plots `system_gdp_per_capita_annual`: annual system GDP
+  divided by system employment, in £ per worker per year. Zero employment gives
+  zero, matching the economy model's GDP-per-capita convention.
 
-Both charts use goods as the main horizontal-axis ticks, with configuration
+All charts use goods as the main horizontal-axis ticks, with configuration
 ticks beneath the individual bars. Colors identify configurations consistently
 between charts. A failed solve keeps its tick and shows an × instead of a bar;
 it is not treated as a zero requirement. SVG width grows with the number of
@@ -179,6 +182,7 @@ goods so the two tick levels remain readable when zoomed.
 
 [:material-download: Population chart](../artifacts/analyses/supply_chains/comparison/pop.svg)
 · [:material-download: Construction chart](../artifacts/analyses/supply_chains/comparison/construction_points.svg)
+· [:material-download: Annual GDP per capita chart](../artifacts/analyses/supply_chains/comparison/gdp_per_capita.svg)
 
 ```python
 from pathlib import Path
@@ -233,7 +237,7 @@ all goods' graphs and snapshots in memory.
 | `analyses/supply_chains/era_5_automation/<good>/` | Same reports, plots, and diagrams |
 | `analyses/supply_chains/cangshulun/<good>/` | Same reports, plots, and diagrams |
 | `analyses/supply_chains/<configuration>/` | `summary.csv`, combining that configuration's selected goods |
-| `analyses/supply_chains/comparison/` | `summary.csv`, `pop.svg`, `construction_points.svg`, covering all selected goods and presets |
+| `analyses/supply_chains/comparison/` | `summary.csv`, `pop.svg`, `construction_points.svg`, `gdp_per_capita.svg`, covering all selected goods and presets |
 
 Each successful comparison configuration contains `goods.csv`, `processes.csv`,
 `flows.csv`, `workforce.csv`, `constraints.csv`, `bottlenecks.csv`,
@@ -244,7 +248,7 @@ Each successful comparison configuration contains `goods.csv`, `processes.csv`,
 stored only in the configuration-level `summary.csv` and comparison CSVs.
 
 The configuration summary and comparison CSVs use the public sweep schema,
-plus `configuration` and `ban_config`. The other detailed CSVs retain their
+plus `configuration`, `ban_config`, and `system_gdp_per_capita_annual`. The other detailed CSVs retain their
 public report schemas. Cross-good summaries sit at configuration level.
 A selected-good run replaces the configuration summaries and combined
 comparison with that run's selection; other goods' directories remain.

@@ -50,6 +50,7 @@ artifacts = [
     "artifacts/analyses/supply_chains/comparison/summary.csv",
     "artifacts/analyses/supply_chains/comparison/pop.svg",
     "artifacts/analyses/supply_chains/comparison/construction_points.svg",
+    "artifacts/analyses/supply_chains/comparison/gdp_per_capita.svg",
     "artifacts/analyses/supply_chains/era_3_construction/summary.csv",
     "artifacts/analyses/supply_chains/era_3_construction/*/*",
     "artifacts/analyses/supply_chains/era_5_automation/summary.csv",

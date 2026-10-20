@@ -283,8 +283,9 @@ configuration/good pair; video `summary.csv` files have one row per
 variant/good pair. Detailed results live under
 `analyses/supply_chains/<configuration>/<good>/`; cross-good `summary.csv`
 files live at configuration level. Cross-configuration comparisons live under
-`analyses/supply_chains/comparison/summary.csv`, alongside the population and
-construction charts `pop.svg` and `construction_points.svg`.
+`analyses/supply_chains/comparison/summary.csv`, alongside the population,
+construction, and annual GDP per capita charts `pop.svg`,
+`construction_points.svg`, and `gdp_per_capita.svg`.
 Labels describe presets, not additional economic metrics.
 
 | Column | Type / unit | Meaning / source | Presence / edge cases |
@@ -292,6 +293,7 @@ Labels describe presets, not additional economic metrics.
 | `configuration` | String / preset label | Scenario preset in `examples/supply_chain_compare.py`. | In comparison and preset summary CSVs; rows retain it on failure. |
 | `variant` | String / preset label | `base` or a named product-specific variant in `examples/supply_chain_cangshulun.py`. | Only in video summary CSVs; base covers all producible goods, named variants selected goods. |
 | `ban_config` | String / preset label | Ban-policy label supplied by the example. | Retained on failure; an empty label in the comparison export does not mean no default building-group bans. |
+| `system_gdp_per_capita_annual` | Float / £ per worker per year | `system_gdp_annual / system_employment`. | Only in comparison and preset summary CSVs; zero for successful solves with zero employment, NaN on failure. |
 
 See the [supply-chain API](../api/supply-chain.md) for report calls and the
 [showcase](../showcase/supply-chains.md) for example downloads and commands.

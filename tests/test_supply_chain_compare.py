@@ -78,6 +78,16 @@ def test_tradeoffs_failures_and_per_good_exports(tmp_path: Path) -> None:
         40.0
     )
     assert cases.loc["cangshulun", "ban_config"] == "cangshulun"
+    np.testing.assert_allclose(
+        cases["system_gdp_per_capita_annual"], [130_000.0, 520_000.0, 520_000.0]
+    )
+    assert (
+        comparison.loc[
+            comparison["status"].eq("failure"), "system_gdp_per_capita_annual"
+        ]
+        .isna()
+        .all()
+    )
     assert (
         comparison.loc[comparison["good"].eq("future"), "system_employment"]
         .isna()
@@ -128,6 +138,7 @@ def test_tradeoffs_failures_and_per_good_exports(tmp_path: Path) -> None:
         "summary.csv",
         "pop.svg",
         "construction_points.svg",
+        "gdp_per_capita.svg",
     }
     saved = pd.read_csv(_root(tmp_path) / "comparison/summary.csv")
     pd.testing.assert_frame_equal(
@@ -158,9 +169,10 @@ def test_tradeoffs_failures_and_per_good_exports(tmp_path: Path) -> None:
 
 
 def test_empty_workforce_and_bottlenecks(tmp_path: Path) -> None:
-    run_supply_chain_compare(
+    comparison = run_supply_chain_compare(
         _economy(zero_employment=True), tmp_path, goods=["automobiles"]
     )
+    assert (comparison["system_gdp_per_capita_annual"] == 0).all()
     directory = _root(tmp_path) / "era_5_automation/automobiles"
     assert pd.read_csv(directory / "workforce.csv").empty
     assert pd.read_csv(directory / "bottlenecks.csv").empty
@@ -265,6 +277,7 @@ def test_failed_rerun_removes_previous_details(tmp_path: Path) -> None:
     [
         ("system_employment", "Population (workers)", 1.0),
         ("system_construction_cost", "Construction (points)", 10.0),
+        ("system_gdp_per_capita_annual", "Annual GDP per capita (£/worker/year)", 52.0),
     ],
 )
 def test_comparison_chart_groups_goods_and_marks_failures(
