@@ -9,6 +9,7 @@ it as a ``pyradox.Tree`` subclass with helper methods for DataFrame conversion
 and state region look-ups.
 """
 
+import warnings
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -37,7 +38,7 @@ _skip_keys = [
 def _select_state_regions(
     state_regions_df: pd.DataFrame, state_region_keys: Iterable[str]
 ) -> pd.DataFrame:
-    """Return requested state-region rows after validating their keys."""
+    """Return matching state-region rows, warning about unknown keys."""
     if "key" not in state_regions_df.columns:
         raise ValueError("state_regions_df must contain a 'key' column.")
 
@@ -46,7 +47,10 @@ def _select_state_regions(
     unknown_keys = [key for key in keys if key not in known_keys]
     if unknown_keys:
         joined = ", ".join(repr(key) for key in unknown_keys)
-        raise ValueError(f"Unknown state-region key(s): {joined}.")
+        warnings.warn(
+            f"Unknown state-region key(s): {joined}; ignoring these state regions.",
+            stacklevel=3,
+        )
     selected = state_regions_df[state_regions_df["key"].astype(str).isin(keys)]
     if not isinstance(selected, pd.DataFrame):
         raise TypeError("Expected state-region row selection to return a DataFrame.")
@@ -61,14 +65,16 @@ def state_region_arable_land_limit(
     Args:
         state_regions_df: Parsed state-region DataFrame.
         state_region_keys: State-region keys to aggregate. Repeated keys are
-            counted once.
+            counted once. Unknown keys are ignored with a warning.
 
     Returns:
         The sum of the selected regions' ``arable_land`` values.
 
     Raises:
-        ValueError: If required columns are missing or a requested key is
-            unknown.
+        ValueError: If required columns are missing.
+
+    Warns:
+        UserWarning: If a requested state-region key is unknown.
     """
     selected = _select_state_regions(state_regions_df, state_region_keys)
     if "arable_land" not in selected.columns:
@@ -102,15 +108,17 @@ def state_region_resource_limits(
     Args:
         state_regions_df: Parsed state-region DataFrame.
         state_region_keys: State-region keys to aggregate. Repeated keys are
-            counted once.
+            counted once. Unknown keys are ignored with a warning.
 
     Returns:
         An insertion-ordered mapping suitable for
         ``Scenario(building_limits=tuple(limits.items()))``.
 
     Raises:
-        ValueError: If the DataFrame has no ``key`` column or a requested state
-            region is unknown.
+        ValueError: If the DataFrame has no ``key`` column.
+
+    Warns:
+        UserWarning: If a requested state-region key is unknown.
     """
     selected = _select_state_regions(state_regions_df, state_region_keys)
     resource_columns = [

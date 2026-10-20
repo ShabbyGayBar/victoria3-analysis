@@ -70,11 +70,40 @@ def test_state_region_resource_limits_include_absent_resources(
     }
 
 
-def test_state_region_resource_limits_reject_unknown_key(
+def test_state_region_resource_limits_warn_and_skip_unknown_keys(
     state_regions_df: pd.DataFrame,
 ):
-    with pytest.raises(ValueError, match="Unknown state-region key"):
-        state_region_resource_limits(state_regions_df, ["STATE_UNKNOWN"])
+    with pytest.warns(UserWarning, match="Unknown state-region key") as warnings:
+        limits = state_region_resource_limits(
+            state_regions_df,
+            ["STATE_A", "STATE_UNKNOWN", "STATE_B", "STATE_OTHER", "STATE_UNKNOWN"],
+        )
+
+    assert len(warnings) == 1
+    assert str(warnings[0].message) == (
+        "Unknown state-region key(s): 'STATE_UNKNOWN', 'STATE_OTHER'; "
+        "ignoring these state regions."
+    )
+    assert limits == {
+        "building_coal_mine": 14.0,
+        "building_oil_rig": 3.0,
+        "building_gold_field": 0.0,
+        "building_gold_mine": 3.0,
+    }
+
+
+def test_state_region_resource_limits_all_unknown_keys_return_zero(
+    state_regions_df: pd.DataFrame,
+):
+    with pytest.warns(UserWarning, match="STATE_UNKNOWN"):
+        limits = state_region_resource_limits(state_regions_df, ["STATE_UNKNOWN"])
+
+    assert limits == {
+        "building_coal_mine": 0.0,
+        "building_oil_rig": 0.0,
+        "building_gold_field": 0.0,
+        "building_gold_mine": 0.0,
+    }
 
 
 def test_state_region_resource_limits_require_key_column():
@@ -93,3 +122,19 @@ def test_state_region_arable_land_limit_deduplicates_regions(
 def test_state_region_arable_land_limit_requires_column():
     with pytest.raises(ValueError, match="must contain an 'arable_land' column"):
         state_region_arable_land_limit(pd.DataFrame({"key": ["STATE_A"]}), ["STATE_A"])
+
+
+@pytest.mark.parametrize(
+    ("keys", "expected"),
+    [
+        (["STATE_A", "STATE_UNKNOWN", "STATE_B", "STATE_A"], 300.0),
+        (["STATE_UNKNOWN"], 0.0),
+    ],
+)
+def test_state_region_arable_land_limit_warns_and_skips_unknown_keys(
+    state_regions_df: pd.DataFrame, keys: list[str], expected: float
+) -> None:
+    with pytest.warns(UserWarning, match="STATE_UNKNOWN"):
+        limit = state_region_arable_land_limit(state_regions_df, iter(keys))
+
+    assert limit == pytest.approx(expected)
