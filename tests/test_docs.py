@@ -13,6 +13,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 SRC_PACKAGE = ROOT / "src" / "vic3_analysis"
+SUBMODULE_INIT = "git submodule update --init --recursive"
+
+
+def _require_artifact_checkout() -> None:
+    """Fail artifact-backed tests with the submodule initialization command."""
+    if not (ROOT / "artifacts/.git").exists():
+        raise AssertionError(
+            "Artifact submodule is not initialized. Run "
+            f"`{SUBMODULE_INIT}` from the repository root."
+        )
 
 
 def _registry() -> list[dict[str, object]]:
@@ -76,6 +86,7 @@ def _export_origins() -> dict[str, tuple[str, str]]:
 
 def test_artifact_registry_covers_outputs_and_examples() -> None:
     """Every generated artifact and producer script is registered exactly once."""
+    _require_artifact_checkout()
     matches: dict[str, list[str]] = {}
     scripts: set[str] = set()
     for collection in _registry():
@@ -267,6 +278,7 @@ def test_dictionary_covers_supply_chain_schemas() -> None:
 
 def test_dictionary_covers_analytical_csv_headers() -> None:
     """Analytical CSVs have no uncovered columns, including dynamic families."""
+    _require_artifact_checkout()
     for filename, page, sections in (
         ("datasets/production/production_table.csv", "production.md", ()),
         (

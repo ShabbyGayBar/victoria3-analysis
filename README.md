@@ -4,7 +4,9 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ShabbyGayBar/victoria3-analysis/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/71a4a3f3b6824b08a9e7c9fc8621f49a)](https://app.codacy.com/gh/ShabbyGayBar/victoria3-analysis/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-This repository contains code and data for analyzing Victoria 3 game data. It is intended to parse game data into csv or other structured formats, and provide insights into the game's mechanics and player strategies, such as production optimization.
+This repository contains code for analyzing Victoria 3 game data. A pinned
+submodule provides the separately licensed generated datasets and analytical
+artifacts used by the documentation and examples.
 
 ## Features
 
@@ -33,9 +35,15 @@ pip install "https://github.com/ShabbyGayBar/victoria3-analysis/releases/downloa
 For development purposes, you can clone the repository and install the package in editable mode:
 
 ```bash
-git clone https://github.com/ShabbyGayBar/victoria3-analysis.git
+git clone --recurse-submodules https://github.com/ShabbyGayBar/victoria3-analysis.git
 cd victoria3-analysis
 uv sync
+```
+
+For an existing checkout, initialize the pinned artifact repository with:
+
+```bash
+git submodule update --init --recursive
 ```
 
 ## License

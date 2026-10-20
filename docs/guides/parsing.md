@@ -24,10 +24,10 @@ write to `artifacts/datasets/parsed/`. The buy-package CSV is stored at
 log-scale charts in the adjacent `figures/` directory. These charts are views
 of the parsed dataset.
 
-Clone the separate artifact repository before running the examples:
+Initialize the pinned artifact submodule before running the examples:
 
 ```bash
-git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts
+git submodule update --init --recursive
 ```
 
 Regenerate in dependency order: run `examples/parse.py` first, then

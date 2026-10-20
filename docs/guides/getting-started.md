@@ -12,14 +12,14 @@ Set up the package, then choose a guide for the analysis you want to run.
 Clone the repository and install its locked development environment:
 
 ```bash
-git clone https://github.com/ShabbyGayBar/victoria3-analysis.git
+git clone --recurse-submodules https://github.com/ShabbyGayBar/victoria3-analysis.git
 cd victoria3-analysis
 uv sync
-git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts
 ```
 
-The examples require the separate artifact checkout. Generate parsed datasets
-first, then the production table, then study results; see the
+For an existing checkout, initialize the pinned artifact submodule with
+`git submodule update --init --recursive`. The examples require this artifact
+checkout. Generate parsed datasets first, then the production table, then study results; see the
 [parsing guide](parsing.md#generate-the-tables) for commands and output paths.
 
 ## Continue from here

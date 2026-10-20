@@ -71,7 +71,7 @@ all without even installing the game.
 === "Development checkout"
 
     ```bash
-    git clone https://github.com/ShabbyGayBar/victoria3-analysis.git
+    git clone --recurse-submodules https://github.com/ShabbyGayBar/victoria3-analysis.git
     cd victoria3-analysis
     uv sync
     ```

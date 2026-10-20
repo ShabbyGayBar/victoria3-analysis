@@ -18,15 +18,26 @@ from mkdocs.structure.pages import Page
 _LOG = logging.getLogger("mkdocs")
 _ROOT = Path(__file__).resolve().parent.parent
 _ARTIFACT_DIRS = ("artifacts/datasets", "artifacts/analyses")
+_SUBMODULE_INIT = "git submodule update --init --recursive"
 _TABLE_PREVIEW = re.compile(
     r"<!--\s*table-preview:\s*(?P<path>[^|]+?)\s*\|\s*"
     r"columns=(?P<columns>[^|]+?)\s*\|\s*rows=(?P<rows>\d+)\s*-->"
 )
 
 
+def _require_artifact_checkout() -> None:
+    """Fail with setup guidance when the artifact submodule is uninitialized."""
+    if (_ROOT / ".gitmodules").is_file() and not (_ROOT / "artifacts/.git").exists():
+        raise RuntimeError(
+            "Artifact submodule is not initialized. Run "
+            f"`{_SUBMODULE_INIT}` from the repository root."
+        )
+
+
 def on_files(files: Files, config: MkDocsConfig, **kwargs: object) -> Files:
     """Add repository-level generated artifacts to MkDocs' static files."""
     del kwargs
+    _require_artifact_checkout()
     known = {file.src_uri for file in files}
     for directory in _ARTIFACT_DIRS:
         for path in sorted((_ROOT / directory).rglob("*")):

@@ -68,6 +68,14 @@ def test_missing_collections_are_not_created(artifact_root: Path) -> None:
     assert not (artifact_root / "artifacts").exists()
 
 
+def test_uninitialized_submodule_reports_initialization_command(
+    artifact_root: Path,
+) -> None:
+    _write(artifact_root, ".gitmodules", '[submodule "artifacts"]\n')
+    with pytest.raises(RuntimeError, match="git submodule update --init --recursive"):
+        hooks.on_files(Files([]), _config(artifact_root))
+
+
 @pytest.mark.parametrize("collection", ["datasets/parsed", "analyses/study"])
 def test_preview_reads_each_collection_and_escapes_cells(
     artifact_root: Path, collection: str

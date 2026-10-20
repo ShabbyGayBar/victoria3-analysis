@@ -13,7 +13,7 @@ def _artifact_directory(name: str) -> Path:
     if not (ARTIFACTS_DIR / ".git").exists():
         raise RuntimeError(
             "Artifact repository is not initialized. Run "
-            "`git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts`."
+            "`git submodule update --init --recursive`."
         )
     directory = ARTIFACTS_DIR / name
     return directory

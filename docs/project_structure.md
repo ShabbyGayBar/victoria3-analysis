@@ -22,6 +22,8 @@ purpose of each directory, and the key modules/files within them.
   `api.md` nav. Watched paths include `src/vic3_analysis` for live reload.
 - `LICENSE` — GNU General Public License version 3 text for original project
   material licensed under GPL-3.0-or-later.
+- `.gitmodules` — Mounts the separately licensed artifact repository at
+  `artifacts/`; the parent repository pins an exact artifact commit.
 - `README.md` — Project overview, features, and install instructions. Included
   verbatim on the docs home page via `docs/index.md`.
 - `.gitattribute` / `.gitignore` — Git metadata and ignore rules.
@@ -150,10 +152,10 @@ or expose a `pyradox.Tree` subclass with helper methods.
 
 Standalone examples write into the separate `artifacts/` checkout. Shared
 dataset and analysis paths are defined in `examples/__init__.py`; importing
-them does not create output directories. Clone the artifact repository first:
+them does not create output directories. Initialize the pinned submodule first:
 
 ```bash
-git clone https://github.com/ShabbyGayBar/victoria3-analysis-artifacts.git artifacts
+git submodule update --init --recursive
 ```
 
 Run `uv run python examples/parse.py`, then
@@ -170,6 +172,11 @@ studies also read `artifacts/datasets/production/production_table.csv`.
 | `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun_video/summary.csv`, containing all goods and variants |
 
 ## `artifacts/` — Separate Artifact Repository
+
+This path is a Git submodule pinned to an exact artifact-repository commit.
+Recursive clones reproduce the documented snapshot; updates to the pointer are
+reviewed and committed manually in the parent repository. The artifact
+repository and its contents are outside the main repository's GPL grant.
 
 - `datasets/parsed/` contains parsed game datasets. Supporting visualizations
   stay with their dataset: the buy-package collection contains its CSV and
@@ -259,5 +266,6 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
 ## `.github/workflows/` — CI
 
 - `deploy-docs.yml` — On push to `master`/`main`, checks out the artifact
-  repository into `artifacts/`, installs development dependencies, checks types
-  and documentation coverage, and builds and publishes the documentation site.
+  submodule recursively at the commit pinned by the parent repository, installs
+  development dependencies, checks types and documentation coverage, and builds
+  and publishes the documentation site.
