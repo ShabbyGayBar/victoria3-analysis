@@ -64,8 +64,8 @@ def parse_merge(path: str | Path, merge_levels: int = 0) -> pyradox.Tree:
 
     result = pyradox.Tree()
     for entry in sorted(Path(path).iterdir(), key=lambda p: p.name):
-        if entry.suffix == ".md":
-            continue  # Skip markdown files
+        if entry.suffix != ".txt" or not entry.is_file():
+            continue
         content = entry.read_text(encoding="utf-8-sig")
         # Replace all special strings with '=' to prevent pyradox from treating them as merge directives
         for str in replace_strings:
