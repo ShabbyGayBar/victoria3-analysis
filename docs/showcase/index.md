@@ -22,9 +22,11 @@ script that regenerates the result.
 
 -   :material-account-group: **Buy packages**
 
-    A wealth-level table and 17 plots of political strength and pop-need demand.
+    An illustrated guide to wealth, political strength, and all 15 population
+    needs, with a data table and 34 linear/log-scale plots.
 
-    [:octicons-arrow-right-24: Explore buy packages](buy-packages.md)
+    [:octicons-arrow-right-24: Read in English](buy-packages.md) ·
+    [阅读简体中文版](buy-packages-zh-CN.md)
 
 -   :material-chart-bar: **Production-unit rankings（中文）**
 
