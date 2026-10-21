@@ -1,0 +1,134 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("electricity"))
+    n3(("engines"))
+    n4(("explosives"))
+    n5(("fertilizer"))
+    n6(("iron"))
+    n7(("lead"))
+    n8(("oil"))
+    n9(("paper"))
+    n10(("radios"))
+    n11(("rubber"))
+    n12(("steel"))
+    n13(("sulfur"))
+    n14(("telephones"))
+    n15(("tobacco ★"))
+    n16(("tools"))
+    n17(("transportation"))
+    n18(("wood"))
+    n19["building_chemical_plant<br/>lvl=0.1093 | active"]
+    n20["building_coal_mine<br/>lvl=1.882 | active"]
+    n21["building_electrics_industry<br/>lvl=0.8929 | active"]
+    n22["building_explosives_factory<br/>lvl=0.2994 | active"]
+    n23["building_iron_mine<br/>lvl=2.247 | active"]
+    n24["building_lead_mine<br/>lvl=0.1984 | active"]
+    n25["building_logging_camp<br/>lvl=0.02695 | active"]
+    n26["building_motor_industry<br/>lvl=3.019 | active"]
+    n27["building_oil_rig<br/>lvl=0.2246 | active"]
+    n28["building_paper_mill<br/>lvl=0.08983 | active"]
+    n29["building_power_plant<br/>lvl=5.599 | active"]
+    n30["building_railway<br/>lvl=3.426 | active"]
+    n31["building_rubber_plantation<br/>lvl=0.4112 | active"]
+    n32["building_steel_mill<br/>lvl=1.097 | active"]
+    n33["building_sulfur_mine<br/>lvl=0.1638 | active"]
+    n34["building_synthetics_plant<br/>lvl=0.01123 | active"]
+    n35["building_tobacco_plantation<br/>lvl=35.71 | active"]
+    n36["building_tooling_workshop<br/>lvl=0.8873 | active"]
+    n0 -.->|"8.989"| n23
+    n0 -->|"0.7937"| n24
+    n0 -.->|"0.1078"| n25
+    n0 -.->|"30.19"| n26
+    n0 -.->|"0.8983"| n28
+    n0 -.->|"112"| n29
+    n0 -.->|"43.87"| n32
+    n0 -.->|"0.6552"| n33
+    n0 -.->|"13.31"| n36
+    n1 -.->|"0.8983"| n28
+    n2 -->|"44.64"| n21
+    n2 -.->|"5.989"| n22
+    n2 -.->|"0.1347"| n25
+    n2 -.->|"90.58"| n26
+    n2 -.->|"34.26"| n30
+    n2 -.->|"32.9"| n32
+    n2 -->|"71.43"| n35
+    n3 -.->|"1.882"| n20
+    n3 -.->|"2.247"| n23
+    n3 -->|"0.1984"| n24
+    n3 -.->|"0.02695"| n25
+    n3 -.->|"2.246"| n27
+    n3 -.->|"33.59"| n29
+    n3 -.->|"20.55"| n30
+    n3 -.->|"2.056"| n31
+    n3 -.->|"0.1638"| n33
+    n3 -->|"178.6"| n35
+    n4 -.->|"18.82"| n20
+    n4 -.->|"22.47"| n23
+    n4 -->|"1.984"| n24
+    n4 -.->|"1.638"| n33
+    n5 -.->|"14.97"| n22
+    n5 -.->|"0.3369"| n34
+    n6 -.->|"3.28"| n19
+    n6 -->|"17.86"| n21
+    n6 -.->|"109.7"| n32
+    n6 -->|"71.43"| n35
+    n7 -->|"17.86"| n21
+    n8 -.->|"9.41"| n20
+    n8 -.->|"11.24"| n23
+    n8 -->|"0.9921"| n24
+    n8 -.->|"0.819"| n33
+    n9 -.->|"8.983"| n22
+    n10 -->|"35.71"| n35
+    n11 -->|"17.86"| n21
+    n11 -.->|"8.873"| n36
+    n12 -.->|"120.8"| n26
+    n12 -.->|"17.13"| n30
+    n12 -.->|"26.62"| n36
+    n13 -.->|"3.28"| n19
+    n13 -.->|"11.98"| n22
+    n13 -.->|"0.8983"| n28
+    n13 -.->|"0.2246"| n34
+    n16 -.->|"28.23"| n20
+    n16 -->|"8.929"| n21
+    n16 -.->|"33.71"| n23
+    n16 -->|"2.976"| n24
+    n16 -.->|"0.2695"| n25
+    n16 -.->|"15.1"| n26
+    n16 -.->|"0.4491"| n28
+    n16 -.->|"5.484"| n32
+    n16 -.->|"2.457"| n33
+    n17 -.->|"9.41"| n20
+    n17 -.->|"11.24"| n23
+    n17 -->|"0.9921"| n24
+    n17 -.->|"0.2156"| n25
+    n17 -.->|"2.246"| n27
+    n17 -.->|"2.056"| n31
+    n17 -.->|"0.819"| n33
+    n17 -->|"178.6"| n35
+    n18 -.->|"2.695"| n28
+    n19 -.->|"15.31"| n5
+    n20 -.->|"210.8"| n0
+    n21 -->|"35.71"| n10
+    n21 -->|"35.71"| n14
+    n22 -.->|"44.91"| n4
+    n23 -.->|"202.2"| n6
+    n24 -->|"17.86"| n7
+    n25 -.->|"2.695"| n18
+    n26 -.->|"241.5"| n3
+    n27 -.->|"22.46"| n8
+    n28 -.->|"8.983"| n9
+    n29 -.->|"279.9"| n2
+    n30 -.->|"205.5"| n17
+    n31 -.->|"26.73"| n11
+    n32 -.->|"164.5"| n12
+    n33 -.->|"16.38"| n13
+    n34 -.->|"0.8983"| n1
+    n35 -->|"2500"| n15
+    n36 -.->|"97.6"| n16
+    class n0,n1,n2,n3,n4,n5,n6,n8,n9,n11,n12,n13,n16,n17,n18,n19,n20,n22,n23,n25,n26,n27,n28,n29,n30,n31,n32,n33,n34,n36 cyclic
+    class n20,n23,n24,n25,n27,n31,n33 resource
+    class n19,n20,n21,n22,n23,n24,n25,n26,n27,n28,n29,n30,n31,n32,n33,n34,n35,n36 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

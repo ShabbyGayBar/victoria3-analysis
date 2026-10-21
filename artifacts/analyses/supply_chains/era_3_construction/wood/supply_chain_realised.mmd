@@ -1,0 +1,61 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("explosives"))
+    n3(("fertilizer"))
+    n4(("iron"))
+    n5(("paper"))
+    n6(("rubber"))
+    n7(("steel"))
+    n8(("sulfur"))
+    n9(("tools"))
+    n10(("wood ★"))
+    n11["building_chemical_plant<br/>lvl=0.04775 | active"]
+    n12["building_coal_mine<br/>lvl=0.5787 | active"]
+    n13["building_dye_plantation<br/>lvl=0.007427 | active"]
+    n14["building_explosives_factory<br/>lvl=0.1671 | active"]
+    n15["building_iron_mine<br/>lvl=1.154 | active"]
+    n16["building_logging_camp<br/>lvl=83.35 | active"]
+    n17["building_paper_mill<br/>lvl=0.03342 | active"]
+    n18["building_rubber_plantation<br/>lvl=0.8976 | active"]
+    n19["building_steel_mill<br/>lvl=1.01 | active"]
+    n20["building_sulfur_mine<br/>lvl=0.1056 | active"]
+    n21["building_tooling_workshop<br/>lvl=4.039 | active"]
+    n0 -.->|"17.31"| n15
+    n0 -.->|"30.29"| n19
+    n0 -.->|"1.585"| n20
+    n1 -->|"0.3342"| n17
+    n2 -.->|"5.787"| n12
+    n2 -.->|"11.54"| n15
+    n2 -.->|"1.056"| n20
+    n3 -.->|"6.685"| n14
+    n4 -.->|"1.432"| n11
+    n4 -.->|"90.88"| n19
+    n5 -.->|"3.342"| n14
+    n6 -->|"40.39"| n21
+    n7 -.->|"121.2"| n21
+    n8 -.->|"1.432"| n11
+    n8 -.->|"6.685"| n14
+    n8 -.->|"0.3342"| n17
+    n9 -.->|"8.68"| n12
+    n9 -.->|"17.31"| n15
+    n9 -.->|"416.8"| n16
+    n9 -.->|"1.585"| n20
+    n10 -.->|"1.003"| n17
+    n11 -.->|"6.685"| n3
+    n12 -.->|"49.19"| n0
+    n13 -->|"0.3342"| n1
+    n14 -.->|"18.38"| n2
+    n15 -.->|"92.32"| n4
+    n16 -.->|"5001"| n10
+    n17 -.->|"3.342"| n5
+    n18 -->|"40.39"| n6
+    n19 -.->|"121.2"| n7
+    n20 -.->|"8.451"| n8
+    n21 -.->|"444.3"| n9
+    class n0,n2,n3,n4,n5,n7,n8,n9,n10,n11,n12,n14,n15,n16,n17,n19,n20,n21 cyclic
+    class n12,n15,n16,n18,n20 resource
+    class n11,n12,n13,n14,n15,n16,n17,n18,n19,n20,n21 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

@@ -1,0 +1,61 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("explosives"))
+    n3(("fertilizer ★"))
+    n4(("iron"))
+    n5(("paper"))
+    n6(("rubber"))
+    n7(("steel"))
+    n8(("sulfur"))
+    n9(("tools"))
+    n10(("wood"))
+    n11["building_chemical_plant<br/>lvl=24.44 | active"]
+    n12["building_coal_mine<br/>lvl=3.899 | active"]
+    n13["building_dye_plantation<br/>lvl=0.09829 | active"]
+    n14["building_explosives_factory<br/>lvl=2.211 | active"]
+    n15["building_iron_mine<br/>lvl=10.1 | active"]
+    n16["building_logging_camp<br/>lvl=0.2211 | active"]
+    n17["building_paper_mill<br/>lvl=0.4423 | active"]
+    n18["building_rubber_plantation<br/>lvl=0.7394 | active"]
+    n19["building_steel_mill<br/>lvl=0.8318 | active"]
+    n20["building_sulfur_mine<br/>lvl=10.33 | active"]
+    n21["building_tooling_workshop<br/>lvl=3.327 | active"]
+    n0 -.->|"151.5"| n15
+    n0 -.->|"24.95"| n19
+    n0 -.->|"154.9"| n20
+    n1 -->|"4.423"| n17
+    n2 -.->|"38.99"| n12
+    n2 -.->|"101"| n15
+    n2 -.->|"103.3"| n20
+    n3 -.->|"88.46"| n14
+    n4 -.->|"733.2"| n11
+    n4 -.->|"74.86"| n19
+    n5 -.->|"44.23"| n14
+    n6 -->|"33.27"| n21
+    n7 -.->|"99.82"| n21
+    n8 -.->|"733.2"| n11
+    n8 -.->|"88.46"| n14
+    n8 -.->|"4.423"| n17
+    n9 -.->|"58.48"| n12
+    n9 -.->|"151.5"| n15
+    n9 -.->|"1.106"| n16
+    n9 -.->|"154.9"| n20
+    n10 -.->|"13.27"| n17
+    n11 -.->|"3422"| n3
+    n12 -.->|"331.4"| n0
+    n13 -->|"4.423"| n1
+    n14 -.->|"243.3"| n2
+    n15 -.->|"808.1"| n4
+    n16 -.->|"13.27"| n10
+    n17 -.->|"44.23"| n5
+    n18 -->|"33.27"| n6
+    n19 -.->|"99.82"| n7
+    n20 -.->|"826.1"| n8
+    n21 -.->|"366"| n9
+    class n0,n2,n3,n4,n5,n7,n8,n9,n10,n11,n12,n14,n15,n16,n17,n19,n20,n21 cyclic
+    class n12,n15,n16,n18,n20 resource
+    class n11,n12,n13,n14,n15,n16,n17,n18,n19,n20,n21 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

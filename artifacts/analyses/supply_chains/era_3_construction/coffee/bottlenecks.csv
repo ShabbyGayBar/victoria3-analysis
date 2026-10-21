@@ -1,0 +1,5 @@
+kind,family,label,realized_value,bound,slack,residual,binding,solver_marginal,improvement_per_unit
+inequality,import_limit,engines,0.0,0.0,0.0,0.0,True,-20.000000000000007,20.000000000000007
+inequality,import_limit,tools,0.0,0.0,0.0,0.0,True,-5.714285714285717,5.714285714285717
+inequality,produce,coffee,-2000.0,-2000.0,0.0,0.0,True,-5.714285714285714,5.714285714285714
+inequality,import_limit,steel,0.0,0.0,0.0,0.0,True,-0.9523809523809632,0.9523809523809632

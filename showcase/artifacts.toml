@@ -1,0 +1,72 @@
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/buildings.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/goods.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/pop_needs.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/pop_types.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/production_methods.csv"]
+
+[[collection]]
+script = "examples/production_analysis.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/production/production_table.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/state_regions.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/parsed-data.md"
+artifacts = ["artifacts/datasets/parsed/technology.csv"]
+
+[[collection]]
+script = "examples/parse.py"
+page = "showcase/buy-packages.md"
+artifacts = ["artifacts/datasets/parsed/buy_packages/buy_packages.csv", "artifacts/datasets/parsed/buy_packages/figures/*.svg"]
+
+[[collection]]
+script = "examples/supply_chain_compare.py"
+page = "showcase/supply-chains.md"
+artifacts = [
+    "artifacts/analyses/supply_chains/comparison/summary.csv",
+    "artifacts/analyses/supply_chains/comparison/pop.svg",
+    "artifacts/analyses/supply_chains/comparison/construction_points.svg",
+    "artifacts/analyses/supply_chains/comparison/gdp_per_capita.svg",
+    "artifacts/analyses/supply_chains/era_3_construction/summary.csv",
+    "artifacts/analyses/supply_chains/era_3_construction/*/*",
+    "artifacts/analyses/supply_chains/era_5_automation/summary.csv",
+    "artifacts/analyses/supply_chains/era_5_automation/*/*",
+    "artifacts/analyses/supply_chains/cangshulun/summary.csv",
+    "artifacts/analyses/supply_chains/cangshulun/*/*",
+]
+
+[[collection]]
+script = "examples/supply_chain_cangshulun.py"
+page = "showcase/supply-chains.md"
+artifacts = [
+    "artifacts/analyses/supply_chains/cangshulun_video/summary.csv",
+]
+
+[[collection]]
+script = "examples/optimize_jap.py"
+page = "showcase/resource-limited-optimization.md"
+artifacts = ["artifacts/analyses/optimization/japan/employment_sweep.csv"]

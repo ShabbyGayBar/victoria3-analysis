@@ -1,0 +1,2 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_cotton_plantation+default_building_cotton_plantation+slave_exploitation_cotton+pm_road_carts,good:fabric,output,fabric,building_cotton_plantation+default_building_cotton_plantation+slave_exploitation_cotton+pm_road_carts,65.0,5000.0,20.0,100000.0,True,False

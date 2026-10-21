@@ -1,0 +1,2 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_tea_plantation+default_building_tea_plantation+slave_exploitation_tea+pm_road_carts,good:tea,output,tea,building_tea_plantation+default_building_tea_plantation+slave_exploitation_tea+pm_road_carts,40.0,2000.0,50.0,100000.0,True,False
