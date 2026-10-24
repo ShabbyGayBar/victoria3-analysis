@@ -199,7 +199,7 @@ game_version: 1.13.11
 - 文中图片的SVG矢量高清原版：[全部 SVG 图表](#svg)。
 - [BV1pG3yzVE67](https://www.bilibili.com/video/BV1pG3yzVE67) 00:26处的表格：[buy_packages.csv](../artifacts/datasets/parsed/buy_packages/buy_packages.csv)
 - 更多游戏数据表格：[解析数据](parsed-data.md)
-- 生成上述表格的源代码：[`examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+- 生成上述表格的源代码：[`examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ### 数据预览
 

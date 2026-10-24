@@ -17,7 +17,7 @@ The [supply-chain guide](../guides/supply-chain.md) explains the API and graph
 model. The [data dictionary](../data-dictionary/supply-chain.md) defines the
 report columns, units, formulas, and failure behavior.
 
-[:fontawesome-brands-github: View `examples/supply_chain_compare.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/supply_chain_compare.py)
+[:fontawesome-brands-github: View `examples/supply_chain_compare.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/supply_chain_compare.py)
 
 ## Methodology
 
@@ -287,7 +287,7 @@ Looking back on the results, the drastic drops in fine-art and urban-service pro
 
 [:material-download: Download 1.12 selected results (1.12.5 inputs)](../artifacts/analyses/supply_chains/cangshulun_video/summary_1.12.csv)
 · [:material-download: Download latest complete results (1.13.11)](../artifacts/analyses/supply_chains/cangshulun_video/summary.csv)
-· [:fontawesome-brands-github: View `examples/supply_chain_cangshulun.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/supply_chain_cangshulun.py)
+· [:fontawesome-brands-github: View `examples/supply_chain_cangshulun.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/supply_chain_cangshulun.py)
 
 ## Output inventory
 

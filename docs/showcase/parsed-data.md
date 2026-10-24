@@ -27,7 +27,7 @@ land use, and resolved inherited building-group attributes. Important columns:
 <!-- table-preview: artifacts/datasets/parsed/buildings.csv | columns=key,building_group,required_construction_points,land_usage,economy_of_scale | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/buildings.csv`](../artifacts/datasets/parsed/buildings.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse
@@ -42,7 +42,7 @@ properties. Important columns: `key`, `cost`, `category`, `tradeable`, and
 <!-- table-preview: artifacts/datasets/parsed/goods.csv | columns=key,cost,category,tradeable,local | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/goods.csv`](../artifacts/datasets/parsed/goods.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse
@@ -57,7 +57,7 @@ Important columns: `key`, `goods`, `weight`, `min_supply_share`, and
 <!-- table-preview: artifacts/datasets/parsed/pop_needs.csv | columns=key,goods,weight,min_supply_share,max_supply_share | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/pop_needs.csv`](../artifacts/datasets/parsed/pop_needs.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse
@@ -71,7 +71,7 @@ weights, employment flags, and consumption multipliers.
 <!-- table-preview: artifacts/datasets/parsed/pop_types.csv | columns=key,start_quality_of_life,wage_weight,working_adult_ratio,consumption_mult | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/pop_types.csv`](../artifacts/datasets/parsed/pop_types.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse
@@ -85,7 +85,7 @@ unlock conditions, and production-method-group context.
 <!-- table-preview: artifacts/datasets/parsed/production_methods.csv | columns=building,production_method_group,production_method,employment,goods_tools,goods_steel | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/production_methods.csv`](../artifacts/datasets/parsed/production_methods.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse
@@ -101,7 +101,7 @@ profitability.
 <!-- table-preview: artifacts/datasets/production/production_table.csv | columns=building,production_method,building_group,era,employment,wage_normalized_employment,profit_per_wage_normalized_employment_nominal | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/production/production_table.csv`](../artifacts/datasets/production/production_table.csv)
-· [:fontawesome-brands-github: View `examples/production_analysis.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_analysis.py)
+· [:fontawesome-brands-github: View `examples/production_analysis.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/production_analysis.py)
 
 ```bash
 uv run python -m examples.production_analysis
@@ -115,7 +115,7 @@ columns feed directly into scenario building limits.
 <!-- table-preview: artifacts/datasets/parsed/state_regions.csv | columns=key,province_count,arable_land,resource_building_coal_mine,resource_building_iron_mine,resource_building_oil_rig | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/state_regions.csv`](../artifacts/datasets/parsed/state_regions.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse
@@ -128,7 +128,7 @@ Technology keys, eras, categories, prerequisites, and map-update behavior.
 <!-- table-preview: artifacts/datasets/parsed/technology.csv | columns=key,era,category,unlocking_technologies,should_update_map | rows=5 -->
 
 [:material-download: Download `artifacts/datasets/parsed/technology.csv`](../artifacts/datasets/parsed/technology.csv)
-· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+· [:fontawesome-brands-github: View `examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ```bash
 uv run python -m examples.parse

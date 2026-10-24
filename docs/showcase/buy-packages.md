@@ -199,7 +199,7 @@ Demand is zero below level 6, then rises and falls before returning to zero at l
 - Full-resolution SVG versions of the charts: [all SVG figures](#all-svg-figures).
 - The table shown at 00:26 in [BV1pG3yzVE67](https://www.bilibili.com/video/BV1pG3yzVE67): [buy_packages.csv](../artifacts/datasets/parsed/buy_packages/buy_packages.csv)
 - More game data tables: [parsed data](parsed-data.md)
-- Source code that generates these tables: [`examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/parse.py)
+- Source code that generates these tables: [`examples/parse.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/parse.py)
 
 ### Table preview
 

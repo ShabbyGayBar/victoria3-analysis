@@ -152,4 +152,4 @@ game_version: 1.13.11
 
 [:material-download: 下载完整生产单元表 artifacts/datasets/production/production_table.csv](../artifacts/datasets/production/production_table.csv)
 
-[:fontawesome-brands-github: 查看生成脚本 examples/production_analysis.py](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/production_analysis.py)
+[:fontawesome-brands-github: 查看生成脚本 examples/production_analysis.py](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/production_analysis.py)

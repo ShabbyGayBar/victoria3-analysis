@@ -16,7 +16,7 @@ employment caps from one million to one hundred million.
 <!-- table-preview: artifacts/analyses/optimization/japan/employment_sweep.csv | columns=employment_cap,annual_gdp,employment,gdp_per_capita,construction_cost,arable_land_consumption | rows=5 -->
 
 [:material-download: Download `artifacts/analyses/optimization/japan/employment_sweep.csv`](../artifacts/analyses/optimization/japan/employment_sweep.csv)
-· [:fontawesome-brands-github: View `examples/optimize_jap.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/DEV/examples/optimize_jap.py)
+· [:fontawesome-brands-github: View `examples/optimize_jap.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/optimize_jap.py)
 
 ```bash
 uv run python -m examples.optimize_jap
