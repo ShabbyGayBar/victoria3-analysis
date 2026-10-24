@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from vic3_analysis.analysis.supply_chain.sweep import SWEEP_COLUMNS
+from vic3_analysis.analysis.supply_chain.sweep import sweep_columns
 
 TABLE_PATH = (
     Path(__file__).resolve().parent.parent
@@ -30,7 +30,10 @@ VARIANT_NAMES = {
 
 def test_product_details_schema_and_normalization():
     df = pd.read_csv(TABLE_PATH)
-    expected_columns = ["good", "variant", "ban_config", *SWEEP_COLUMNS[1:]]
+    production = pd.read_csv(
+        TABLE_PATH.parents[3] / "datasets/production/production_table.csv"
+    )
+    expected_columns = ["good", "variant", "ban_config", *sweep_columns(production)[1:]]
     assert list(df.columns) == expected_columns
     np.testing.assert_allclose(df["target_base_value"], 100000.0)
     np.testing.assert_allclose(

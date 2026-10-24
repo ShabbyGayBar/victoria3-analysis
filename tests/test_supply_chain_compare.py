@@ -20,6 +20,7 @@ from examples.supply_chain_compare import (
     run_supply_chain_compare,
 )
 from vic3_analysis import Economy
+from vic3_analysis.analysis.supply_chain.result import resource_level_fields
 
 
 def _economy(*, zero_employment: bool = False) -> Economy:
@@ -249,6 +250,41 @@ def test_empty_selection_writes_fixed_schema(tmp_path: Path) -> None:
         summary = pd.read_csv(_root(tmp_path) / template.display_name() / "summary.csv")
         assert summary.empty
         assert list(summary.columns) == COMPARISON_COLUMNS
+
+
+def test_resource_columns_in_comparison_exports(tmp_path: Path) -> None:
+    base = _economy()
+    production = base.df_production.assign(parent_group="bg_extraction")
+    economy = Economy(
+        df_production=production,
+        df_goods=base.df_goods,
+        df_pop_types=base.df_pop_types,
+    )
+    resource_columns = resource_level_fields(production)
+    expected = [*COMPARISON_COLUMNS, *resource_columns]
+    empty = run_supply_chain_compare(economy, tmp_path, goods=[])
+    assert list(empty.columns) == expected
+    comparison = run_supply_chain_compare(economy, tmp_path)
+    assert list(comparison.columns) == expected
+    assert not comparison.columns.duplicated().any()
+    assert (
+        comparison.loc[comparison["status"].eq("failure"), resource_columns]
+        .isna()
+        .to_numpy()
+        .all()
+    )
+    assert (
+        comparison.loc[
+            comparison["status"].eq("success"), "chain_levels_building_future"
+        ]
+        == 0.0
+    ).all()
+    for directory in (
+        "comparison",
+        *(template.display_name() for template in TEMPLATES),
+    ):
+        saved = pd.read_csv(_root(tmp_path) / directory / "summary.csv")
+        assert list(saved.columns) == expected
 
 
 def test_failed_rerun_removes_previous_details(tmp_path: Path) -> None:

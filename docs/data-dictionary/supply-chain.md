@@ -35,8 +35,9 @@ present when a report is empty. See [shared conventions](index.md) and the
 
 ## Summary
 
-`result.summary()` is a Series with these fixed fields, named after the terminal
-good. Sweeps turn them into columns. On a successful analyzer result, all fields
+`result.summary()` is a Series with these fixed fields and the resource-building
+column families below, named after the terminal good. Sweeps turn them into columns.
+On a successful analyzer result, all fields
 are present. Let `Q` denote **whole-system** terminal net output, `G_chain` chain
 weekly value added, and `L_chain` chain employment. Safe division returns zero
 only for an exactly zero denominator.
@@ -87,9 +88,46 @@ only for an exactly zero denominator.
 | `chain_construction_share` | Float / fraction | `chain_construction_cost / system_construction_cost`. | Safe division. |
 | `chain_arable_land_share` | Float / fraction | `chain_arable_land / system_arable_land`. | Safe division. |
 | `chain_infrastructure_share` | Float / signed ratio | `chain_net_infrastructure_usage / system_net_infrastructure_usage`. | Safe division; cancellation and negative values mean it need not lie in [0, 1]. |
+| `system_gdp_per_capita_weekly` | Float / £ per worker per week | `system_gdp_weekly / system_employment`. | Safe division; population means employed workers. |
+| `system_gdp_per_capita_annual` | Float / £ per worker per year | `52 * system_gdp_per_capita_weekly`. | Included in every summary and sweep, including the video export. |
+| `chain_gdp_per_capita_weekly` | Float / £ per worker per week | `chain_gdp_weekly / chain_employment`. | Safe division; includes whole-process coproduct contributions. |
+| `chain_gdp_per_capita_annual` | Float / £ per worker per year | `52 * chain_gdp_per_capita_weekly`. | Same realized-chain scope. |
+| `system_wage_normalized_employment` | Float / private-wage-equivalent workers | Sum of system levels times production-table `wage_normalized_employment`. | NaN if the column or any contributing coefficient is unavailable/nonfinite; inactive missing coefficients are ignored. |
+| `chain_wage_normalized_employment` | Float / private-wage-equivalent workers | Sum of realized-chain levels times production-table `wage_normalized_employment`. | Same missing-data policy, restricted to contributing chain processes. |
+| `system_gdp_per_wage_normalized_employment_weekly` | Float / £ per wage-equivalent worker per week | `system_gdp_weekly / system_wage_normalized_employment`. | Safe division; NaN when wage coefficients are unavailable. |
+| `system_gdp_per_wage_normalized_employment_annual` | Float / £ per wage-equivalent worker per year | `52 * system_gdp_per_wage_normalized_employment_weekly`. | NaN when wage coefficients are unavailable. |
+| `chain_gdp_per_wage_normalized_employment_weekly` | Float / £ per wage-equivalent worker per week | `chain_gdp_weekly / chain_wage_normalized_employment`. | Safe division; NaN when contributing chain wage coefficients are unavailable. |
+| `chain_gdp_per_wage_normalized_employment_annual` | Float / £ per wage-equivalent worker per year | `52 * chain_gdp_per_wage_normalized_employment_weekly`. | Same realized-chain scope. |
+| `system_gdp_per_construction_cost_weekly` | Float / £ per construction point per week | `system_gdp_weekly / system_construction_cost`. | Safe division; construction is a stock, not a weekly expense. |
+| `system_gdp_per_construction_cost_annual` | Float / £ per construction point per year | `52 * system_gdp_per_construction_cost_weekly`. | Annualizes GDP only. |
+| `chain_gdp_per_construction_cost_weekly` | Float / £ per construction point per week | `chain_gdp_weekly / chain_construction_cost`. | Safe division; includes all construction of realized-chain processes. |
+| `chain_gdp_per_construction_cost_annual` | Float / £ per construction point per year | `52 * chain_gdp_per_construction_cost_weekly`. | Annualizes GDP only. |
 
 Graph counts use the complete retained graphs. They are independent of the
 top-producer pruning used by a plotted or Mermaid allowed view.
+
+## Resource building levels
+
+These summary column families use full building identifiers, for example
+`chain_levels_building_coal_mine` and
+`chain_levels_per_10k_pop_building_coal_mine`. Extraction membership uses the
+same rule as `is_extractive`: immediate parent `bg_extraction`, or a discoverable
+or depletable resource flag. This includes ordinary mines, logging camps,
+fishing wharves, whaling stations, rubber plantations, and oil rigs. Farms,
+ranches, and other arable-land plantations remain represented by arable land.
+
+Types come from the full economy production table, including banned and unused
+types. Columns follow the fixed summary fields, sorted by building identifier;
+within each type, system raw/normalized levels precede chain raw/normalized
+levels. All summaries from one economy share this schema, even empty sweeps
+and all-failure sweeps. Successful unused types are zero; failed solves are NaN.
+
+| Column family | Type / unit | Meaning / calculation | Presence / edge cases |
+| --- | --- | --- | --- |
+| `system_levels_<building>` | Float / building levels | Sum of all solved configuration levels for this extraction building type. | Fractional levels are retained; no aggregate resource-level total is added. |
+| `system_levels_per_10k_pop_<building>` | Float / levels per 10,000 workers | `system_levels_<building> * 10000 / system_employment`. | Safe division; excludes dependents and unemployed people. |
+| `chain_levels_<building>` | Float / building levels | Sum of realized-chain configuration levels for this extraction building type. | Multiple PM configurations of one building type are combined. |
+| `chain_levels_per_10k_pop_<building>` | Float / levels per 10,000 workers | `chain_levels_<building> * 10000 / chain_employment`. | Safe division; 5 levels and 2,000 chain workers give 25 levels per 10,000 workers. |
 
 ## Processes
 
@@ -293,7 +331,6 @@ Labels describe presets, not additional economic metrics.
 | `configuration` | String / preset label | Scenario preset in `examples/supply_chain_compare.py`. | In comparison and preset summary CSVs; rows retain it on failure. |
 | `variant` | String / preset label | `base` or a named product-specific variant in `examples/supply_chain_cangshulun.py`. | Only in video summary CSVs; base covers all producible goods, named variants selected goods. |
 | `ban_config` | String / preset label | Ban-policy label supplied by the example. | Retained on failure; an empty label in the comparison export does not mean no default building-group bans. |
-| `system_gdp_per_capita_annual` | Float / £ per worker per year | `system_gdp_annual / system_employment`. | Only in comparison and preset summary CSVs; zero for successful solves with zero employment, NaN on failure. |
 
 See the [supply-chain API](../api/supply-chain.md) for report calls and the
 [showcase](../showcase/supply-chains.md) for example downloads and commands.

@@ -27,8 +27,9 @@ from vic3_analysis.analysis.supply_chain.result import (
     PROCESS_COLUMNS,
     SUMMARY_FIELDS,
     WORKFORCE_COLUMNS,
+    resource_level_fields,
 )
-from vic3_analysis.analysis.supply_chain.sweep import SWEEP_COLUMNS
+from vic3_analysis.analysis.supply_chain.sweep import sweep_columns
 from vic3_analysis.optimize.scenario import Scenario
 
 
@@ -305,7 +306,10 @@ def test_tables_have_stable_schemas_and_reconcile(result: SupplyChainResult):
     assert list(result.alternatives().columns) == ALTERNATIVE_COLUMNS
 
     summary = result.summary()
-    assert list(summary.index) == SUMMARY_FIELDS
+    assert list(summary.index) == [
+        *SUMMARY_FIELDS,
+        *resource_level_fields(result.production),
+    ]
     np.testing.assert_allclose(
         processes["value_added"].to_numpy(dtype=np.float64).sum(),
         summary["chain_gdp_weekly"],
@@ -331,6 +335,229 @@ def test_coproduct_contribution_is_exact_at_process_level(result: SupplyChainRes
     assert smelter["value_added"] == pytest.approx(expected)  # pyright: ignore[reportGeneralTypeIssues]
     assert "allocation" not in result.goods().columns
     assert result.goods().set_index("good").loc["byproduct", "production"] > 0  # pyright: ignore[reportOperatorIssue]
+
+
+def _resource_economy() -> Economy:
+    """Two configurations share a mine type; other resource types stay unused."""
+    rows = [
+        _production_row(
+            "building_coal_mine",
+            "pm_raw",
+            parent_group="bg_extraction",
+            employment=400.0,
+            construction=8.0,
+            ore=10.0,
+        ),
+        _production_row(
+            "building_coal_mine",
+            "pm_finished",
+            parent_group="bg_extraction",
+            employment=400.0,
+            construction=8.0,
+            ore=-10.0,
+            widget=10.0,
+        ),
+        _production_row(
+            "building_logging_camp",
+            "pm_logging",
+            parent_group="bg_extraction",
+            ore=1.0,
+        ),
+        _production_row(
+            "building_fishing_wharf",
+            "pm_fishing",
+            parent_group="bg_extraction",
+            ore=1.0,
+        ),
+        _production_row(
+            "building_farm",
+            "pm_farm",
+            group="bg_agriculture",
+            ore=1.0,
+        ),
+    ]
+    production = pd.DataFrame(rows).fillna(0.0)
+    production["wage_normalized_employment"] = [800.0, 600.0, np.nan, np.nan, np.nan]
+    return Economy(
+        df_production=production,
+        df_goods=pd.DataFrame({"key": ["ore", "widget"], "cost": [10.0, 50.0]}),
+        df_pop_types=pd.DataFrame(
+            {"key": ["laborers", "engineers"], "start_quality_of_life": [10, 20]}
+        ),
+    )
+
+
+@pytest.mark.parametrize("multiplier", [1.0, 2.0])
+def test_resource_levels_group_configurations_and_normalize_workers(multiplier: float):
+    economy = _resource_economy()
+    scenario = Scenario(
+        produce=(("widget", 25.0),),
+        objective="construction_cost",
+        throughput_bonuses=(("building_coal_mine", multiplier),),
+        building_limits=(
+            ("building_logging_camp", 0.0),
+            ("building_fishing_wharf", 0.0),
+        ),
+    )
+    result = SupplyChainAnalyzer(economy, scenario, "widget").run()
+    summary = result.summary()
+    for scope in ("chain", "system"):
+        assert summary[f"{scope}_employment"] == pytest.approx(2000.0 / multiplier)
+        assert summary[f"{scope}_levels_building_coal_mine"] == pytest.approx(
+            5.0 / multiplier
+        )
+        assert summary[
+            f"{scope}_levels_per_10k_pop_building_coal_mine"
+        ] == pytest.approx(25.0)
+        assert summary[f"{scope}_wage_normalized_employment"] == pytest.approx(
+            3500.0 / multiplier
+        )
+        assert summary[f"{scope}_gdp_per_capita_weekly"] == pytest.approx(
+            0.625 * multiplier
+        )
+        assert summary[
+            f"{scope}_gdp_per_wage_normalized_employment_weekly"
+        ] == pytest.approx(1250 / 3500 * multiplier)
+        assert summary[f"{scope}_gdp_per_construction_cost_weekly"] == pytest.approx(
+            31.25 * multiplier
+        )
+        for building in ("building_fishing_wharf", "building_logging_camp"):
+            assert summary[f"{scope}_levels_{building}"] == 0.0
+            assert summary[f"{scope}_levels_per_10k_pop_{building}"] == 0.0
+    assert not any("building_farm" in str(column) for column in summary.index)
+    assert not any(
+        "resource_building_levels" in str(column) for column in summary.index
+    )
+    assert list(summary.index[len(SUMMARY_FIELDS) :]) == resource_level_fields(
+        economy.df_production
+    )
+    for scope in ("chain", "system"):
+        for metric in (
+            "gdp_per_capita",
+            "gdp_per_wage_normalized_employment",
+            "gdp_per_construction_cost",
+        ):
+            assert summary[f"{scope}_{metric}_annual"] == pytest.approx(
+                summary[f"{scope}_{metric}_weekly"] * 52
+            )
+
+
+def test_efficiency_metrics_keep_chain_and_system_scopes(
+    economy: Economy, scenario: Scenario
+):
+    production = economy.df_production.copy()
+    production["wage_normalized_employment"] = production["employment"] * 2.0
+    # A disconnected, capped luxury producer contributes to the GDP optimum.
+    production.loc[production["building"].eq("building_luxury"), "parent_group"] = (
+        "bg_extraction"
+    )
+    enriched = Economy(
+        df_production=production,
+        df_goods=economy.df_goods,
+        df_pop_types=economy.df_pop_types,
+    )
+    bounded = replace(
+        scenario,
+        objective="gdp",
+        import_limit=0.0,
+        building_limits=tuple(
+            (str(building), 100.0) for building in production["building"]
+        ),
+    )
+    result = SupplyChainAnalyzer(enriched, bounded, "widget").run()
+    summary = result.summary()
+    assert summary["system_levels_building_luxury"] == pytest.approx(100.0)
+    assert summary["chain_levels_building_luxury"] == 0.0
+    assert summary["system_gdp_weekly"] > summary["chain_gdp_weekly"]
+    for scope in ("system", "chain"):
+        assert summary[f"{scope}_wage_normalized_employment"] == pytest.approx(
+            summary[f"{scope}_employment"] * 2
+        )
+        assert summary[f"{scope}_gdp_per_capita_weekly"] == pytest.approx(
+            summary[f"{scope}_gdp_weekly"] / summary[f"{scope}_employment"]
+        )
+        assert summary[
+            f"{scope}_gdp_per_wage_normalized_employment_weekly"
+        ] == pytest.approx(summary[f"{scope}_gdp_per_capita_weekly"] / 2)
+    # Mutating the source table cannot change snapshotted wage metrics.
+    enriched.df_production["wage_normalized_employment"] = 0.0
+    pd.testing.assert_series_equal(summary, result.summary())
+    # Missing wages outside the chain only invalidate system wage metrics.
+    incomplete = result.production.copy()
+    incomplete.loc[
+        incomplete["building"].eq("building_luxury"), "wage_normalized_employment"
+    ] = np.nan
+    partial = replace(result, production=incomplete).summary()
+    assert np.isnan(partial["system_wage_normalized_employment"])
+    assert (
+        partial["chain_wage_normalized_employment"]
+        == summary["chain_wage_normalized_employment"]
+    )
+
+
+@pytest.mark.parametrize("missing", ["column", "active_coefficient"])
+def test_missing_wage_metrics_are_unavailable(missing: str):
+    economy = _resource_economy()
+    production = economy.df_production.copy()
+    if missing == "column":
+        production = production.drop(columns="wage_normalized_employment")
+    else:
+        production.loc[0, "wage_normalized_employment"] = np.nan
+    economy = Economy(
+        df_production=production,
+        df_goods=economy.df_goods,
+        df_pop_types=economy.df_pop_types,
+    )
+    summary = (
+        SupplyChainAnalyzer(
+            economy,
+            Scenario(produce=(("widget", 25.0),), objective="construction_cost"),
+            "widget",
+        )
+        .run()
+        .summary()
+    )
+    for scope in ("chain", "system"):
+        assert np.isnan(summary[f"{scope}_wage_normalized_employment"])
+        assert np.isnan(summary[f"{scope}_gdp_per_wage_normalized_employment_weekly"])
+        assert np.isnan(summary[f"{scope}_gdp_per_wage_normalized_employment_annual"])
+        assert summary[f"{scope}_gdp_per_capita_weekly"] > 0.0
+
+
+def test_zero_denominators_and_empty_realized_chain(result: SupplyChainResult):
+    empty = replace(
+        result,
+        realized_graph=nx.DiGraph(),
+        state=result.problem.economy.solve(np.zeros_like(result.state.building_levels)),
+        production=result.production.assign(wage_normalized_employment=0.0),
+    )
+    summary = empty.summary()
+    for scope in ("chain", "system"):
+        for metric in (
+            "gdp_per_capita",
+            "gdp_per_wage_normalized_employment",
+            "gdp_per_construction_cost",
+        ):
+            assert summary[f"{scope}_{metric}_weekly"] == 0.0
+            assert summary[f"{scope}_{metric}_annual"] == 0.0
+        assert summary[f"{scope}_wage_normalized_employment"] == 0.0
+        assert summary[f"{scope}_levels_per_10k_pop_building_mine"] == 0.0
+
+
+def test_resource_columns_survive_empty_and_failed_sweeps(economy: Economy):
+    columns = sweep_columns(economy.df_production)
+    empty = sweep_supply_chains(economy, Scenario(), goods=[])
+    assert empty.summary.empty
+    assert list(empty.summary.columns) == columns
+    assert list(empty.failures.columns) == columns
+    failed = sweep_supply_chains(economy, Scenario(), goods=["dead"])
+    assert list(failed.summary.columns) == columns
+    assert (
+        failed.summary[resource_level_fields(economy.df_production)]
+        .isna()
+        .to_numpy()
+        .all()
+    )
 
 
 def test_allowed_graph_respects_static_scenario_exclusions(economy: Economy):
@@ -510,7 +737,7 @@ def test_sweep_normalizes_value_preserves_order_and_names(economy: Economy):
         keep_results=True,
     )
     assert isinstance(sweep, SupplyChainSweepResult)
-    assert list(sweep.summary.columns) == SWEEP_COLUMNS
+    assert list(sweep.summary.columns) == sweep_columns(economy.df_production)
     assert sweep.summary["good"].tolist() == ["widget", "ore"]
     assert sweep.summary["scenario"].tolist() == [
         "baseline:widget",

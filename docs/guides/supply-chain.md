@@ -46,6 +46,24 @@ Every table has a stable schema, including when it is empty. Process economics
 retain exact coproduct contributions. The API does not silently allocate a
 multi-output process's value to individual goods.
 
+The summary treats the chain as one production unit: it reports GDP per worker,
+GDP per wage-equivalent worker, and GDP per construction point in weekly and
+annual units. Wage-normalized employment sums the production table's private-wage
+coefficients over solved levels; missing contributing coefficients make wage
+metrics unavailable (`NaN`). These ratios use aggregate totals rather than
+averaging individual buildings' ratios. Matching `system_` fields cover all
+solved activity, including processes outside the terminal chain.
+
+Extraction buildings have separate `chain_levels_<building>` and
+`chain_levels_per_10k_pop_<building>` fields, plus their `system_` equivalents.
+For example, `chain_levels_per_10k_pop_building_coal_mine` reports coal-mine
+levels per 10,000 chain workers. Multiple PM configurations of one building
+type are combined; fractional levels remain fractional. Resource columns cover
+all extraction types in the economy in sorted identifier order, including
+banned or unused types with zero levels. Empty and failed sweeps retain these
+columns; failures use `NaN`. Population means employed workers, and known zero
+denominators yield zero. Agricultural land remains a separate metric.
+
 Two graph views are available:
 
 - `realized` is the default and contains active configurations upstream of the

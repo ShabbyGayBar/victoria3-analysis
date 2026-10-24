@@ -34,6 +34,7 @@ else:
     )
 
 from vic3_analysis import Economy, Scenario, SupplyChainResult, sweep_supply_chains
+from vic3_analysis.analysis.supply_chain.result import resource_level_fields
 from vic3_analysis.analysis.supply_chain.sweep import SWEEP_COLUMNS
 
 NORMALIZED_VALUE = 100_000.0
@@ -64,7 +65,6 @@ COMPARISON_COLUMNS = [
     "configuration",
     "ban_config",
     *SWEEP_COLUMNS[1:],
-    "system_gdp_per_capita_annual",
 ]
 
 
@@ -326,14 +326,9 @@ def run_supply_chain_compare(
     combined = (
         pd.concat(frames, ignore_index=True)
         if frames
-        else pd.DataFrame(columns=COMPARISON_COLUMNS)
-    )
-    employment = np.asarray(combined["system_employment"], dtype=float)
-    combined["system_gdp_per_capita_annual"] = np.divide(
-        np.asarray(combined["system_gdp_annual"], dtype=float),
-        employment,
-        out=np.zeros(len(combined)),
-        where=employment != 0,
+        else pd.DataFrame(
+            columns=[*COMPARISON_COLUMNS, *resource_level_fields(economy.df_production)]
+        )
     )
     for template in TEMPLATES:
         configuration = template.display_name()

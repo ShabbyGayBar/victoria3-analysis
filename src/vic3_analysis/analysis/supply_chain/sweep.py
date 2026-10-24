@@ -18,10 +18,16 @@ from vic3_analysis.analysis.supply_chain.result import (
     SUMMARY_FIELDS,
     SupplyChainResult,
     SupplyChainSweepResult,
+    resource_level_fields,
 )
 from vic3_analysis.optimize.scenario import Scenario
 
 SWEEP_COLUMNS = ["good", "status", "error_type", "error_message", *SUMMARY_FIELDS]
+
+
+def sweep_columns(production: pd.DataFrame) -> list[str]:
+    """Return fixed and economy-specific columns, even for an empty sweep."""
+    return [*SWEEP_COLUMNS, *resource_level_fields(production)]
 
 
 def sweep_supply_chains(
@@ -38,6 +44,10 @@ def sweep_supply_chains(
     A non-empty ``scenario_template.produce`` basket is ignored with a
     ``UserWarning`` because the sweep generates one normalized target for each
     requested good.
+
+    Summary columns include fixed economic metrics and per-building resource
+    levels derived from the full economy, including banned and unused types.
+    Empty sweeps retain the same columns; failed solves use NaN for metrics.
     """
     if scenario_template.produce:
         warnings.warn(
@@ -57,6 +67,7 @@ def sweep_supply_chains(
         raise ValueError(f"Goods not found in goods index: {unknown}")
 
     prices = dict(zip(goods_index, economy.base_prices))
+    columns = sweep_columns(economy._supply_chain_production)
     rows: list[dict[str, object]] = []
     retained: dict[str, SupplyChainResult] = {}
     for good in selected_goods:
@@ -95,7 +106,7 @@ def sweep_supply_chains(
             if keep_results:
                 retained[good] = result
         except ValueError as exc:
-            row = {field: float("nan") for field in SUMMARY_FIELDS}
+            row = {field: float("nan") for field in columns}
             row.update(
                 {
                     "good": good,
@@ -114,7 +125,7 @@ def sweep_supply_chains(
             )
         rows.append(row)
 
-    summary = pd.DataFrame(rows, columns=SWEEP_COLUMNS)
+    summary = pd.DataFrame(rows, columns=columns)
     failures = pd.DataFrame(
         summary.loc[summary["status"].eq("failure"), :]
     ).reset_index(drop=True)

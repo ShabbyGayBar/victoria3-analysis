@@ -18,6 +18,7 @@ from matplotlib.figure import Figure
 from vic3_analysis.analysis.economy import EconomyState
 from vic3_analysis.analysis.supply_chain.graph import (
     SupplyChainView,
+    _is_extractive,
     condensation_depth,
     cyclic_component_count,
     cyclic_nodes,
@@ -166,7 +167,52 @@ SUMMARY_FIELDS = [
     "chain_construction_share",
     "chain_arable_land_share",
     "chain_infrastructure_share",
+    "system_gdp_per_capita_weekly",
+    "system_gdp_per_capita_annual",
+    "chain_gdp_per_capita_weekly",
+    "chain_gdp_per_capita_annual",
+    "system_wage_normalized_employment",
+    "chain_wage_normalized_employment",
+    "system_gdp_per_wage_normalized_employment_weekly",
+    "system_gdp_per_wage_normalized_employment_annual",
+    "chain_gdp_per_wage_normalized_employment_weekly",
+    "chain_gdp_per_wage_normalized_employment_annual",
+    "system_gdp_per_construction_cost_weekly",
+    "system_gdp_per_construction_cost_annual",
+    "chain_gdp_per_construction_cost_weekly",
+    "chain_gdp_per_construction_cost_annual",
 ]
+
+
+def resource_buildings(production: pd.DataFrame) -> tuple[str, ...]:
+    """Return sorted extraction building keys, including inactive alternatives."""
+    metadata = production.reindex(
+        columns=[
+            "building",
+            "parent_group",
+            "discoverable_resource",
+            "depletable_resource",
+        ]
+    ).drop_duplicates()
+    return tuple(
+        sorted(
+            {
+                str(row["building"])
+                for _, row in metadata.iterrows()
+                if _is_extractive(row)
+            }
+        )
+    )
+
+
+def resource_level_fields(production: pd.DataFrame) -> list[str]:
+    """Return the economy-specific resource summary columns in stable order."""
+    return [
+        f"{scope}_{metric}_{building}"
+        for building in resource_buildings(production)
+        for scope in ("system", "chain")
+        for metric in ("levels", "levels_per_10k_pop")
+    ]
 
 
 def _readonly(value: np.ndarray) -> np.ndarray:
@@ -571,7 +617,15 @@ class SupplyChainResult:
         return frame.sort_values("good", kind="mergesort").reset_index(drop=True)
 
     def summary(self) -> pd.Series:
-        """Return stable headline, structural, and efficiency metrics."""
+        """Return headline, structural, and aggregate production-unit metrics.
+
+        Chain fields include whole realized processes and their coproducts;
+        system fields include all solved configurations. Resource columns use
+        full extraction-building keys from the production snapshot, including
+        unused types, and report levels and levels per 10,000 employed workers.
+        Wage metrics require finite coefficients for contributing processes.
+        Known zero denominators produce zero; unavailable wage data produce NaN.
+        """
         terminal_position = self.goods_index.index(self.terminal_good)
         terminal_output = float(self.state.building_goods_output[terminal_position])
         terminal_net = float(
@@ -668,7 +722,49 @@ class SupplyChainResult:
                 chain_infrastructure, system_infrastructure
             ),
         }
-        return pd.Series(values, index=SUMMARY_FIELDS, name=self.terminal_good)
+        chain_levels = np.zeros_like(system_levels)
+        chain_rows = list(self._rows_for_view("realized"))
+        chain_levels[chain_rows] = system_levels[chain_rows]
+        building_keys = self.production["building"].astype(str).to_numpy()
+        buildings = resource_buildings(self.production)
+        for scope, levels, gdp, employment, construction in (
+            (
+                "system",
+                system_levels,
+                system_gdp,
+                system_employment,
+                system_construction,
+            ),
+            ("chain", chain_levels, chain_gdp, chain_employment, chain_construction),
+        ):
+            wage_employment = float("nan")
+            if "wage_normalized_employment" in self.production.columns:
+                contributing = levels != 0.0
+                coefficients = self.production["wage_normalized_employment"].to_numpy(
+                    dtype=np.float64, na_value=np.nan
+                )[contributing]
+                if np.isfinite(coefficients).all():
+                    wage_employment = float(levels[contributing] @ coefficients)
+            values[f"{scope}_wage_normalized_employment"] = wage_employment
+            for metric, denominator in (
+                ("gdp_per_capita", employment),
+                ("gdp_per_wage_normalized_employment", wage_employment),
+                ("gdp_per_construction_cost", construction),
+            ):
+                weekly = _safe_divide(gdp, denominator)
+                values[f"{scope}_{metric}_weekly"] = weekly
+                values[f"{scope}_{metric}_annual"] = weekly * 52.0
+            for building in buildings:
+                building_levels = float(levels[building_keys == building].sum())
+                values[f"{scope}_levels_{building}"] = building_levels
+                values[f"{scope}_levels_per_10k_pop_{building}"] = _safe_divide(
+                    building_levels * 10_000.0, employment
+                )
+        return pd.Series(
+            values,
+            index=[*SUMMARY_FIELDS, *resource_level_fields(self.production)],
+            name=self.terminal_good,
+        )
 
     def to_mermaid(
         self,

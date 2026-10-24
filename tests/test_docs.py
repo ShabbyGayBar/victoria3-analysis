@@ -284,12 +284,22 @@ def test_dictionary_covers_analytical_csv_headers() -> None:
         (
             "analyses/supply_chains/comparison/summary.csv",
             "supply-chain.md",
-            ("Summary", "Sweep summary and failures", "Example CSV additions"),
+            (
+                "Summary",
+                "Resource building levels",
+                "Sweep summary and failures",
+                "Example CSV additions",
+            ),
         ),
         (
             "analyses/supply_chains/cangshulun_video/summary.csv",
             "supply-chain.md",
-            ("Summary", "Sweep summary and failures", "Example CSV additions"),
+            (
+                "Summary",
+                "Resource building levels",
+                "Sweep summary and failures",
+                "Example CSV additions",
+            ),
         ),
         (
             "analyses/optimization/japan/employment_sweep.csv",
