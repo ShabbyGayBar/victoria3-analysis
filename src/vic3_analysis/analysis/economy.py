@@ -20,7 +20,9 @@ import pandas as pd
 
 from vic3_analysis.analysis.production import production_table
 from vic3_analysis.parse.buildings import BuildingsParser
+from vic3_analysis.parse.buy_packages import buy_packages
 from vic3_analysis.parse.goods import goods
+from vic3_analysis.parse.pop_needs import PopNeedsParser
 from vic3_analysis.parse.pop_types import PopTypesParser
 from vic3_analysis.parse.production_methods import ProductionMethodParser
 from vic3_analysis.parse.technology import technology
@@ -51,6 +53,55 @@ def _readonly_array(value: np.ndarray) -> np.ndarray:
     result = np.array(value, dtype=np.float64, copy=True)
     result.setflags(write=False)
     return result
+
+
+def _readonly_wealth(value: np.ndarray, name: str) -> np.ndarray:
+    """Copy non-negative integer wealth to read-only int64 without truncation."""
+    value = np.asarray(value)
+    if value.dtype.kind not in "iuf" or not np.isfinite(value).all():
+        raise ValueError(f"{name} must contain finite non-negative int64 values.")
+    if value.dtype.kind == "f":
+        invalid = (value != np.trunc(value)) | (value >= 2**63)
+    else:
+        invalid = value > np.iinfo(np.int64).max
+    if (value < 0).any() or invalid.any():
+        raise ValueError(f"{name} must contain finite non-negative int64 values.")
+    result = np.array(value, dtype=np.int64, copy=True)
+    result.setflags(write=False)
+    return result
+
+
+def _nonnegative_values(value: np.ndarray, name: str) -> np.ndarray:
+    """Convert numeric coefficients to finite, non-negative float64 values."""
+    try:
+        result = np.asarray(value, dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must contain numeric values.") from exc
+    if not np.isfinite(result).all() or (result < 0).any():
+        raise ValueError(f"{name} must contain finite non-negative values.")
+    return result
+
+
+def _require_columns(frame: pd.DataFrame, columns: set[str], name: str) -> None:
+    """Require unambiguous columns before compiling population coefficients."""
+    if not frame.columns.is_unique or not columns.issubset(frame.columns):
+        raise ValueError(
+            f"{name} must have unique columns including {sorted(columns)}."
+        )
+
+
+@dataclass(frozen=True)
+class _PopNeedsCoefficients:
+    """Cached arrays indexed by wealth, need category, good, or profession."""
+
+    wealth_levels: np.ndarray
+    packages: np.ndarray
+    eligible: np.ndarray
+    weights: np.ndarray
+    min_shares: np.ndarray
+    max_shares: np.ndarray
+    defaults: np.ndarray
+    consumption_multipliers: np.ndarray
 
 
 def _weighted_percentile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
@@ -97,9 +148,10 @@ def _weighted_std(values: np.ndarray, weights: np.ndarray) -> float:
 class EconomyState:
     """Snapshot state of a Victoria 3 economy.
 
-    Every array is defensively copied to owned, read-only float64 storage during
-    construction. The snapshot therefore cannot be changed through either the
-    caller's input arrays or its public array attributes.
+    Every array is defensively copied to owned, read-only storage during
+    construction: integer wealth uses int64, and all other arrays use float64.
+    The snapshot therefore cannot be changed through either the caller's input
+    arrays or its public array attributes.
 
     Attributes:
         building_levels: 1-D array of building-configuration levels (one per
@@ -116,7 +168,7 @@ class EconomyState:
             at building ``i``.
         pop_balance: 2-D array of pop balance (rows are buildings, columns are pop types); cell ``[i, j]`` is the total balance of pop type ``j`` at building ``i``.
         pop_needs: 1-D array of pop needs (one per tradeable good).
-        pop_wealth: 2-D array of wealth (rows are buildings, columns are
+        pop_wealth: 2-D int64 array of non-negative wealth levels (rows are buildings, columns are
             professions); cell ``[i, j]`` is the wealth of profession ``j`` at
             building ``i``.
     """
@@ -142,11 +194,13 @@ class EconomyState:
             "exports",
             "market_prices",
             "pops",
-            "pop_wealth",
             "pop_balance",
             "pop_needs",
         ):
             object.__setattr__(self, name, _readonly_array(getattr(self, name)))
+        object.__setattr__(
+            self, "pop_wealth", _readonly_wealth(self.pop_wealth, "pop_wealth")
+        )
 
     @cached_property
     def sell_orders(self) -> np.ndarray:
@@ -354,25 +408,30 @@ class EconomyState:
 class Economy:
     """Builds `EconomyState` instances from building-level vectors.
 
-    Wraps the production table, goods table, and pop-types table parsed from
-    the Victoria 3 game files and lazily caches the coefficients needed to derive
+    Wraps production, goods, pop-types, pop-needs, and buy-package tables parsed
+    from the Victoria 3 game files and lazily caches the coefficients needed to derive
     prices, supply, demand, employment, and wealth for a given
     ``building_levels`` vector.
 
     Input tables are defensively copied. Public DataFrames remain mutable,
     but editing them is unsupported because cached coefficients are not
     invalidated. Construct a new `Economy` when model data changes. Cached
-    indexes are tuples and cached arrays are owned, read-only float64 data.
+    indexes are tuples and cached arrays are owned and read-only. Starting
+    wealth uses int64; other numeric coefficients use float64.
 
     Attributes:
         df_production: The production table DataFrame.
         df_goods: The goods table DataFrame.
         df_pop_types: The pop-types table DataFrame.
+        df_pop_needs: Per-category goods, substitution weights, shares, and defaults.
+        df_buy_packages: Need values at base prices per 10,000 workers by integer wealth.
     """
 
     df_production: pd.DataFrame = field(repr=False)
     df_goods: pd.DataFrame = field(repr=False)
     df_pop_types: pd.DataFrame = field(repr=False)
+    df_pop_needs: pd.DataFrame = field(repr=False)
+    df_buy_packages: pd.DataFrame = field(repr=False)
 
     def __init__(
         self,
@@ -381,6 +440,8 @@ class Economy:
         df_goods: pd.DataFrame | None = None,
         df_pop_types: pd.DataFrame | None = None,
         *,
+        df_pop_needs: pd.DataFrame | None = None,
+        df_buy_packages: pd.DataFrame | None = None,
         language: str | None = None,
     ):
         """Initialise the model by parsing the required game tables.
@@ -400,6 +461,10 @@ class Economy:
             df_pop_types: Pre-built pop-types table DataFrame. When provided,
                 overrides the table that would otherwise be generated by
                 `PopTypesParser`.
+            df_pop_needs: Pre-built substitution definitions. When omitted,
+                parsed by `PopNeedsParser`.
+            df_buy_packages: Pre-built wealth packages. When omitted, parsed
+                by `buy_packages`.
             language: Optional Victoria 3 localization language used only when
                 parsing tables internally. Explicit DataFrames are authoritative
                 and are not modified.
@@ -408,6 +473,10 @@ class Economy:
             df_goods = goods(game_dir, language=language)
         if df_pop_types is None:
             df_pop_types = PopTypesParser(game_dir).to_dataframe(language=language)
+        if df_pop_needs is None:
+            df_pop_needs = PopNeedsParser(game_dir).to_dataframe(language=language)
+        if df_buy_packages is None:
+            df_buy_packages = buy_packages(game_dir)
         if df_production is None:
             df_production = production_table(
                 BuildingsParser(game_dir).to_dataframe(language=language),
@@ -419,6 +488,8 @@ class Economy:
         object.__setattr__(self, "df_production", df_production.copy(deep=True))
         object.__setattr__(self, "df_goods", df_goods.copy(deep=True))
         object.__setattr__(self, "df_pop_types", df_pop_types.copy(deep=True))
+        object.__setattr__(self, "df_pop_needs", df_pop_needs.copy(deep=True))
+        object.__setattr__(self, "df_buy_packages", df_buy_packages.copy(deep=True))
         goods_columns = [f"goods_{good}" for good in self.goods_index]
 
         missing = set(goods_columns) - set(self.df_production.columns)
@@ -613,9 +684,220 @@ class Economy:
 
     @cached_property
     def pop_wealth_init(self) -> np.ndarray:
-        """Return starting wealth values aligned to `pop_index`."""
-        return _readonly_array(
-            self.df_pop_types["start_quality_of_life"].to_numpy(dtype=np.float64)
+        """Return read-only int64 starting wealth aligned to `pop_index`."""
+        return _readonly_wealth(
+            self.df_pop_types["start_quality_of_life"].to_numpy(), "pop_wealth_init"
+        )
+
+    @cached_property
+    def _pop_needs_coefficients(self) -> _PopNeedsCoefficients:
+        """Validate and compile model tables once for repeated demand updates."""
+        packages = self.df_buy_packages
+        needs = self.df_pop_needs
+        _require_columns(packages, {"wealth"}, "df_buy_packages")
+        _require_columns(
+            needs,
+            {
+                "key",
+                "goods",
+                "weight",
+                "min_supply_share",
+                "max_supply_share",
+                "is_default",
+            },
+            "df_pop_needs",
+        )
+        categories = [
+            c
+            for c in packages.columns
+            if isinstance(c, str) and c.startswith("popneed_")
+        ]
+        wealth = _readonly_wealth(
+            packages["wealth"].to_numpy(), "df_buy_packages.wealth"
+        )
+        if (
+            not len(wealth)
+            or not categories
+            or (wealth == 0).any()
+            or len(np.unique(wealth)) != len(wealth)
+        ):
+            raise ValueError(
+                "df_buy_packages must define unique positive wealth tiers and popneed_ columns."
+            )
+        order = np.argsort(wealth)
+        values = _nonnegative_values(
+            packages[categories].to_numpy(), "df_buy_packages need values"
+        )[order]
+        for name, index in (
+            ("goods_index", self.goods_index),
+            ("pop_index", self.pop_index),
+        ):
+            if len(set(index)) != len(index) or any(
+                not isinstance(key, str) or not key for key in index
+            ):
+                raise ValueError(f"{name} must contain unique non-empty keys.")
+        if any(not isinstance(key, str) or not key for key in needs["key"].tolist()):
+            raise ValueError("df_pop_needs.key must contain non-empty category keys.")
+        goods_positions = {key: j for j, key in enumerate(self.goods_index)}
+        shape = (len(categories), len(self.goods_index))
+        eligible = np.zeros(shape, dtype=np.float64)
+        weights = np.zeros(shape, dtype=np.float64)
+        minima = np.zeros(shape, dtype=np.float64)
+        maxima = np.zeros(shape, dtype=np.float64)
+        defaults = np.zeros(shape, dtype=np.float64)
+        for i, category in enumerate(categories):
+            entries = needs.loc[needs["key"] == category]
+            keys = entries["goods"].tolist()
+            if (
+                not keys
+                or len(set(keys)) != len(keys)
+                or any(key not in goods_positions for key in keys)
+            ):
+                raise ValueError(
+                    f"df_pop_needs {category} must reference unique goods in goods_index."
+                )
+            flags = entries["is_default"]
+            if (
+                not flags.isin([True, False]).all()
+                or flags.isna().any()
+                or flags.sum() != 1
+            ):
+                raise ValueError(
+                    f"df_pop_needs {category} must define exactly one default good."
+                )
+            coefficients = _nonnegative_values(
+                entries[["weight", "min_supply_share", "max_supply_share"]].to_numpy(),
+                f"df_pop_needs {category}",
+            )
+            if (coefficients[:, 1] > coefficients[:, 2]).any() or (
+                coefficients[:, 2] > 1
+            ).any():
+                raise ValueError(
+                    f"df_pop_needs {category} shares must satisfy 0 <= min <= max <= 1."
+                )
+            positions = [goods_positions[key] for key in keys]
+            eligible[i, positions] = 1
+            weights[i, positions] = coefficients[:, 0]
+            minima[i, positions] = coefficients[:, 1]
+            maxima[i, positions] = coefficients[:, 2]
+            defaults[i, positions] = flags.to_numpy(dtype=np.float64)
+        if "consumption_mult" in self.df_pop_types:
+            consumption = self.df_pop_types["consumption_mult"].fillna(1).to_numpy()
+        else:
+            consumption = np.ones(len(self.pop_index), dtype=np.float64)
+        consumption = _nonnegative_values(consumption, "consumption_mult")
+        return _PopNeedsCoefficients(
+            wealth_levels=_readonly_wealth(wealth[order], "df_buy_packages.wealth"),
+            packages=_readonly_array(values),
+            eligible=_readonly_array(eligible),
+            weights=_readonly_array(weights),
+            min_shares=_readonly_array(minima),
+            max_shares=_readonly_array(maxima),
+            defaults=_readonly_array(defaults),
+            consumption_multipliers=_readonly_array(consumption),
+        )
+
+    def calculate_pop_needs(self, state: EconomyState) -> np.ndarray:
+        """Calculate target weekly goods demand for the represented workers.
+
+        For each need category, effective supply is
+        ``max(sell_orders - 0.5 * (building_goods_input + exports), 0)``.
+        Divide each eligible good's effective supply by the category total,
+        clip that share to its configured minimum and maximum, multiply by
+        its configured weight, and normalize these purchase weights. Share
+        limits apply before normalization; they do not cap final purchases.
+        With zero effective supply, start from zero shares, retaining any
+        configured minimum shares. If all purchase weights are zero, use the
+        category's default good exclusively.
+
+        Each occupied cell's integer wealth selects a buy package, whose
+        category values are measured in pounds at base prices per 10,000
+        workers. Scale by ``pops * consumption_mult / 10_000``, distribute by
+        normalized purchase weights, and divide by goods' base prices to
+        obtain units per week. Category budgets are aggregated before goods
+        allocation, without a building-by-profession-by-goods tensor.
+
+        Args:
+            state: Snapshot aligned to this economy's building, profession,
+                and goods indexes. Only represented workers consume; no
+                dependents are inferred. Empty cells need no wealth package.
+
+        Returns:
+            A fresh writable float64 vector of shape ``(n_goods,)`` aligned
+            to `goods_index`, suitable for ``EconomyState.pop_needs`` or the
+            ``pop_needs`` argument to `solve`. The state is unchanged.
+
+        Raises:
+            ValueError: If relevant state arrays are misaligned, quantities
+                are negative or non-finite, base prices are not positive,
+                occupied wealth tiers are undefined, or model tables have
+                invalid definitions or missing category/goods references.
+
+        Notes:
+            The half-non-pop-demand deduction is community-derived and
+            documented by the Needs wiki; it is not confirmed by the comments
+            in the game files. Clamping negative effective supply to zero is
+            this model's convention. This is target consumption, without
+            weekly adjustment, culture, prestige goods, local-state effects,
+            dependent consumption, or wealth feedback. Market prices and
+            existing ``state.pop_needs`` do not influence the result.
+
+        References:
+            - ``common/pop_needs/00_pop_needs.txt``: substitution weights,
+              minimum/maximum supply shares, comments on their meaning, and
+              default goods.
+            - ``common/buy_packages/00_buy_packages.txt``: category values
+              indexed by integer wealth.
+            - ``common/pop_types/``: profession ``consumption_mult`` values.
+            - [Needs wiki, Formulas](https://vic3.paradoxwikis.com/Needs#Formulas):
+              population scaling and detailed substitution formulas. The
+              non-pop-demand deduction is attributed there to community
+              reverse engineering:
+              https://www.reddit.com/r/victoria3/comments/yudc80/pop_needs_consumer_good_substitution_and_why_oil/
+            - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
+              wealth-dependent needs and valuation using goods' base prices.
+        """
+        expected_shape = (len(self.building_index), len(self.pop_index))
+        for name in ("pops", "pop_wealth"):
+            if getattr(state, name).shape != expected_shape:
+                raise ValueError(
+                    f"state.{name} shape must match building_index and pop_index."
+                )
+        pops = _nonnegative_values(state.pops, "state.pops")
+        for name in (
+            "building_goods_input",
+            "building_goods_output",
+            "imports",
+            "exports",
+        ):
+            self._validate_goods_vector(getattr(state, name), f"state.{name}")
+        supply = self._validate_goods_vector(state.sell_orders, "state.sell_orders")
+        prices = _nonnegative_values(self.base_prices, "base_prices")
+        if (prices == 0).any():
+            raise ValueError("base_prices must be strictly positive.")
+        data = self._pop_needs_coefficients
+        occupied = pops > 0
+        wealth, inverse = np.unique(state.pop_wealth[occupied], return_inverse=True)
+        if not np.isin(wealth, data.wealth_levels).all():
+            raise ValueError(
+                "Occupied pop_wealth tiers must be defined in df_buy_packages."
+            )
+        population = (pops * data.consumption_multipliers)[occupied] / 10_000
+        counts = np.bincount(inverse, weights=population, minlength=len(wealth))
+        budgets = counts @ data.packages[np.searchsorted(data.wealth_levels, wealth)]
+
+        effective = np.maximum(
+            supply - 0.5 * state.building_goods_input - 0.5 * state.exports, 0
+        )
+        shares = data.eligible * effective
+        totals = shares.sum(axis=1, keepdims=True)
+        np.divide(shares, totals, out=shares, where=totals > 0)
+        purchases = np.clip(shares, data.min_shares, data.max_shares) * data.weights
+        totals = purchases.sum(axis=1, keepdims=True)
+        np.divide(purchases, totals, out=purchases, where=totals > 0)
+        purchases = np.where(totals > 0, purchases, data.defaults)
+        return self._validate_goods_vector(
+            budgets @ purchases / prices, "calculated pop_needs"
         )
 
     @cached_property

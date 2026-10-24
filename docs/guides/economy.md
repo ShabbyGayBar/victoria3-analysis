@@ -11,7 +11,8 @@ for exported state columns, formulas, and units.
 
 ## Economy data and alignment
 
-It takes three kinds of information to define an `Economy` model: production table, goods table, and pop types table, each of which being presented by a parsed DataFrame in [parsing](parsing.md).
+An `Economy` model uses production, goods, pop-types, pop-needs, and buy-package
+tables, each represented by a parsed DataFrame in [parsing](parsing.md).
 
 You can either construct an `Economy` from the parsed tables, or let it parse them internally as below:
 
@@ -40,7 +41,7 @@ economy = Economy(language="english")
 ```
 
 Localization is added only to internally parsed DataFrames. If `df_production`,
-`df_goods`, or `df_pop_types` is supplied explicitly, its contents are copied
+`df_goods`, `df_pop_types`, `df_pop_needs`, or `df_buy_packages` is supplied explicitly, its contents are copied
 without adding localization or changing the supplied data.
 
 ```python
@@ -88,3 +89,50 @@ state = economy.solve(
 To choose building levels from objectives and constraints, continue with the
 [optimization guide](optimization.md). See the [economy API](../api/economy.md)
 for model parameters and state reports.
+
+## Population needs
+
+`calculate_pop_needs(state)` returns weekly goods quantities aligned to
+`goods_index`. It uses the state's employed-worker counts and integer wealth,
+the model's `df_buy_packages`, and the goods substitution definitions in
+`df_pop_needs`. Both tables can be passed as keyword arguments when constructing
+`Economy`; omitted tables are parsed from the game files.
+
+```python
+from dataclasses import replace
+
+state = economy.solve(levels)
+needs = economy.calculate_pop_needs(state)
+state_with_needs = replace(state, pop_needs=needs)
+# Or explicitly include these orders in a new market-price evaluation:
+market_state = economy.solve(levels, method="market", pop_needs=needs)
+```
+
+`solve()` does not automatically calculate population demand or iterate wealth.
+The calculation leaves the supplied state unchanged. `pop_wealth` and
+`pop_wealth_init` are read-only `int64` arrays; integer-valued floating inputs
+are accepted, while fractional, negative, non-finite, or overflowing wealth is
+rejected. Occupied wealth levels must have a buy package. Empty cells can use
+zero or other undefined integer wealth levels.
+
+For each need, effective supply is sell orders minus half of building and
+export demand, clamped to zero. Goods' shares of that supply are clipped to
+their configured minimum and maximum, multiplied by their weights, and then
+normalized. These limits apply before normalization, so a final purchase share
+can exceed its configured maximum supply share. Minimum shares can generate
+demand for absent goods; if all purchase weights are zero, the default good
+receives the whole category's demand.
+
+Wealth packages specify category values at base prices per 10,000 workers.
+Values are scaled by represented employment and profession `consumption_mult`
+(default `1`, with peasants normally consuming `0.05`), allocated by purchase
+weights, and divided by each good's base price. Existing population demand and
+market prices do not affect the calculation. Dependents, cultural modifiers,
+prestige goods, local-state effects, weekly adjustment, and wealth feedback are
+not modeled here.
+
+The method's docstring links the game definitions, the
+[Needs formulas](https://vic3.paradoxwikis.com/Needs#Formulas), and the
+[official developer diary](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737).
+The half-non-pop-demand deduction comes from community reverse engineering
+documented by the wiki; zero-clamping effective supply is a model convention.

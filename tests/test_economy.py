@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Brian Li
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from typing import cast
 
 import numpy as np
@@ -76,7 +76,7 @@ def test_cached_coefficients_are_owned_readonly_arrays(
     array = getattr(coefficient_economy, name)
     assert isinstance(array, np.ndarray)
     assert array is getattr(coefficient_economy, name)
-    assert array.dtype == np.float64
+    assert array.dtype == (np.int64 if name == "pop_wealth_init" else np.float64)
     assert array.flags.owndata
     assert not array.flags.writeable
     np.testing.assert_array_equal(array, expected)
@@ -243,7 +243,7 @@ def test_state_defensively_copies_and_freezes_input_arrays():
         "pop_needs",
     ):
         array = getattr(state, name)
-        assert array.dtype == np.float64
+        assert array.dtype == (np.int64 if name == "pop_wealth" else np.float64)
         assert array.flags.owndata
         assert not array.flags.writeable
         with pytest.raises(ValueError, match="read-only"):
@@ -530,9 +530,407 @@ def test_employment_matrix(economy):
 def test_pop_wealth_init(economy):
     w = economy.pop_wealth_init
     assert w.shape == (len(economy.df_pop_types),)
-    assert w.dtype == np.float64
+    assert w.dtype == np.int64
     np.testing.assert_array_equal(
         w, economy.df_pop_types["start_quality_of_life"].to_numpy(dtype=np.float64)
+    )
+
+
+@pytest.fixture
+def needs_economy() -> Economy:
+    """Small complete model with reversed wealth rows and a non-consumed good."""
+    return Economy(
+        df_production=pd.DataFrame(
+            {
+                "building": ["factory", "farm"],
+                "production_method": ["pm_factory", "pm_farm"],
+                "goods_unused": [0.0, 0.0],
+                "goods_a": [100.0, 0.0],
+                "goods_b": [100.0, 0.0],
+                "employment_workers": [10_000.0, 0.0],
+                "employment_peasants": [0.0, 10_000.0],
+            }
+        ),
+        df_goods=pd.DataFrame(
+            {"key": ["unused", "a", "b"], "cost": [10.0, 20.0, 40.0]}
+        ),
+        df_pop_types=pd.DataFrame(
+            {
+                "key": ["workers", "peasants"],
+                "start_quality_of_life": [1, 2],
+                "consumption_mult": [np.nan, 0.05],
+            }
+        ),
+        df_pop_needs=pd.DataFrame(
+            {
+                "key": ["popneed_food", "popneed_food"],
+                "goods": ["a", "b"],
+                "weight": [1.0, 1.0],
+                "min_supply_share": [0.0, 0.0],
+                "max_supply_share": [1.0, 1.0],
+                "is_default": [True, False],
+            }
+        ),
+        df_buy_packages=pd.DataFrame(
+            {
+                "wealth": [2, 1],
+                "popneed_food": [400.0, 200.0],
+                "total_popneeds": [400.0, 200.0],
+            }
+        ),
+    )
+
+
+def test_calculate_pop_needs_exact_values_and_snapshot(needs_economy: Economy):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    original = {
+        name: value.copy()
+        for name, value in vars(state).items()
+        if isinstance(value, np.ndarray)
+    }
+    result = needs_economy.calculate_pop_needs(state)
+    np.testing.assert_allclose(result, [0.0, 5.0, 2.5])
+    assert result.dtype == np.float64
+    assert result.flags.owndata and result.flags.writeable
+    assert not np.shares_memory(result, state.pop_needs)
+    assert result @ needs_economy.base_prices == pytest.approx(200.0)
+    for name, value in original.items():
+        np.testing.assert_array_equal(getattr(state, name), value)
+    result[:] = 999
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_needs(state), [0.0, 5.0, 2.5]
+    )
+
+
+def test_calculate_pop_needs_professions_wealth_and_scaling(needs_economy: Economy):
+    state = needs_economy.solve(np.array([1.0, 1.0]))
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_needs(state), [0.0, 5.5, 2.75]
+    )
+    doubled = replace(state, pops=2 * state.pops)
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_needs(doubled), [0.0, 11.0, 5.5]
+    )
+    model = replace(
+        needs_economy,
+        df_pop_types=needs_economy.df_pop_types.drop(columns="consumption_mult"),
+    )
+    np.testing.assert_allclose(model.calculate_pop_needs(state), [0.0, 15.0, 7.5])
+
+
+@pytest.mark.parametrize(
+    ("supply", "weights", "minima", "maxima", "expected"),
+    [
+        ([100, 100], [1, 2], [0, 0], [1, 1], [10 / 3, 10 / 3]),
+        ([900, 100], [1, 1], [0, 0], [0.5, 1], [25 / 3, 5 / 6]),
+        ([0, 100], [1, 1], [0.2, 0], [1, 1], [5 / 3, 25 / 6]),
+        ([100, 0], [1, 1], [0, 0], [0.5, 1], [10, 0]),
+        ([0, 0], [1, 1], [0, 0], [1, 1], [10, 0]),
+        ([0, 0], [1, 1], [0.2, 0.1], [1, 1], [20 / 3, 5 / 3]),
+        ([100, 100], [0, 0], [0, 0], [1, 1], [10, 0]),
+    ],
+)
+def test_calculate_pop_needs_substitution(
+    needs_economy: Economy,
+    supply: list[float],
+    weights: list[float],
+    minima: list[float],
+    maxima: list[float],
+    expected: list[float],
+):
+    definitions = needs_economy.df_pop_needs.assign(
+        weight=weights, min_supply_share=minima, max_supply_share=maxima
+    )
+    model = replace(needs_economy, df_pop_needs=definitions)
+    state = replace(
+        model.solve(np.array([1.0, 0.0])),
+        building_goods_output=np.array([0.0, *supply]),
+    )
+    np.testing.assert_allclose(model.calculate_pop_needs(state), [0.0, *expected])
+
+
+@pytest.mark.parametrize("field", ["imports", "building_goods_input", "exports"])
+def test_calculate_pop_needs_nonpop_market_orders(needs_economy: Economy, field: str):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    changed = replace(state, **{field: np.array([0.0, 100.0, 0.0])})
+    expected = [0, 20 / 3, 5 / 3] if field == "imports" else [0, 10 / 3, 10 / 3]
+    np.testing.assert_allclose(needs_economy.calculate_pop_needs(changed), expected)
+    if field != "imports":
+        oversubscribed = replace(state, **{field: np.array([0.0, 300.0, 0.0])})
+        np.testing.assert_allclose(
+            needs_economy.calculate_pop_needs(oversubscribed), [0, 0, 5]
+        )
+
+
+def test_calculate_pop_needs_ignores_prices_and_previous_demand(needs_economy: Economy):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    changed = replace(
+        state, market_prices=100 * state.market_prices, pop_needs=np.full(3, 999.0)
+    )
+    np.testing.assert_array_equal(
+        needs_economy.calculate_pop_needs(changed),
+        needs_economy.calculate_pop_needs(state),
+    )
+
+
+def test_calculate_pop_needs_single_good_and_overlapping_categories(
+    needs_economy: Economy,
+):
+    definitions = needs_economy.df_pop_needs
+    single = definitions.iloc[[0]].assign(key="popneed_clothing")
+    model = replace(
+        needs_economy,
+        df_pop_needs=pd.concat([definitions, single], ignore_index=True),
+        df_buy_packages=needs_economy.df_buy_packages.assign(
+            popneed_clothing=[80.0, 40.0]
+        ),
+    )
+    state = model.solve(np.array([1.0, 0.0]))
+    np.testing.assert_allclose(model.calculate_pop_needs(state), [0, 7, 2.5])
+
+
+def test_calculate_pop_needs_zero_population_skips_wealth_lookup(
+    needs_economy: Economy,
+):
+    state = needs_economy.solve(np.array([0.0, 0.0]))
+    empty = replace(state, pop_wealth=np.zeros((2, 2), dtype=np.int64))
+    np.testing.assert_array_equal(needs_economy.calculate_pop_needs(empty), np.zeros(3))
+    partial = needs_economy.solve(np.array([1.0, 0.0]))
+    partial = replace(partial, pop_wealth=np.array([[1, 0], [999, 0]]))
+    np.testing.assert_allclose(needs_economy.calculate_pop_needs(partial), [0, 5, 2.5])
+    with pytest.raises(ValueError, match="pop_wealth tiers"):
+        needs_economy.calculate_pop_needs(
+            replace(partial, pop_wealth=np.full((2, 2), 3))
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "pops",
+        "pop_wealth",
+        "building_goods_input",
+        "building_goods_output",
+        "imports",
+        "exports",
+    ],
+)
+def test_calculate_pop_needs_rejects_misalignment(needs_economy: Economy, field: str):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    with pytest.raises(ValueError, match=field):
+        needs_economy.calculate_pop_needs(replace(state, **{field: np.zeros(1)}))
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["pops", "building_goods_input", "building_goods_output", "imports", "exports"],
+)
+@pytest.mark.parametrize("value", [-1.0, np.nan, np.inf])
+def test_calculate_pop_needs_rejects_invalid_quantities(
+    needs_economy: Economy, field: str, value: float
+):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    bad = np.full(getattr(state, field).shape, value)
+    with pytest.raises(ValueError, match=field):
+        needs_economy.calculate_pop_needs(replace(state, **{field: bad}))
+
+
+@pytest.mark.parametrize("value", [0.0, -1.0, np.nan, np.inf])
+def test_calculate_pop_needs_rejects_invalid_base_prices(
+    needs_economy: Economy, value: float
+):
+    model = replace(
+        needs_economy, df_goods=needs_economy.df_goods.assign(cost=[10, value, 40])
+    )
+    with pytest.raises(ValueError, match="base_prices"):
+        model.calculate_pop_needs(model.solve(np.array([1.0, 0.0])))
+
+
+@pytest.mark.parametrize(
+    "value", [1.5, -1.0, np.nan, np.inf, float(2**63), 2**63, "bad"]
+)
+def test_integer_wealth_rejects_invalid_values(
+    needs_economy: Economy, value: float | str
+):
+    with pytest.raises(ValueError, match="pop_wealth"):
+        _make_state(pop_wealth=np.array([[value]]))
+    model = replace(
+        needs_economy,
+        df_pop_types=needs_economy.df_pop_types.assign(
+            start_quality_of_life=[value, 2]
+        ),
+    )
+    with pytest.raises(ValueError, match="pop_wealth_init"):
+        _ = model.pop_wealth_init
+
+
+def test_integer_wealth_owns_storage_and_preserves_int64_boundary():
+    source = np.array([[np.iinfo(np.int64).max]], dtype=np.int64)
+    state = _make_state(pop_wealth=source)
+    source[:] = 0
+    assert state.pop_wealth[0, 0] == np.iinfo(np.int64).max
+    assert state.pop_wealth.dtype == np.int64
+    assert state.pop_wealth.flags.owndata and not state.pop_wealth.flags.writeable
+    integral_floats = _make_state(pop_wealth=np.array([[2.0]]))
+    np.testing.assert_array_equal(integral_floats.pop_wealth, [[2]])
+
+
+def test_pop_needs_tables_are_copied_and_cached(needs_economy: Economy):
+    needs = needs_economy.df_pop_needs.copy(deep=True)
+    packages = needs_economy.df_buy_packages.copy(deep=True)
+    model = replace(
+        needs_economy, df_pop_needs=needs, df_buy_packages=packages, language="english"
+    )
+    needs.loc[0, "weight"] = 999
+    packages.loc[0, "popneed_food"] = 999
+    pd.testing.assert_frame_equal(model.df_pop_needs, needs_economy.df_pop_needs)
+    pd.testing.assert_frame_equal(model.df_buy_packages, needs_economy.df_buy_packages)
+    data = model._pop_needs_coefficients
+    assert data is model._pop_needs_coefficients
+    for value in vars(data).values():
+        assert value.flags.owndata and not value.flags.writeable
+    for name in ("df_pop_needs", "df_buy_packages"):
+        with pytest.raises(FrozenInstanceError):
+            setattr(model, name, pd.DataFrame())
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing_columns",
+        "duplicate_columns",
+        "missing_category",
+        "missing_good",
+        "duplicate_good",
+        "no_default",
+        "two_defaults",
+        "bad_default",
+        "negative_weight",
+        "non_numeric_weight",
+        "nonfinite_share",
+        "reversed_shares",
+        "large_share",
+        "invalid_category",
+        "duplicate_wealth",
+        "zero_wealth",
+        "fractional_wealth",
+        "empty_packages",
+        "no_categories",
+        "negative_package",
+        "nonfinite_package",
+        "negative_consumption",
+        "duplicate_goods_index",
+        "duplicate_pop_index",
+        "invalid_goods_index",
+    ],
+)
+def test_calculate_pop_needs_rejects_invalid_tables(needs_economy: Economy, case: str):
+    needs = needs_economy.df_pop_needs.copy(deep=True)
+    packages = needs_economy.df_buy_packages.copy(deep=True)
+    professions = needs_economy.df_pop_types.copy(deep=True)
+    goods = needs_economy.df_goods.copy(deep=True)
+    match = "df_pop_needs"
+    if case == "missing_columns":
+        needs = needs.drop(columns="weight")
+    elif case == "duplicate_columns":
+        needs = pd.concat([needs, needs[["weight"]]], axis=1)
+    elif case == "missing_category":
+        needs["key"] = "popneed_other"
+    elif case == "missing_good":
+        needs.loc[0, "goods"] = "missing"
+    elif case == "duplicate_good":
+        needs.loc[1, "goods"] = "a"
+    elif case == "no_default":
+        needs["is_default"] = False
+    elif case == "two_defaults":
+        needs["is_default"] = True
+    elif case == "bad_default":
+        needs["is_default"] = ["yes", "no"]
+    elif case == "negative_weight":
+        needs.loc[0, "weight"] = -1
+    elif case == "non_numeric_weight":
+        needs["weight"] = ["bad", "1"]
+    elif case == "nonfinite_share":
+        needs.loc[0, "min_supply_share"] = np.nan
+    elif case == "reversed_shares":
+        needs.loc[0, "min_supply_share"] = 0.9
+        needs.loc[0, "max_supply_share"] = 0.5
+    elif case == "large_share":
+        needs.loc[0, "max_supply_share"] = 1.5
+    elif case == "invalid_category":
+        needs.loc[0, "key"] = None
+    elif case in {
+        "duplicate_wealth",
+        "zero_wealth",
+        "fractional_wealth",
+        "empty_packages",
+        "no_categories",
+        "negative_package",
+        "nonfinite_package",
+    }:
+        match = "df_buy_packages"
+        if case == "duplicate_wealth":
+            packages["wealth"] = [1, 1]
+        elif case == "zero_wealth":
+            packages["wealth"] = [0, 1]
+        elif case == "fractional_wealth":
+            packages["wealth"] = [1.5, 1]
+        elif case == "empty_packages":
+            packages = packages.iloc[:0]
+        elif case == "no_categories":
+            packages = packages.drop(columns="popneed_food")
+        else:
+            packages.loc[0, "popneed_food"] = (
+                -1 if case == "negative_package" else np.inf
+            )
+    elif case == "negative_consumption":
+        match = "consumption_mult"
+        professions["consumption_mult"] = [-1.0, 1.0]
+    elif case == "duplicate_goods_index":
+        match = "goods_index"
+        goods["key"] = ["a", "a", "b"]
+    elif case == "duplicate_pop_index":
+        match = "pop_index"
+        professions["key"] = ["workers", "workers"]
+    elif case == "invalid_goods_index":
+        match = "goods_index"
+        goods["key"] = ["", "a", "b"]
+    model = replace(
+        needs_economy,
+        df_production=needs_economy.df_production.rename(
+            columns={"goods_unused": "goods_"} if case == "invalid_goods_index" else {}
+        ),
+        df_pop_needs=needs,
+        df_buy_packages=packages,
+        df_pop_types=professions,
+        df_goods=goods,
+    )
+    # Reuse a valid state so malformed table indexes don't affect solve().
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    with pytest.raises(ValueError, match=match):
+        model.calculate_pop_needs(state)
+
+
+def test_calculate_pop_needs_vanilla(economy: Economy):
+    state = economy.solve(_first_producing_levels(economy))
+    needs = economy.calculate_pop_needs(state)
+    assert needs.shape == (len(economy.goods_index),)
+    assert needs.dtype == np.float64
+    assert np.isfinite(needs).all() and (needs >= 0).all() and (needs > 0).any()
+    reordered = replace(economy, df_goods=economy.df_goods.iloc[::-1])
+    fields = (
+        "building_goods_input",
+        "building_goods_output",
+        "imports",
+        "exports",
+        "market_prices",
+        "pop_needs",
+    )
+    reversed_state = replace(
+        state, **{name: getattr(state, name)[::-1] for name in fields}
+    )
+    np.testing.assert_allclose(
+        reordered.calculate_pop_needs(reversed_state), needs[::-1]
     )
 
 
