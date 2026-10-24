@@ -64,6 +64,7 @@ script = "examples/supply_chain_cangshulun.py"
 page = "showcase/supply-chains.md"
 artifacts = [
     "artifacts/analyses/supply_chains/cangshulun_video/summary.csv",
+    "artifacts/analyses/supply_chains/cangshulun_video/summary_1.12.csv",
 ]
 
 [[collection]]
