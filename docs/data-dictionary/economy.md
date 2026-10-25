@@ -37,7 +37,7 @@ is preserved through cached properties.
 | `building_goods_output` | Goods / units per week | `maximum(building_goods_flow, 0).sum(axis=0)`. |
 | `building_surplus` | Configurations / £ per week | `building_goods_flow @ market_prices`, value added before wages; may be negative. |
 | `building_deficit` | Configurations / £ per week | `maximum(-building_surplus, 0)`, unfunded input costs. |
-| `calculate_pop_income(state)` | Configurations × professions / £ per week | Each row's positive surplus allocated by `pops * wage_weight`; group totals, not per-worker rates. |
+| `calculate_pop_income(state)` | Configurations × professions / £ per week | Positive surplus allocated by `pops * wage_weight`, plus `pops * dependents_per_worker * dependent_wage / 52`; household totals, not per-worker rates. |
 
 The four state properties are cached, owned, read-only float64 arrays. Signs
 are split before aggregation to retain opposing flows between configurations;
@@ -46,8 +46,10 @@ within-row flows retain the production table's signed-net convention.
 The income calculation returns a fresh writable matrix. It includes professions
 regardless of `paid_private_wage`, pays zero wages on zero/negative surplus, and
 does not pool configurations. Positive surplus with zero total recipient weight
-raises `ValueError`. Deficits have no implicit funding source. Income excludes
-taxes, transfers, dependents, reserves, and subsistence income; it does not update
+raises `ValueError`. Deficits have no implicit funding source. Dependent earnings
+are exogenous and do not alter building surplus or production GDP. Missing
+dependent wages mean zero. Income excludes
+taxes, transfers, reserves, and subsistence income; it does not update
 `pop_balance` or wealth.
 
 ## Market report
@@ -75,14 +77,19 @@ and output totals are reconstructed from production-table net coefficients.
 `Economy.df_pop(state)` returns one row per profession with positive employment,
 sorted by employment descending and with its index reset. Let `n_ij` be workers
 of profession `j` in configuration `i`, and `w_ij` their stored wealth level.
+Let `r = state.workforce_ratio` and `d = state.dependents_per_worker = (1-r)/r`.
+`total_employment` sums workers; `total_population` divides that sum by `r`.
+Both direct states and `solve()` default to `r=1.0`.
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
 | `profession` | String / identifier | Profession key aligned with `Economy.pop_index`. | Zero-employment professions are omitted. |
 | `employment` | Float / workers | `sum_i(n_ij)`. | Includes the whole system, not just one terminal chain. |
 | `employment_share` | Float / fraction | Profession employment divided by all modeled employment. | State returns zeros for zero total employment; such a report has no positive-employment rows. |
+| `dependents` | Float / people | `sum_i(n_ij) * d`. | Derived using the same economy-wide ratio for every profession. |
+| `population` | Float / people | `sum_i(n_ij) / r`. | Workers plus dependents. |
 | `avg_wealth` | Float / wealth level | `sum_i(w_ij * n_ij) / sum_i(n_ij)`. | State returns zero for a profession without employment. Current solving uses `start_quality_of_life` from pop types. |
-| `total_wealth` | Float / worker-weighted wealth levels | `sum_i(w_ij * n_ij)`. | Not a stock of money or GDP. |
+| `total_wealth` | Float / population-weighted wealth levels | `sum_i(w_ij * n_ij) / r`. | Dependents share household wealth; not a stock of money or GDP. |
 | `pop_balance` | Float / stored balance total | Sum of the state's `pop_balance` over configurations for this profession. | Current nominal and market solvers initialize this array to zero; it is not a computed wage or household budget. |
 
 ## Japan optimization comparison

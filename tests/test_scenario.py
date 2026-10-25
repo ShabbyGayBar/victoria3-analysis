@@ -26,12 +26,21 @@ def test_defaults():
     assert scenario.imports == ()
     assert scenario.exports == ()
     assert scenario.pop_needs == ()
+    assert scenario.workforce_ratio == 1.0
     assert scenario.name is None
 
 
 def test_invalid_objective_raises_at_construction():
     with pytest.raises(ValueError, match="Unknown objective"):
         Scenario(objective="bogus")
+
+
+@pytest.mark.parametrize(
+    "ratio", [0.0, -0.25, 1.01, float("nan"), float("inf"), -float("inf")]
+)
+def test_invalid_workforce_ratio(ratio: float):
+    with pytest.raises(ValueError, match="workforce_ratio"):
+        Scenario(workforce_ratio=ratio)
 
 
 def test_frozen():

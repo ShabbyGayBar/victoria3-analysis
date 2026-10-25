@@ -313,7 +313,7 @@ def test_failed_rerun_removes_previous_details(tmp_path: Path) -> None:
     [
         ("system_employment", "Population (workers)", 1.0),
         ("system_construction_cost", "Construction (points)", 10.0),
-        ("system_gdp_per_capita_annual", "Annual GDP per capita (£/worker/year)", 52.0),
+        ("system_gdp_per_capita_annual", "Annual GDP per capita (£/person/year)", 52.0),
     ],
 )
 def test_comparison_chart_groups_goods_and_marks_failures(

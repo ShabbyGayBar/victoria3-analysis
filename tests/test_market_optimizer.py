@@ -114,6 +114,58 @@ def test_market_optimizer_maximizes_gdp_per_capita(toy_economy: Economy):
     assert state.gdp_per_capita() == pytest.approx(1.75, abs=2e-5)
 
 
+def test_workforce_ratio_scales_compiled_per_capita_objective(toy_economy: Economy):
+    scenario = Scenario(
+        objective="gdp_per_capita",
+        default_min_goods_output=None,
+        building_level_caps=(("building_test", 1.5),),
+        pop_needs=(("test_good", 1.0),),
+        employment_cap=1.5,
+    )
+    optimizer = MarketOptimizer(toy_economy)
+    workers = optimizer.compile(scenario)
+    households = optimizer.compile(replace(scenario, workforce_ratio=0.25))
+    levels = np.array([1.2])
+    assert households.objective(levels) == pytest.approx(
+        workers.objective(levels) * 0.25
+    )
+    np.testing.assert_allclose(
+        households.jacobian(levels), workers.jacobian(levels) * 0.25
+    )
+    epsilon = 1e-6
+    difference = (
+        households.objective(levels + epsilon) - households.objective(levels - epsilon)
+    ) / (2 * epsilon)
+    np.testing.assert_allclose(households.jacobian(levels), [difference], rtol=1e-5)
+    np.testing.assert_array_equal(
+        households.warm_start.objective_vector, workers.warm_start.objective_vector
+    )
+    np.testing.assert_array_equal(households.A_ub, workers.A_ub)
+    np.testing.assert_array_equal(households.b_ub, workers.b_ub)
+    state = optimizer.solve_problem(households)
+    assert state.workforce_ratio == 0.25
+    assert state.total_population == state.total_employment * 4
+    assert state.gdp_per_capita() == pytest.approx(1.75 * 0.25, abs=2e-5)
+    assert -households.objective(state.building_levels) == pytest.approx(
+        state.gdp_per_capita()
+    )
+
+
+def test_workforce_ratio_does_not_scale_gdp_objective(toy_economy: Economy):
+    scenario = Scenario(
+        objective="gdp",
+        default_min_goods_output=None,
+        building_level_caps=(("building_test", 1.5),),
+        pop_needs=(("test_good", 1.0),),
+    )
+    optimizer = MarketOptimizer(toy_economy)
+    workers = optimizer.compile(scenario)
+    households = optimizer.compile(replace(scenario, workforce_ratio=0.25))
+    levels = np.array([1.2])
+    assert households.objective(levels) == workers.objective(levels)
+    np.testing.assert_array_equal(households.jacobian(levels), workers.jacobian(levels))
+
+
 def test_market_optimizer_preserves_scenario_constraints(
     toy_economy: Economy,
 ):

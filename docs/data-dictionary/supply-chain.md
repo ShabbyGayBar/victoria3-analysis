@@ -88,10 +88,10 @@ only for an exactly zero denominator.
 | `chain_construction_share` | Float / fraction | `chain_construction_cost / system_construction_cost`. | Safe division. |
 | `chain_arable_land_share` | Float / fraction | `chain_arable_land / system_arable_land`. | Safe division. |
 | `chain_infrastructure_share` | Float / signed ratio | `chain_net_infrastructure_usage / system_net_infrastructure_usage`. | Safe division; cancellation and negative values mean it need not lie in [0, 1]. |
-| `system_gdp_per_capita_weekly` | Float / £ per worker per week | `system_gdp_weekly / system_employment`. | Safe division; population means employed workers. |
-| `system_gdp_per_capita_annual` | Float / £ per worker per year | `52 * system_gdp_per_capita_weekly`. | Included in every summary and sweep, including the video export. |
-| `chain_gdp_per_capita_weekly` | Float / £ per worker per week | `chain_gdp_weekly / chain_employment`. | Safe division; includes whole-process coproduct contributions. |
-| `chain_gdp_per_capita_annual` | Float / £ per worker per year | `52 * chain_gdp_per_capita_weekly`. | Same realized-chain scope. |
+| `system_gdp_per_capita_weekly` | Float / £ per person per week | `system_gdp_weekly * workforce_ratio / system_employment`. | Safe division; includes uniformly inferred dependents. |
+| `system_gdp_per_capita_annual` | Float / £ per person per year | `52 * system_gdp_per_capita_weekly`. | Included in every summary and sweep, including the video export. |
+| `chain_gdp_per_capita_weekly` | Float / £ per person per week | `chain_gdp_weekly * workforce_ratio / chain_employment`. | Safe division; includes whole-process coproduct contributions. |
+| `chain_gdp_per_capita_annual` | Float / £ per person per year | `52 * chain_gdp_per_capita_weekly`. | Same realized-chain scope. |
 | `system_wage_normalized_employment` | Float / private-wage-equivalent workers | Sum of system levels times production-table `wage_normalized_employment`. | NaN if the column or any contributing coefficient is unavailable/nonfinite; inactive missing coefficients are ignored. |
 | `chain_wage_normalized_employment` | Float / private-wage-equivalent workers | Sum of realized-chain levels times production-table `wage_normalized_employment`. | Same missing-data policy, restricted to contributing chain processes. |
 | `system_gdp_per_wage_normalized_employment_weekly` | Float / £ per wage-equivalent worker per week | `system_gdp_weekly / system_wage_normalized_employment`. | Safe division; NaN when wage coefficients are unavailable. |

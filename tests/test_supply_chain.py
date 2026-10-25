@@ -400,13 +400,17 @@ def _resource_economy() -> Economy:
 
 
 @pytest.mark.parametrize("multiplier", [1.0, 2.0])
-def test_resource_levels_group_configurations_and_normalize_workers(multiplier: float):
+@pytest.mark.parametrize("workforce_ratio", [1.0, 0.25])
+def test_resource_levels_group_configurations_and_normalize_workers(
+    multiplier: float, workforce_ratio: float
+):
     economy = _resource_economy()
     scenario = Scenario(
         min_goods_output=(("widget", 25.0),),
         default_min_goods_output=0.0,
         objective="construction_cost",
         throughput_multipliers=(("building_coal_mine", multiplier),),
+        workforce_ratio=workforce_ratio,
         building_level_caps=(
             ("building_logging_camp", 0.0),
             ("building_fishing_wharf", 0.0),
@@ -414,6 +418,10 @@ def test_resource_levels_group_configurations_and_normalize_workers(multiplier: 
     )
     result = SupplyChainAnalyzer(economy, scenario, "widget").run()
     summary = result.summary()
+    assert result.state.workforce_ratio == workforce_ratio
+    assert result.state.total_population == pytest.approx(
+        result.state.total_employment / workforce_ratio
+    )
     for scope in ("chain", "system"):
         assert summary[f"{scope}_employment"] == pytest.approx(2000.0 / multiplier)
         assert summary[f"{scope}_levels_building_coal_mine"] == pytest.approx(
@@ -426,7 +434,7 @@ def test_resource_levels_group_configurations_and_normalize_workers(multiplier: 
             3500.0 / multiplier
         )
         assert summary[f"{scope}_gdp_per_capita_weekly"] == pytest.approx(
-            0.625 * multiplier
+            0.625 * multiplier * workforce_ratio
         )
         assert summary[
             f"{scope}_gdp_per_wage_normalized_employment_weekly"

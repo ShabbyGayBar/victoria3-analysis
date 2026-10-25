@@ -2037,6 +2037,8 @@ def test_df_pop(economy):
         "profession",
         "employment",
         "employment_share",
+        "dependents",
+        "population",
         "avg_wealth",
         "total_wealth",
         "pop_balance",
@@ -2048,3 +2050,135 @@ def test_df_pop(economy):
     assert df["employment_share"].sum() == pytest.approx(1.0)
     assert set(df["profession"]) <= set(economy.pop_index)
     assert np.allclose(df["avg_wealth"], df["total_wealth"] / df["employment"])
+
+
+@pytest.mark.parametrize("ratio", [0.0, -0.25, 1.01, np.nan, np.inf, -np.inf])
+def test_workforce_ratio_rejects_invalid_values(income_economy: Economy, ratio: float):
+    state = _make_state()
+    with pytest.raises(ValueError, match="workforce_ratio"):
+        replace(state, workforce_ratio=ratio)
+    with pytest.raises(ValueError, match="workforce_ratio"):
+        income_economy.solve(np.ones(3), workforce_ratio=ratio)
+
+
+def test_workforce_ratio_population_wealth_and_cached_replacement():
+    workers = _make_state(
+        pops=np.array([[100.0, 50.0, 0.0], [0, 0, 0], [0, 0, 0]]),
+        pop_wealth=np.array([[5, 20, 0], [0, 0, 0], [0, 0, 0]]),
+        building_goods_flow=np.array([[100.0, 0, 0], [0, 0, 0], [0, 0, 0]]),
+    )
+    assert workers.workforce_ratio == 1.0
+    assert workers.dependents_per_worker == 0.0
+    households = replace(workers, workforce_ratio=0.25)
+    assert households.dependents_per_worker == 3.0
+    assert "dependents_per_worker" in vars(households)
+    assert households.total_employment == workers.total_employment == 150.0
+    assert households.total_population == 600.0
+    assert households.gdp_per_capita() == workers.gdp_per_capita() / 4
+    assert households.gdp_per_capita(annual=True) == workers.gdp_per_capita(True) / 4
+    assert households.total_wealth == workers.total_wealth * 4
+    assert households.average_wealth == workers.average_wealth
+    assert households.wealth_per_capita() == workers.wealth_per_capita()
+    assert households.wealth_distribution == workers.wealth_distribution
+    assert households.gini_wealth == workers.gini_wealth
+    np.testing.assert_array_equal(
+        households.profession_shares, workers.profession_shares
+    )
+    np.testing.assert_array_equal(
+        households.wealth_by_profession, workers.wealth_by_profession
+    )
+    assert replace(households).workforce_ratio == 0.25
+    changed = replace(households, workforce_ratio=0.5)
+    assert changed.dependents_per_worker == 1.0
+    assert changed.total_population == 300.0
+    assert households.dependents_per_worker == 3.0
+
+
+def test_workforce_ratio_empty_population(income_economy: Economy):
+    state = income_economy.solve(np.zeros(3), workforce_ratio=0.25)
+    assert state.total_employment == state.total_population == 0
+    assert state.gdp_per_capita() == state.wealth_per_capita() == 0
+    assert state.average_wealth == state.total_wealth == state.gini_wealth == 0
+    assert state.wealth_distribution["mean"] == 0
+    np.testing.assert_array_equal(state.profession_shares, [0, 0, 0])
+    np.testing.assert_array_equal(
+        income_economy.calculate_pop_income(state), np.zeros((3, 3))
+    )
+    assert income_economy.df_pop(state).empty
+
+
+@pytest.mark.parametrize("method", ["nominal", "market"])
+def test_workforce_ratio_consumption_and_reports(needs_economy: Economy, method: str):
+    levels = np.array([0.01, 0.0])
+    workers = needs_economy.solve(levels, method=method)
+    households = needs_economy.solve(levels, method=method, workforce_ratio=0.25)
+    assert households.total_employment == 100
+    assert households.total_population == 400
+    np.testing.assert_array_equal(
+        households.building_goods_flow, workers.building_goods_flow
+    )
+    np.testing.assert_array_equal(households.pop_needs, workers.pop_needs)
+    np.testing.assert_array_equal(households.pop_balance, workers.pop_balance)
+    np.testing.assert_array_equal(households.market_prices, workers.market_prices)
+    packages = needs_economy.calculate_buy_packages(workers)
+    pd.testing.assert_frame_equal(
+        needs_economy.calculate_buy_packages(households), packages
+    )
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_needs(households), [0, 0.125, 0.0625]
+    )
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_needs(households, buy_packages=packages),
+        2.5 * needs_economy.calculate_pop_needs(workers),
+    )
+    report = needs_economy.df_pop(households)
+    np.testing.assert_array_equal(report["employment"], [100])
+    np.testing.assert_array_equal(report["dependents"], [300])
+    np.testing.assert_array_equal(report["population"], [400])
+    np.testing.assert_allclose(
+        report["avg_wealth"], report["total_wealth"] / report["population"]
+    )
+
+
+def test_dependent_income_adds_to_cooperative_income(income_economy: Economy):
+    pop_types = income_economy.df_pop_types.copy()
+    pop_types["dependent_wage"] = [0.5, 1.0, np.nan]
+    model = replace(income_economy, df_pop_types=pop_types)
+    workers = model.solve(np.ones(3))
+    households = model.solve(np.ones(3), workforce_ratio=0.25)
+    cooperative = model.calculate_pop_income(workers)
+    expected = cooperative + households.pops * 3 * np.array([0.5, 1, 0]) / 52
+    income = model.calculate_pop_income(households)
+    np.testing.assert_allclose(income, expected)
+    assert income.flags.writeable and income.flags.owndata
+    np.testing.assert_array_equal(households.building_surplus, workers.building_surplus)
+    np.testing.assert_array_equal(households.building_deficit, workers.building_deficit)
+    assert households.gdp_weekly == workers.gdp_weekly
+    assert (
+        income[1].sum() > 0
+    )  # Dependent earnings remain available in a loss-making building.
+    np.testing.assert_array_equal(households.pop_balance, np.zeros((3, 3)))
+    np.testing.assert_array_equal(
+        income_economy.calculate_pop_income(households), cooperative
+    )  # Missing wage column means zero dependent earnings.
+
+
+@pytest.mark.parametrize("wage", [-1.0, np.inf, -np.inf, "invalid"])
+def test_dependent_income_validates_only_used_wages(income_economy: Economy, wage):
+    pop_types = income_economy.df_pop_types.copy()
+    pop_types["dependent_wage"] = [wage, 0, 0]
+    model = replace(income_economy, df_pop_types=pop_types)
+    state = model.solve(np.ones(3), workforce_ratio=0.25)
+    with pytest.raises(ValueError, match="dependent_wage"):
+        model.calculate_pop_income(state)
+    # Worker-only and unoccupied groups do not use the dependent-wage coefficient.
+    model.calculate_pop_income(replace(state, workforce_ratio=1.0))
+    model.calculate_pop_income(model.solve(np.zeros(3), workforce_ratio=0.25))
+
+
+def test_dependent_income_rejects_overflow(income_economy: Economy):
+    pop_types = income_economy.df_pop_types.copy()
+    pop_types["dependent_wage"] = [1e308, 0, 0]
+    model = replace(income_economy, df_pop_types=pop_types)
+    with pytest.raises(ValueError, match="calculated pop_income"):
+        model.calculate_pop_income(model.solve(np.ones(3), workforce_ratio=0.25))

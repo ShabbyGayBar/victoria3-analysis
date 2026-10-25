@@ -43,7 +43,7 @@ The `objective` attribute defaults to `"automation"`. Its supported values are:
 | Objective | Direction | Meaning | Optimizer |
 | --- | --- | --- | --- |
 | `gdp` | maximize | Model GDP: net goods output valued at base prices with `NominalOptimizer`, or endogenous market prices with `MarketOptimizer`. | Both |
-| `gdp_per_capita` | maximize | Market-price GDP divided by employed population. | Market only |
+| `gdp_per_capita` | maximize | Market-price GDP divided by workers plus dependents. | Market only |
 | `employment` | maximize | Total employed population. | Nominal only |
 | `automation` | minimize | Employment required to satisfy the constraints. | Nominal only |
 | `construction_cost` | minimize | Total construction cost required to satisfy the constraints. | Nominal only |
@@ -59,6 +59,7 @@ The `objective` attribute defaults to `"automation"`. Its supported values are:
 | `imports` | `()` | Fixed `(good, amount)` weekly import orders, added to market sell orders. With `MarketOptimizer`, they affect prices. They are separate from `default_min_goods_output` and are not optimized. |
 | `exports` | `()` | Fixed `(good, amount)` weekly export orders, added to market buy orders. With `MarketOptimizer`, they affect prices. Add a `min_goods_output` target separately when domestic production must cover an export quantity. |
 | `pop_needs` | `()` | Fixed `(good, amount)` weekly population-consumption orders, added to market buy orders. Supply quantities by good, such as `(("grain", 200.0),)`, rather than pop-need category keys. These orders do not enforce a domestic production requirement. |
+| `workforce_ratio` | `1.0` | Uniform workers / total population in `(0, 1]`, retained in returned states. GDP per capita and its gradient scale by this ratio; employment caps and fixed population orders are unchanged. |
 
 `imports`, `exports`, and `pop_needs` require known good keys and finite,
 non-negative amounts; repeated entries for the same good are summed. They do

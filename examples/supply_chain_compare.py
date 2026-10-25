@@ -266,7 +266,7 @@ def _export_comparison(comparison: pd.DataFrame, directory: Path) -> None:
         ),
         (
             "system_gdp_per_capita_annual",
-            "Annual GDP per capita (£/worker/year)",
+            "Annual GDP per capita (£/person/year)",
             "gdp_per_capita.svg",
         ),
     ):

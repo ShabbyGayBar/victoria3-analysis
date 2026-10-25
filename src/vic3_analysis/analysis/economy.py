@@ -178,6 +178,8 @@ class EconomyState:
         pop_wealth: 2-D int64 array of non-negative wealth levels (rows are buildings, columns are
             professions); cell ``[i, j]`` is the wealth of profession ``j`` at
             building ``i``.
+        workforce_ratio: Economy-wide workers / total population, in ``(0, 1]``.
+            Defaults to ``1.0`` for worker-only accounting.
     """
 
     building_levels: np.ndarray
@@ -189,9 +191,12 @@ class EconomyState:
     pop_wealth: np.ndarray
     pop_balance: np.ndarray
     pop_needs: np.ndarray
+    workforce_ratio: float = field(default=1.0, kw_only=True)
 
     def __post_init__(self) -> None:
         """Take ownership of every state array and make it read-only."""
+        if not np.isfinite(self.workforce_ratio) or not 0 < self.workforce_ratio <= 1:
+            raise ValueError("workforce_ratio must be finite and in (0, 1].")
         for name in (
             "building_levels",
             "building_goods_flow",
@@ -280,13 +285,19 @@ class EconomyState:
         return self.gdp_weekly
 
     @cached_property
-    def total_population(self) -> float:
-        """Calculate the total population from employment.
+    def dependents_per_worker(self) -> float:
+        """Return the number of dependents per employed worker."""
+        return (1.0 - self.workforce_ratio) / self.workforce_ratio
 
-        Returns:
-            The sum of ``pops`` (total population).
-        """
+    @cached_property
+    def total_employment(self) -> float:
+        """Return the employed-worker headcount, excluding dependents."""
         return float(np.sum(self.pops))
+
+    @cached_property
+    def total_population(self) -> float:
+        """Return workers plus their dependents, using the uniform workforce ratio."""
+        return self.total_employment / self.workforce_ratio
 
     def gdp_per_capita(self, annual: bool = False) -> float:
         """Calculate the weekly or annual GDP per capita.
@@ -310,9 +321,9 @@ class EconomyState:
             The weighted average of ``wealth`` by ``employment``, or ``0.0``
             when total employment is zero.
         """
-        if self.total_population == 0:
+        if self.total_employment == 0:
             return 0.0
-        return float(np.sum(self.pop_wealth * self.pops) / self.total_population)
+        return float(np.sum(self.pop_wealth * self.pops) / self.total_employment)
 
     @cached_property
     def employment_by_profession(self) -> np.ndarray:
@@ -328,12 +339,13 @@ class EconomyState:
 
     @cached_property
     def total_wealth(self) -> float:
-        """Calculate the total employment-weighted wealth.
+        """Calculate total population-weighted wealth, including dependents.
 
         Returns:
-            The sum of ``pop_wealth * pops`` (the wealth counterpart of GDP).
+            The sum of ``pop_wealth * pops / workforce_ratio``. This is a
+            population-weighted sum of wealth tiers, not a monetary stock.
         """
-        return float(np.sum(self.pop_wealth * self.pops))
+        return float(np.sum(self.pop_wealth * self.pops)) / self.workforce_ratio
 
     def wealth_per_capita(self) -> float:
         """Calculate the wealth per capita.
@@ -367,12 +379,12 @@ class EconomyState:
 
         Returns:
             A 1-D array of shape ``(n_professions,)`` summing to ``1.0``, or
-            all zeros when total population is zero.
+            all zeros when total employment is zero.
         """
-        if self.total_population == 0:
+        if self.total_employment == 0:
             result = np.zeros(self.pops.shape[1], dtype=np.float64)
         else:
-            result = self.employment_by_profession / self.total_population
+            result = self.employment_by_profession / self.total_employment
         result.setflags(write=False)
         return result
 
@@ -880,10 +892,10 @@ class Economy:
                 definitions are invalid or reference missing categories/goods.
 
         Notes:
-            Packages are independent of represented population, occupied
-            wealth, profession consumption multipliers, market prices, and
-            existing population demand. Dependents, culture, prestige goods,
-            local-state effects, and weekly adjustment are not modeled.
+            Packages are independent of represented population, workforce ratio,
+            occupied wealth, profession consumption multipliers, market prices,
+            and existing population demand. Culture, prestige goods, local-state
+            effects, and weekly adjustment are not modeled.
             Subtracting half of non-pop demand from supply is community-derived,
             documented by the Needs wiki rather than game-file comments.
             Clamping negative effective supply to zero is a model convention.
@@ -931,23 +943,26 @@ class Economy:
 
         Each occupied cell's integer wealth selects a buy package, whose
         category values are measured in pounds at base prices per 10,000
-        workers. Scale by ``pops * consumption_mult / 10_000``, distribute by
+        workers. Multiply worker counts by ``1 + 0.5 * dependents_per_worker``,
+        scale by ``consumption_mult / 10_000``, distribute by
         normalized purchase weights, and divide by goods' base prices to
         obtain units per week. Category budgets are aggregated before goods
         allocation, without a building-by-profession-by-goods tensor.
 
         Args:
             state: Snapshot aligned to this economy's building, profession,
-                and goods indexes. Only represented workers consume; no
-                dependents are inferred. Empty cells need no wealth package.
+                and goods indexes. Workers and their dependents consume at the
+                same wealth tier; dependents consume half as much per person.
+                Empty cells need no wealth package.
             buy_packages: Optional weekly goods quantities per 10,000 standard
                 workers, as returned by `calculate_buy_packages`. The index must
                 contain unique positive integer wealth tiers, including every
                 occupied tier; its name is ignored. Columns must contain exactly
                 `goods_index`, in any order. Values must be finite and
-                non-negative. Supplied baskets are scaled directly by population
-                and profession consumption multipliers, without substitution or
-                base-price conversion, and remain fixed when supply changes.
+                non-negative. Supplied baskets are scaled directly by worker-
+                equivalent population and profession consumption multipliers,
+                without substitution or base-price conversion, and remain fixed
+                when supply changes.
                 Unused state goods flows and raw need/package tables are not
                 validated in this mode. The table is unchanged.
 
@@ -969,7 +984,7 @@ class Economy:
             in the game files. Clamping negative effective supply to zero is
             this model's convention. This is target consumption, without
             weekly adjustment, culture, prestige goods, local-state effects,
-            dependent consumption, or wealth feedback. Market prices and
+            demographic changes, or wealth feedback. Market prices and
             existing ``state.pop_needs`` do not influence the result.
 
         References:
@@ -996,7 +1011,11 @@ class Economy:
         pops = _nonnegative_values(state.pops, "state.pops")
         occupied = pops > 0
         wealth, inverse = np.unique(state.pop_wealth[occupied], return_inverse=True)
-        population = (pops * self._pop_consumption_multipliers)[occupied] / 10_000
+        population = (
+            (pops * self._pop_consumption_multipliers)[occupied]
+            / 10_000
+            * (1.0 + 0.5 * state.dependents_per_worker)
+        )
         counts = np.bincount(inverse, weights=population, minlength=len(wealth))
 
         if buy_packages is not None:
@@ -1063,14 +1082,16 @@ class Economy:
             raise ValueError("state.building_goods_flow must contain finite values.")
 
     def calculate_pop_income(self, state: EconomyState) -> np.ndarray:
-        """Allocate positive weekly goods surplus as cooperative employee income.
+        """Return cooperative employee income plus exogenous dependent earnings.
 
         Each configuration distributes all of its positive ``building_surplus``
         in proportion to ``state.pops * wage_weight``. Every profession is
         included regardless of ``paid_private_wage``; zero weights receive no
-        income. Configurations are independent, including those of the same
-        building type. Losses pay zero wages and remain visible through
-        ``state.building_deficit``, without implicit financing.
+        cooperative income. Configurations are independent, including those of the same
+        building type. Losses pay zero cooperative wages and remain visible
+        through ``state.building_deficit``, without implicit financing.
+        Add ``pops * dependents_per_worker * dependent_wage / 52`` for household
+        dependent earnings; missing annual dependent wages default to zero.
 
         Args:
             state: Snapshot aligned to this economy's configuration, goods, and
@@ -1079,19 +1100,21 @@ class Economy:
 
         Returns:
             A fresh writable float64 matrix shaped like ``state.pops`` containing
-            total income in £ per week for each configuration-profession group,
-            rather than per-worker rates. The state and model tables are unchanged.
+            total household income in £ per week for each configuration-profession
+            group, rather than per-worker rates. The state and model tables are unchanged.
 
         Raises:
             ValueError: If relevant arrays are misaligned or non-finite, prices,
                 populations, or wage weights are negative, profession keys are
-                invalid, wage weights are missing, or a configuration has positive
+                invalid, wage weights are missing, used dependent wages are invalid,
+                calculated income is non-finite, or a configuration has positive
                 surplus but no positive recipient weight.
 
         Notes:
             This is a simplified worker-cooperative accounting policy. It does
-            not apply taxes, transfers, dependent or subsistence income, reserves,
-            or household expenses, and does not change wealth or ``pop_balance``.
+            not apply taxes, transfers, subsistence income, reserves, or household
+            expenses, and does not change wealth or ``pop_balance``. Dependent
+            earnings do not reduce building surplus or increase production GDP.
         """
         weights = self.pop_wage_weights
         self._validate_building_goods_flow(state)
@@ -1119,7 +1142,20 @@ class Economy:
             out=np.zeros_like(weighted),
             where=totals[:, None] > 0,
         )
-        return shares * np.maximum(surplus, 0)[:, None]
+        income = shares * np.maximum(surplus, 0)[:, None]
+        if state.dependents_per_worker > 0 and "dependent_wage" in self.df_pop_types:
+            used = (pops > 0).any(axis=0)
+            wages = np.zeros(len(self.pop_index), dtype=np.float64)
+            wages[used] = _nonnegative_values(
+                self.df_pop_types["dependent_wage"].fillna(0).to_numpy()[used],
+                "dependent_wage",
+            )
+            with np.errstate(over="ignore", invalid="ignore"):
+                income = _nonnegative_values(
+                    income + pops * state.dependents_per_worker * (wages / 52),
+                    "calculated pop_income",
+                )
+        return income
 
     @cached_property
     def employment_vector(self) -> np.ndarray:
@@ -1327,6 +1363,8 @@ class Economy:
         ) = None,
         pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
         economy_of_scale_level_cap: float = 0.0,
+        *,
+        workforce_ratio: float = 1.0,
     ) -> EconomyState:
         """Solve for an `EconomyState` from a building-level vector.
 
@@ -1348,6 +1386,9 @@ class Economy:
             economy_of_scale_level_cap: Maximum building level contributing to
                 economy of scale. The default ``0.0`` disables the effect; use
                 ``20.0`` to cap the throughput bonus at +20%.
+            workforce_ratio: Economy-wide workers / total population in ``(0, 1]``.
+                Defaults to ``1.0`` for worker-only accounting. Needs and income
+                are still calculated explicitly through their respective methods.
 
         Returns:
             An `EconomyState` describing the resulting state.
@@ -1360,7 +1401,8 @@ class Economy:
                 *throughput_multipliers* is not aligned to the production
                 table, if *pop_needs* is not a non-negative finite
                 goods-aligned vector, or if the economy-of-scale cap is
-                negative or non-finite.
+                negative or non-finite, or if *workforce_ratio* is outside ``(0, 1]``
+                or non-finite.
         """
 
         if building_levels.ndim != 1:
@@ -1397,6 +1439,7 @@ class Economy:
                 exports,
                 throughput_multipliers,
                 pop_needs,
+                workforce_ratio=workforce_ratio,
             )
         if method == "market":
             return self._solve_market(
@@ -1405,6 +1448,7 @@ class Economy:
                 exports,
                 throughput_multipliers,
                 pop_needs,
+                workforce_ratio=workforce_ratio,
             )
         raise ValueError(f"Invalid method: {method!r}")
 
@@ -1415,6 +1459,8 @@ class Economy:
         exports: np.ndarray[tuple[int], np.dtype[np.float64]],
         throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
         pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
+        *,
+        workforce_ratio: float = 1.0,
     ) -> EconomyState:
         """Derive a nominal `EconomyState` from a building-level vector.
 
@@ -1432,6 +1478,7 @@ class Economy:
             throughput_multipliers: Optional per-configuration multipliers for
                 gross goods inputs and outputs.
             pop_needs: 1-D array of goods-aligned population needs demand.
+            workforce_ratio: Economy-wide workers / total population.
 
         Returns:
             An `EconomyState` with prices, supply, demand, employment,
@@ -1454,6 +1501,7 @@ class Economy:
             pop_wealth=np.broadcast_to(self.pop_wealth_init, pops.shape).copy(),
             pop_balance=np.zeros((len(self.building_index), len(self.pop_index))),
             pop_needs=pop_needs,
+            workforce_ratio=workforce_ratio,
         )
 
     def _solve_market(
@@ -1463,6 +1511,8 @@ class Economy:
         exports: np.ndarray[tuple[int], np.dtype[np.float64]],
         throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
         pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
+        *,
+        workforce_ratio: float = 1.0,
     ) -> EconomyState:
         """Derive a market-price `EconomyState` from a building vector."""
         state = self._solve_nominal(
@@ -1471,6 +1521,7 @@ class Economy:
             exports,
             throughput_multipliers,
             pop_needs,
+            workforce_ratio=workforce_ratio,
         )
         return replace(
             state,
@@ -1546,7 +1597,8 @@ class Economy:
 
         Returns:
             A ``DataFrame`` with columns ``"profession"``, ``"employment"``,
-            ``"employment_share"``, ``"avg_wealth"``, ``"total_wealth"`` and
+            ``"employment_share"``, ``"dependents"``, ``"population"``,
+            ``"avg_wealth"``, ``"total_wealth"`` and
             ``"pop_balance"``, filtered to professions with non-zero employment
             and sorted by ``"employment"`` descending.
         """
@@ -1555,8 +1607,11 @@ class Economy:
                 "profession": self.pop_index,
                 "employment": eco.employment_by_profession,
                 "employment_share": eco.profession_shares,
+                "dependents": eco.employment_by_profession * eco.dependents_per_worker,
+                "population": eco.employment_by_profession / eco.workforce_ratio,
                 "avg_wealth": eco.wealth_by_profession,
-                "total_wealth": (eco.pop_wealth * eco.pops).sum(axis=0),
+                "total_wealth": (eco.pop_wealth * eco.pops).sum(axis=0)
+                / eco.workforce_ratio,
                 "pop_balance": eco.pop_balance.sum(axis=0),
             }
         )

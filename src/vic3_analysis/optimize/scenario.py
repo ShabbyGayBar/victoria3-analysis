@@ -4,6 +4,7 @@
 """Declarative optimization scenarios for Victoria 3 economies."""
 
 from dataclasses import dataclass
+from math import isfinite
 
 _OBJECTIVES = (
     "gdp",
@@ -28,6 +29,9 @@ class Scenario:
     minima allow production deficits. The default of ``0.0`` requires
     nonnegative net output for unspecified goods; ``None`` leaves them
     unconstrained.
+
+    ``workforce_ratio`` is the uniform worker share of total population.
+    It defaults to ``1.0``; employment constraints still count only workers.
     """
 
     min_goods_output: tuple[tuple[str, float], ...] = ()
@@ -47,11 +51,14 @@ class Scenario:
     imports: tuple[tuple[str, float], ...] = ()
     exports: tuple[tuple[str, float], ...] = ()
     pop_needs: tuple[tuple[str, float], ...] = ()
+    workforce_ratio: float = 1.0
 
     def __post_init__(self) -> None:
         """Validate values that are independent of an economy or optimizer."""
         if self.objective not in _OBJECTIVES:
             raise ValueError(f"Unknown objective: {self.objective!r}")
+        if not isfinite(self.workforce_ratio) or not 0 < self.workforce_ratio <= 1:
+            raise ValueError("workforce_ratio must be finite and in (0, 1].")
 
     def display_name(self) -> str:
         """Return the explicit name or one derived from the minimum goods output basket."""

@@ -286,6 +286,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             throughput_multipliers=problem.throughput_multipliers,
             pop_needs=problem.pop_needs,
             economy_of_scale_level_cap=0.0,
+            workforce_ratio=problem.scenario.workforce_ratio,
         )
 
     def _goods_context_vector(

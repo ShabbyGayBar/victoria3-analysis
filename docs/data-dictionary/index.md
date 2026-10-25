@@ -32,7 +32,7 @@ the placeholder with the actual script key, for example `goods_steel`.
 | Money | Game currency (£). Nominal values use goods `cost` as base price; market values use the state's national prices. Output minus input value excludes payroll and other costs absent from the model. |
 | Annualization | Annual GDP is weekly GDP multiplied by 52. Employment, building levels, construction points, land, prices, and dimensionless ratios are not annualized. |
 | Construction | Construction points required to build the modeled levels, not a weekly expense or elapsed construction time. |
-| Population / per capita | Model totals sum employed workers. These denominators exclude dependents and unemployed population; “per capita” here is per employed person. |
+| Population / per capita | Employment counts workers; total population and GDP per capita include dependents inferred from `workforce_ratio`. The default `1.0` preserves worker-only values. Unemployed workers are not inferred. Historical snapshots used worker-only denominators. |
 | Fractions and percentages | Shares and margins use fractions, so `0.2` means 20%. The economy market report's `market_prices_variance` instead uses percent units (`20` means +20%). Signed infrastructure shares need not lie between zero and one. |
 | Infrastructure | Positive net usage consumes infrastructure; negative net usage provides it. Zero can mean no footprint or exactly offset consumption and provision. |
 | Missing values | `pd.NA` / `NaN` mean missing or undefined; CSV generally writes them as blank cells. Empty strings also become blank CSV cells and may be read back as NaN. See each table for defaults. |

@@ -66,7 +66,7 @@ for employment_cap, scenario in zip(employment_caps, scenarios):
                 "employment_cap": employment_cap,
                 "status": "success",
                 "annual_gdp": state.gdp(annual=True),
-                "employment": state.total_population,
+                "employment": state.total_employment,
                 "construction_cost": economy.construction_cost(state),
                 "gdp_per_capita": state.gdp_per_capita(annual=True),
                 "arable_land_consumption": economy.arable_land_consumption(state),

@@ -21,8 +21,16 @@ input/output fields.
 of weekly cooperative income totals aligned to configurations × professions.
 It allocates each configuration's positive surplus using employee counts times
 profession wage weights, including professions with `paid_private_wage=False`.
+It adds dependent earnings from profession `dependent_wage` values, converted
+from annual to weekly amounts.
 See the [cooperative income guide](../guides/economy.md#building-flows-and-cooperative-income)
 for accounting assumptions and failure behavior.
+
+`EconomyState` and `Economy.solve()` accept keyword-only `workforce_ratio=1.0`.
+This uniform worker share must be in `(0, 1]`; `dependents_per_worker` is cached
+as `(1 - workforce_ratio) / workforce_ratio`. `pops` and `total_employment`
+count workers; `total_population` includes dependents. `Scenario.workforce_ratio`
+passes the same assumption to optimizer-created states.
 
 ::: vic3_analysis.production_table
 

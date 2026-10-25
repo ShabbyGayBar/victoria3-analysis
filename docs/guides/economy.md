@@ -68,7 +68,8 @@ levels = np.ones(len(economy.building_index), dtype=np.float64)
 state = economy.solve(levels)
 print("Class of the state:", type(state))
 print("Annual GDP: ", state.gdp(annual=True))
-print("Total employed population: ", state.total_population)
+print("Total employed population: ", state.total_employment)
+print("Workers and dependents: ", state.total_population)
 ```
 
 `Economy.solve()` default to `nominal` mode, which ignores the market price mechanic and uses base prices for each good.
@@ -94,6 +95,31 @@ state = economy.solve(
 To choose building levels from objectives and constraints, continue with the
 [optimization guide](optimization.md). See the [economy API](../api/economy.md)
 for model parameters and state reports.
+
+### Workers and dependents
+
+`EconomyState.pops` always stores employed workers. Set the economy-wide
+`workforce_ratio` to the worker share of total population; it defaults to `1.0`
+to preserve worker-only accounting. The ratio must be finite and in `(0, 1]`.
+
+```python
+state = economy.solve(levels, method="market", workforce_ratio=0.25)
+print(state.dependents_per_worker)  # 3.0, a cached property
+print(state.total_employment)      # workers
+print(state.total_population)      # four times the workers
+```
+
+Dependents are derived without another population matrix. They share each
+worker group's profession and wealth, consume half as much per person, and earn
+the profession's annual `dependent_wage` divided by 52 per week. For 100 workers
+at a ratio of `0.25`, there are 300 dependents, 400 people, and 250 standard-worker
+equivalents of consumption before profession consumption multipliers.
+
+GDP per capita divides production GDP by workers plus dependents. Total wealth
+weights wealth tiers by all people; averages, wealth distributions, Gini, and
+profession shares are unchanged by a uniform ratio. `df_pop()` reports separate
+`employment`, `dependents`, and `population` counts. Unemployed workers and
+demographic transitions are not inferred.
 
 ## Building flows and cooperative income
 
@@ -124,7 +150,7 @@ Replacing flows or prices creates a new state with fresh caches.
 each configuration distributes all positive surplus to its employees in
 proportion to employee counts times profession `wage_weight`. Every employed
 profession participates regardless of `paid_private_wage`; zero weights receive
-zero income. Configurations of the same building type distribute independently.
+zero cooperative income. Configurations of the same building type distribute independently.
 
 ```python
 state = economy.solve(levels, method="market")
@@ -134,15 +160,20 @@ deficits_by_configuration = state.building_deficit
 ```
 
 The returned writable float64 matrix matches `state.pops.shape` and records
-group totals in pounds per week, rather than per-worker income. It uses stored
+household totals in pounds per week, rather than per-worker income. It uses stored
 flows and prices directly, so no throughput arguments are needed. Loss-making
 configurations pay zero wages and retain an unfunded deficit. A positive surplus
 without any positive recipient weight raises `ValueError` identifying the
 configuration. Missing, negative, or non-finite wage weights are also errors.
 
+Dependent earnings are added as `pops * dependents_per_worker * dependent_wage / 52`;
+missing wages mean zero. Only coefficients used by represented dependents are
+validated. These exogenous earnings do not reduce building surplus or increase
+production GDP, and remain available when a workplace has a loss.
+
 The calculation leaves the state and `pop_balance` unchanged. Existing solve
 modes do not automatically calculate income. This policy excludes taxes,
-transfers, dependents, reserves, subsistence income, and wealth iteration.
+transfers, reserves, subsistence income, and wealth iteration.
 
 ## Population needs
 
@@ -178,10 +209,10 @@ demand for absent goods; if all purchase weights are zero, the default good
 receives the whole category's demand.
 
 Wealth packages specify category values at base prices per 10,000 workers.
-Values are scaled by represented employment and profession `consumption_mult`
+Values are scaled by `employment * (1 + 0.5 * dependents_per_worker)` and profession `consumption_mult`
 (default `1`, with peasants normally consuming `0.05`), allocated by purchase
 weights, and divided by each good's base price. Existing population demand and
-market prices do not affect the calculation. Dependents, cultural modifiers,
+market prices do not affect the calculation. Cultural modifiers,
 prestige goods, local-state effects, weekly adjustment, and wealth feedback are
 not modeled here.
 
@@ -217,8 +248,9 @@ next_needs = economy.calculate_pop_needs(next_state, buy_packages=packages)
 ```
 
 Supplied baskets stay fixed when market supply changes. Demand is calculated
-directly from each occupied wealth tier's goods quantities, scaled by worker
-counts and profession consumption multipliers per 10,000 workers. Substitution,
+directly from each occupied wealth tier's goods quantities, scaled by worker-
+equivalent counts including half-rate dependent consumption, and profession
+consumption multipliers per 10,000 workers. Substitution,
 base-price conversion, and validation of unused state goods flows and raw
 need/package tables are skipped.
 

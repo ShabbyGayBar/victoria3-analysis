@@ -638,7 +638,7 @@ class SupplyChainResult:
         system_levels = self.state.building_levels
         system_gdp = self.state.gdp_weekly
         chain_gdp = float(np.asarray(chain["value_added"], dtype=np.float64).sum())
-        system_employment = self.state.total_population
+        system_employment = self.state.total_employment
         chain_employment = float(
             np.asarray(chain["employment"], dtype=np.float64).sum()
         )
@@ -750,7 +750,7 @@ class SupplyChainResult:
                     wage_employment = float(levels[contributing] @ coefficients)
             values[f"{scope}_wage_normalized_employment"] = wage_employment
             for metric, denominator in (
-                ("gdp_per_capita", employment),
+                ("gdp_per_capita", employment / self.state.workforce_ratio),
                 ("gdp_per_wage_normalized_employment", wage_employment),
                 ("gdp_per_construction_cost", construction),
             ):

@@ -63,8 +63,12 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
                 economy.base_prices,
             )
             if scenario.objective == "gdp_per_capita":
-                return self._per_capita_value_and_gradient(
+                value, gradient = self._per_capita_value_and_gradient(
                     value, gradient, levels, employment
+                )
+                return (
+                    value * scenario.workforce_ratio,
+                    gradient * scenario.workforce_ratio,
                 )
             return value, gradient
 
