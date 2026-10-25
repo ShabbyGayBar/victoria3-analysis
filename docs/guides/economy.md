@@ -30,6 +30,11 @@ economy = Economy()
     cached tuples. Fixed coefficients such as `base_prices`, `employment_matrix`,
     `employment_vector`, `construction_cost_vector`, `arable_land_vector`,
     `infrastructure_vector`, and `pop_wealth_init` are cached, read-only arrays.
+    `EconomyState` also owns read-only copies of its input arrays. Its realized
+    `building_goods_flow` matrix has one row per configuration and one column per
+    good, in model index order. Entries are weekly quantities after levels,
+    throughput, and economy-of-scale bonuses: outputs are positive and inputs
+    negative.
 
 To display names while keeping the model's key-based alignment, request a
 language when parsing the internal tables:
@@ -89,6 +94,55 @@ state = economy.solve(
 To choose building levels from objectives and constraints, continue with the
 [optimization guide](optimization.md). See the [economy API](../api/economy.md)
 for model parameters and state reports.
+
+## Building flows and cooperative income
+
+`state.building_goods_input` and `state.building_goods_output` are cached,
+read-only totals derived from `state.building_goods_flow`. Signs are split
+before summing configurations, so a good produced by one configuration and
+consumed by another contributes to both sell and buy orders. The matrix retains
+the production table's signed net coefficients within each configuration; it
+does not recover gross inputs offset by outputs of the same good within a row.
+
+Direct `EconomyState` construction now requires `building_goods_flow` instead
+of the former aggregate input/output arguments. When changing an existing state,
+replace its flow matrix rather than the derived properties:
+
+```python
+from dataclasses import replace
+
+changed_state = replace(state, building_goods_flow=state.building_goods_flow * 2)
+```
+
+`state.building_surplus` is each configuration's weekly goods value added at
+the state's prices, **before wages**. `state.building_deficit` is the positive
+magnitude of a negative surplus, representing input costs not covered by output
+revenue. Both are cached, read-only arrays aligned to `building_index`.
+Replacing flows or prices creates a new state with fresh caches.
+
+`calculate_pop_income(state)` implements a simplified worker-cooperative policy:
+each configuration distributes all positive surplus to its employees in
+proportion to employee counts times profession `wage_weight`. Every employed
+profession participates regardless of `paid_private_wage`; zero weights receive
+zero income. Configurations of the same building type distribute independently.
+
+```python
+state = economy.solve(levels, method="market")
+income = economy.calculate_pop_income(state)
+income_by_profession = income.sum(axis=0)
+deficits_by_configuration = state.building_deficit
+```
+
+The returned writable float64 matrix matches `state.pops.shape` and records
+group totals in pounds per week, rather than per-worker income. It uses stored
+flows and prices directly, so no throughput arguments are needed. Loss-making
+configurations pay zero wages and retain an unfunded deficit. A positive surplus
+without any positive recipient weight raises `ValueError` identifying the
+configuration. Missing, negative, or non-finite wage weights are also errors.
+
+The calculation leaves the state and `pop_balance` unchanged. Existing solve
+modes do not automatically calculate income. This policy excludes taxes,
+transfers, dependents, reserves, subsistence income, and wealth iteration.
 
 ## Population needs
 

@@ -22,6 +22,34 @@ different configurations of the same building type.
 | `level` | Float / building levels | Solved level for that configuration. | Fractional levels are allowed; zero/negative levels are filtered out. |
 | `construction_cost` | Float / construction points | Per-level construction coefficient times `level`. | Zero-cost configurations can have positive levels. |
 
+## State flows and cooperative income
+
+`EconomyState.building_goods_flow` is a read-only float64 matrix with rows
+aligned to `building_index` and columns to `goods_index`. Values are realized
+weekly signed quantities after building levels, throughput, and economy of
+scale: positive for outputs and negative for inputs. It replaces the former
+aggregate constructor fields. Existing aggregate input/output attribute access
+is preserved through cached properties.
+
+| Attribute / result | Shape / unit | Meaning / calculation |
+| --- | --- | --- |
+| `building_goods_input` | Goods / units per week | `maximum(-building_goods_flow, 0).sum(axis=0)`. |
+| `building_goods_output` | Goods / units per week | `maximum(building_goods_flow, 0).sum(axis=0)`. |
+| `building_surplus` | Configurations / £ per week | `building_goods_flow @ market_prices`, value added before wages; may be negative. |
+| `building_deficit` | Configurations / £ per week | `maximum(-building_surplus, 0)`, unfunded input costs. |
+| `calculate_pop_income(state)` | Configurations × professions / £ per week | Each row's positive surplus allocated by `pops * wage_weight`; group totals, not per-worker rates. |
+
+The four state properties are cached, owned, read-only float64 arrays. Signs
+are split before aggregation to retain opposing flows between configurations;
+within-row flows retain the production table's signed-net convention.
+
+The income calculation returns a fresh writable matrix. It includes professions
+regardless of `paid_private_wage`, pays zero wages on zero/negative surplus, and
+does not pool configurations. Positive surplus with zero total recipient weight
+raises `ValueError`. Deficits have no implicit funding source. Income excludes
+taxes, transfers, dependents, reserves, and subsistence income; it does not update
+`pop_balance` or wealth.
+
 ## Market report
 
 `Economy.df_market(state)` returns one row per good with positive sell **or**

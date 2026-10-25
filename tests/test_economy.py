@@ -190,8 +190,7 @@ def test_normalized_production_metadata_is_cached_without_changing_source(
 
 
 def _make_state(
-    building_goods_input=None,
-    building_goods_output=None,
+    building_goods_flow=None,
     imports=None,
     exports=None,
     market_prices=None,
@@ -203,12 +202,9 @@ def _make_state(
     z = np.zeros(n, dtype=np.float64)
     return EconomyState(
         building_levels=z,
-        building_goods_input=building_goods_input
-        if building_goods_input is not None
-        else z,
-        building_goods_output=building_goods_output
-        if building_goods_output is not None
-        else z,
+        building_goods_flow=building_goods_flow
+        if building_goods_flow is not None
+        else np.zeros((n, n), dtype=np.float64),
         imports=imports if imports is not None else z,
         exports=exports if exports is not None else z,
         market_prices=market_prices
@@ -224,16 +220,15 @@ def _make_state(
 
 
 def test_state_defensively_copies_and_freezes_input_arrays():
-    source = np.arange(3, dtype=np.float64)
-    state = _make_state(building_goods_output=source)
+    source = np.arange(9, dtype=np.float64).reshape(3, 3)
+    state = _make_state(building_goods_flow=source)
 
-    source[0] = 999.0
+    source[0, 0] = 999.0
 
-    assert state.building_goods_output[0] == 0.0
+    assert state.building_goods_flow[0, 0] == 0.0
     for name in (
         "building_levels",
-        "building_goods_input",
-        "building_goods_output",
+        "building_goods_flow",
         "imports",
         "exports",
         "market_prices",
@@ -253,6 +248,10 @@ def test_state_defensively_copies_and_freezes_input_arrays():
 @pytest.mark.parametrize(
     "name",
     [
+        "building_goods_input",
+        "building_goods_output",
+        "building_surplus",
+        "building_deficit",
         "sell_orders",
         "buy_orders",
         "employment_by_profession",
@@ -271,6 +270,239 @@ def test_state_cached_arrays_are_read_only(name: str):
         array.flat[0] = 999.0
 
 
+def test_state_goods_flows_preserve_opposing_orders_and_value_added():
+    state = _make_state(
+        building_goods_flow=np.array([[10, -2, 0], [-8, 3, 0], [0, 0, 0]]),
+        market_prices=np.array([2, 4, 1]),
+    )
+    np.testing.assert_array_equal(state.building_goods_input, [8, 2, 0])
+    np.testing.assert_array_equal(state.building_goods_output, [10, 3, 0])
+    np.testing.assert_array_equal(state.sell_orders, [10, 3, 0])
+    np.testing.assert_array_equal(state.buy_orders, [8, 2, 0])
+    np.testing.assert_array_equal(state.building_surplus, [12, -4, 0])
+    np.testing.assert_array_equal(state.building_deficit, [0, 4, 0])
+    assert state.gdp_weekly == pytest.approx(state.building_surplus.sum())
+
+
+def test_state_replacement_recalculates_cached_flows_and_finances():
+    state = _make_state(
+        building_goods_flow=np.array([[10, -2, 0], [-8, 3, 0], [0, 0, 0]]),
+        market_prices=np.array([2, 4, 1]),
+    )
+    original_input = state.building_goods_input
+    original_output = state.building_goods_output
+    original_surplus = state.building_surplus
+    original_deficit = state.building_deficit
+    repriced = replace(state, market_prices=np.array([1, 10, 1]))
+    np.testing.assert_array_equal(repriced.building_surplus, [-10, 22, 0])
+    np.testing.assert_array_equal(repriced.building_deficit, [10, 0, 0])
+    changed = replace(state, building_goods_flow=-state.building_goods_flow)
+    np.testing.assert_array_equal(changed.building_goods_input, original_output)
+    np.testing.assert_array_equal(changed.building_goods_output, original_input)
+    np.testing.assert_array_equal(changed.building_surplus, -original_surplus)
+    np.testing.assert_array_equal(changed.building_deficit, [12, 0, 0])
+    np.testing.assert_array_equal(state.building_surplus, [12, -4, 0])
+    assert state.building_deficit is original_deficit
+
+
+@pytest.fixture
+def income_economy() -> Economy:
+    """Cooperatives with mixed professions, a loss, and no game-data dependency."""
+    return Economy(
+        df_production=pd.DataFrame(
+            {
+                "building": ["factory", "factory", "mine"],
+                "production_method": ["pm_one", "pm_two", "pm_mine"],
+                "goods_product": [40.0, -10.0, 0.0],
+                "goods_material": [-10.0, 5.0, 0.0],
+                "employment_laborers": [100.0, 20.0, 10.0],
+                "employment_engineers": [50.0, 10.0, 0.0],
+                "employment_owners": [10.0, 0.0, 0.0],
+                "economy_of_scale": [True, True, False],
+            }
+        ),
+        df_goods=pd.DataFrame({"key": ["product", "material"], "cost": [10.0, 10.0]}),
+        df_pop_types=pd.DataFrame(
+            {
+                "key": ["laborers", "engineers", "owners"],
+                "start_quality_of_life": [5, 10, 20],
+                "wage_weight": [1.0, 2.0, 0.0],
+                "paid_private_wage": [True, False, False],
+            }
+        ),
+        df_pop_needs=pd.DataFrame(),
+        df_buy_packages=pd.DataFrame(),
+    )
+
+
+def test_calculate_pop_income_weighted_allocation_and_snapshot(income_economy: Economy):
+    state = income_economy.solve(np.ones(3))
+    arrays = {
+        name: value.copy()
+        for name, value in vars(state).items()
+        if isinstance(value, np.ndarray)
+    }
+    source_pops = income_economy.df_pop_types.copy(deep=True)
+    source_production = income_economy.df_production.copy(deep=True)
+    result = income_economy.calculate_pop_income(state)
+    expected = np.array([[150, 150, 0], [0, 0, 0], [0, 0, 0]])
+    np.testing.assert_array_equal(result, expected)
+    np.testing.assert_array_equal(result.sum(axis=1), [300, 0, 0])
+    np.testing.assert_array_equal(state.building_deficit, [0, 50, 0])
+    assert result.shape == state.pops.shape
+    assert result.dtype == np.float64
+    assert result.flags.owndata and result.flags.writeable
+    for name, value in arrays.items():
+        np.testing.assert_array_equal(getattr(state, name), value)
+        assert not np.shares_memory(result, getattr(state, name))
+    pd.testing.assert_frame_equal(income_economy.df_pop_types, source_pops)
+    pd.testing.assert_frame_equal(income_economy.df_production, source_production)
+    result[:] = 999
+    np.testing.assert_array_equal(income_economy.calculate_pop_income(state), expected)
+
+
+def test_calculate_pop_income_uses_stored_flows_prices_and_separate_configs(
+    income_economy: Economy,
+):
+    state = replace(
+        income_economy.solve(np.zeros(3)),
+        building_goods_flow=np.array([[40, -10], [20, -10], [0, 0]]),
+        market_prices=np.array([20, 10]),
+        pops=np.array([[100, 50, 0], [20, 10, 0], [0, 0, 0]]),
+    )
+    # Stored flows are authoritative even with zero building levels.
+    np.testing.assert_array_equal(
+        income_economy.calculate_pop_income(state),
+        [[350, 350, 0], [150, 150, 0], [0, 0, 0]],
+    )
+    reordered = replace(
+        income_economy, df_pop_types=income_economy.df_pop_types.iloc[::-1]
+    )
+    np.testing.assert_array_equal(
+        reordered.calculate_pop_income(replace(state, pops=state.pops[:, ::-1])),
+        income_economy.calculate_pop_income(state)[:, ::-1],
+    )
+
+
+@pytest.mark.parametrize("zero_weights", [True, False])
+def test_calculate_pop_income_no_recipients(
+    income_economy: Economy, zero_weights: bool
+):
+    model = income_economy
+    state = model.solve(np.ones(3))
+    if zero_weights:
+        model = replace(model, df_pop_types=model.df_pop_types.assign(wage_weight=0))
+    else:
+        state = replace(state, pops=np.zeros_like(state.pops))
+    with pytest.raises(
+        ValueError, match="no positive recipient weight.*factory\\+pm_one"
+    ):
+        model.calculate_pop_income(state)
+    state = replace(state, building_goods_flow=np.array([[-1, 0], [0, 0], [0, 0]]))
+    np.testing.assert_array_equal(model.calculate_pop_income(state), np.zeros((3, 3)))
+
+
+@pytest.mark.parametrize("method", ["nominal", "market"])
+def test_realized_flows_include_levels_throughput_and_scale(
+    income_economy: Economy, method: str
+):
+    levels = np.array([0.5, 1.5, 0])
+    state = income_economy.solve(
+        levels,
+        method=method,
+        throughput_multipliers=np.array([1.5, 2.0, 1.0]),
+        economy_of_scale_level_cap=1.0,
+    )
+    expected_flow = (
+        np.array([[40, -10], [-10, 5], [0, 0]])
+        * np.array([0.5 * 1.51, 1.5 * 2.01, 0])[:, None]
+    )
+    np.testing.assert_allclose(state.building_goods_flow, expected_flow)
+    np.testing.assert_allclose(
+        state.pops, levels[:, None] * income_economy.employment_matrix
+    )
+    np.testing.assert_allclose(
+        income_economy.calculate_pop_income(state).sum(axis=1),
+        np.maximum(expected_flow @ state.market_prices, 0),
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("building_goods_flow", np.zeros(2)),
+        ("building_goods_flow", np.zeros((2, 2))),
+        ("building_goods_flow", np.zeros((3, 3))),
+        ("building_goods_flow", np.full((3, 2), np.nan)),
+        ("building_goods_flow", np.full((3, 2), np.inf)),
+        ("market_prices", np.zeros(1)),
+        ("market_prices", np.zeros((1, 2))),
+        ("market_prices", np.array([-1, 10])),
+        ("market_prices", np.array([np.nan, 10])),
+        ("market_prices", np.array([np.inf, 10])),
+        ("pops", np.zeros((3, 2))),
+        ("pops", np.full((3, 3), -1)),
+        ("pops", np.full((3, 3), np.nan)),
+        ("pops", np.full((3, 3), np.inf)),
+    ],
+)
+def test_calculate_pop_income_rejects_invalid_state(
+    income_economy: Economy, field: str, value: np.ndarray
+):
+    state = replace(income_economy.solve(np.ones(3)), **{field: value})
+    with pytest.raises(ValueError, match=field):
+        income_economy.calculate_pop_income(state)
+
+
+@pytest.mark.parametrize("value", [-1, np.nan, np.inf, "invalid"])
+def test_calculate_pop_income_rejects_invalid_weights(
+    income_economy: Economy, value: float | str
+):
+    model = replace(
+        income_economy,
+        df_pop_types=income_economy.df_pop_types.assign(wage_weight=[1, value, 0]),
+    )
+    with pytest.raises(ValueError, match="wage_weight"):
+        model.calculate_pop_income(income_economy.solve(np.ones(3)))
+
+
+@pytest.mark.parametrize(
+    "keys", [["laborers", "laborers", "owners"], ["", "engineers", "owners"]]
+)
+def test_calculate_pop_income_rejects_invalid_profession_keys(
+    income_economy: Economy, keys: list[str]
+):
+    model = replace(
+        income_economy, df_pop_types=income_economy.df_pop_types.assign(key=keys)
+    )
+    with pytest.raises(ValueError, match="pop_index.*unique non-empty"):
+        model.calculate_pop_income(income_economy.solve(np.ones(3)))
+
+
+def test_calculate_pop_income_requires_wage_weights(income_economy: Economy):
+    model = replace(
+        income_economy,
+        df_pop_types=income_economy.df_pop_types.drop(columns="wage_weight"),
+    )
+    with pytest.raises(ValueError, match="df_pop_types.*wage_weight"):
+        model.calculate_pop_income(income_economy.solve(np.ones(3)))
+
+
+@pytest.mark.parametrize("case", ["weighted_population", "total_weight", "surplus"])
+def test_calculate_pop_income_rejects_overflow(income_economy: Economy, case: str):
+    model = income_economy
+    state = model.solve(np.ones(3))
+    if case == "weighted_population":
+        state = replace(state, pops=np.full((3, 3), 1e308))
+    elif case == "total_weight":
+        model = replace(model, df_pop_types=model.df_pop_types.assign(wage_weight=1))
+        state = replace(state, pops=np.full((3, 3), 1e308))
+    else:
+        state = replace(state, market_prices=np.full(2, 1e308))
+    with pytest.raises(ValueError, match="finite"):
+        model.calculate_pop_income(state)
+
+
 @pytest.fixture(scope="module")
 def economy() -> Economy:
     return Economy()
@@ -286,7 +518,7 @@ def _first_producing_levels(economy: Economy) -> np.ndarray:
 
 def test_sell_orders():
     state = _make_state(
-        building_goods_output=np.array([10.0, 0.0, 5.0]),
+        building_goods_flow=np.array([[10.0, 0.0, 5.0], [0, 0, 0], [0, 0, 0]]),
         imports=np.array([2.0, 1.0, 0.0]),
     )
     np.testing.assert_array_equal(state.sell_orders, np.array([12.0, 1.0, 5.0]))
@@ -294,7 +526,7 @@ def test_sell_orders():
 
 def test_buy_orders():
     state = _make_state(
-        building_goods_input=np.array([3.0, 0.0, 1.0]),
+        building_goods_flow=np.array([[-3.0, 0.0, -1.0], [0, 0, 0], [0, 0, 0]]),
         exports=np.array([0.0, 2.0, 1.0]),
         pop_needs=np.array([1.0, 1.0, 1.0]),
     )
@@ -303,8 +535,7 @@ def test_buy_orders():
 
 def test_gdp_weekly():
     state = _make_state(
-        building_goods_input=np.array([1.0, 2.0, 1.0]),
-        building_goods_output=np.array([5.0, 0.0, 3.0]),
+        building_goods_flow=np.array([[-1, -2, -1], [5, 0, 3], [0, 0, 0]]),
         market_prices=np.array([2.0, 1.0, 4.0]),
     )
     # net = [4, -2, 2]; net * prices = [8, -2, 8]; sum = 14
@@ -313,8 +544,7 @@ def test_gdp_weekly():
 
 def test_gdp_weekly_and_annual():
     state = _make_state(
-        building_goods_input=np.array([1.0, 2.0, 1.0]),
-        building_goods_output=np.array([5.0, 0.0, 3.0]),
+        building_goods_flow=np.array([[-1, -2, -1], [5, 0, 3], [0, 0, 0]]),
         market_prices=np.array([2.0, 1.0, 4.0]),
     )
     assert state.gdp() == pytest.approx(14.0)
@@ -726,8 +956,7 @@ def test_calculate_pop_needs_supplied_packages_skip_unused_inputs(
     expected = needs_economy.calculate_pop_needs(state)
     changed = replace(
         state,
-        building_goods_input=np.array([np.nan]),
-        building_goods_output=np.array([-1.0]),
+        building_goods_flow=np.array([[np.nan]]),
         imports=np.array([np.inf]),
         exports=np.array([np.nan]),
         market_prices=np.full(3, 999.0),
@@ -892,7 +1121,7 @@ def test_calculate_pop_needs_substitution(
     model = replace(needs_economy, df_pop_needs=definitions)
     state = replace(
         model.solve(np.array([1.0, 0.0])),
-        building_goods_output=np.array([0.0, *supply]),
+        building_goods_flow=np.array([[0.0, *supply], [0.0, 0.0, 0.0]]),
     )
     np.testing.assert_allclose(model.calculate_pop_needs(state), [0.0, *expected])
     np.testing.assert_allclose(
@@ -901,17 +1130,26 @@ def test_calculate_pop_needs_substitution(
     )
 
 
-@pytest.mark.parametrize("field", ["imports", "building_goods_input", "exports"])
+@pytest.mark.parametrize("field", ["imports", "building_goods_flow", "exports"])
 def test_calculate_pop_needs_nonpop_market_orders(needs_economy: Economy, field: str):
     state = needs_economy.solve(np.array([1.0, 0.0]))
-    changed = replace(state, **{field: np.array([0.0, 100.0, 0.0])})
+    if field == "building_goods_flow":
+        value = state.building_goods_flow.copy()
+        value[1] = [0.0, -100.0, 0.0]
+    else:
+        value = np.array([0.0, 100.0, 0.0])
+    changed = replace(state, **{field: value})
     expected = [0, 20 / 3, 5 / 3] if field == "imports" else [0, 10 / 3, 10 / 3]
     np.testing.assert_allclose(needs_economy.calculate_pop_needs(changed), expected)
     np.testing.assert_allclose(
         needs_economy.calculate_buy_packages(changed).loc[1].to_numpy(), expected
     )
     if field != "imports":
-        oversubscribed = replace(state, **{field: np.array([0.0, 300.0, 0.0])})
+        oversubscribed = replace(state, **{field: value * 3})
+        if field == "building_goods_flow":
+            flow = state.building_goods_flow.copy()
+            flow[1] = [0.0, -300.0, 0.0]
+            oversubscribed = replace(state, building_goods_flow=flow)
         np.testing.assert_allclose(
             needs_economy.calculate_pop_needs(oversubscribed), [0, 0, 5]
         )
@@ -971,8 +1209,7 @@ def test_calculate_pop_needs_zero_population_skips_wealth_lookup(
     [
         "pops",
         "pop_wealth",
-        "building_goods_input",
-        "building_goods_output",
+        "building_goods_flow",
         "imports",
         "exports",
     ],
@@ -988,7 +1225,7 @@ def test_calculate_pop_needs_rejects_misalignment(needs_economy: Economy, field:
 
 @pytest.mark.parametrize(
     "field",
-    ["pops", "building_goods_input", "building_goods_output", "imports", "exports"],
+    ["pops", "imports", "exports"],
 )
 @pytest.mark.parametrize("value", [-1.0, np.nan, np.inf])
 def test_calculate_pop_needs_rejects_invalid_quantities(
@@ -1001,6 +1238,20 @@ def test_calculate_pop_needs_rejects_invalid_quantities(
     if field != "pops":
         with pytest.raises(ValueError, match=field):
             needs_economy.calculate_buy_packages(replace(state, **{field: bad}))
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+def test_calculate_pop_needs_rejects_nonfinite_flows(
+    needs_economy: Economy, value: float
+):
+    state = replace(
+        needs_economy.solve(np.array([1.0, 0.0])),
+        building_goods_flow=np.full((2, 3), value),
+    )
+    with pytest.raises(ValueError, match="building_goods_flow"):
+        needs_economy.calculate_pop_needs(state)
+    with pytest.raises(ValueError, match="building_goods_flow"):
+        needs_economy.calculate_buy_packages(state)
 
 
 @pytest.mark.parametrize("value", [0.0, -1.0, np.nan, np.inf])
@@ -1198,15 +1449,15 @@ def test_calculate_pop_needs_vanilla(economy: Economy):
     assert np.isfinite(needs).all() and (needs >= 0).all() and (needs > 0).any()
     reordered = replace(economy, df_goods=economy.df_goods.iloc[::-1])
     fields = (
-        "building_goods_input",
-        "building_goods_output",
         "imports",
         "exports",
         "market_prices",
         "pop_needs",
     )
     reversed_state = replace(
-        state, **{name: getattr(state, name)[::-1] for name in fields}
+        state,
+        building_goods_flow=state.building_goods_flow[:, ::-1],
+        **{name: getattr(state, name)[::-1] for name in fields},
     )
     np.testing.assert_allclose(
         reordered.calculate_pop_needs(reversed_state), needs[::-1]
@@ -1233,8 +1484,7 @@ def test_calculate_buy_packages_vanilla(economy: Economy):
     reordered = replace(economy, df_goods=economy.df_goods.iloc[::-1])
     reversed_state = replace(
         state,
-        building_goods_input=state.building_goods_input[::-1],
-        building_goods_output=state.building_goods_output[::-1],
+        building_goods_flow=state.building_goods_flow[:, ::-1],
         imports=state.imports[::-1],
         exports=state.exports[::-1],
     )
@@ -1302,6 +1552,7 @@ def test_solve_nominal(economy):
     state = economy.solve(levels)
     assert isinstance(state, EconomyState)
     assert state.building_levels.shape == (n_b,)
+    assert state.building_goods_flow.shape == (n_b, n_g)
     assert state.building_goods_input.shape == (n_g,)
     assert state.building_goods_output.shape == (n_g,)
     assert state.market_prices.shape == (n_g,)

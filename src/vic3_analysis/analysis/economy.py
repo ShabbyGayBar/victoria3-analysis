@@ -160,8 +160,16 @@ class EconomyState:
         exports: 1-D array of exported goods (one per tradeable good).
         buy_orders: 1-D array of buy orders (one per tradeable good).
         sell_orders: 1-D array of sell orders (one per tradeable good).
-        building_goods_input: 1-D array of total input goods from all buildings (one per tradeable good).
-        building_goods_output: 1-D array of total output goods from all buildings (one per tradeable good).
+        building_goods_flow: 2-D array of realized weekly signed goods flows,
+            indexed by production configuration and good. Positive values are
+            outputs and negative values are inputs. Levels, throughput, and
+            economy-of-scale bonuses are already applied.
+        building_goods_input: Cached 1-D array of total weekly input goods.
+        building_goods_output: Cached 1-D array of total weekly output goods.
+        building_surplus: Cached weekly value added per configuration, before
+            wages, valued at market_prices. May be negative.
+        building_deficit: Cached non-negative weekly input-cost deficit per
+            configuration, without an implicit source of funding.
         pops: 2-D array of employment (rows are buildings, columns are
             professions); cell ``[i, j]`` is the employment of profession ``j``
             at building ``i``.
@@ -173,8 +181,7 @@ class EconomyState:
     """
 
     building_levels: np.ndarray
-    building_goods_input: np.ndarray
-    building_goods_output: np.ndarray
+    building_goods_flow: np.ndarray
     imports: np.ndarray
     exports: np.ndarray
     market_prices: np.ndarray
@@ -187,8 +194,7 @@ class EconomyState:
         """Take ownership of every state array and make it read-only."""
         for name in (
             "building_levels",
-            "building_goods_input",
-            "building_goods_output",
+            "building_goods_flow",
             "imports",
             "exports",
             "market_prices",
@@ -200,6 +206,26 @@ class EconomyState:
         object.__setattr__(
             self, "pop_wealth", _readonly_wealth(self.pop_wealth, "pop_wealth")
         )
+
+    @cached_property
+    def building_goods_input(self) -> np.ndarray:
+        """Return total weekly input quantities, splitting signs before summing."""
+        return _readonly_array(np.maximum(-self.building_goods_flow, 0).sum(axis=0))
+
+    @cached_property
+    def building_goods_output(self) -> np.ndarray:
+        """Return total weekly output quantities, splitting signs before summing."""
+        return _readonly_array(np.maximum(self.building_goods_flow, 0).sum(axis=0))
+
+    @cached_property
+    def building_surplus(self) -> np.ndarray:
+        """Return weekly goods value added per configuration before wages (£)."""
+        return _readonly_array(self.building_goods_flow @ self.market_prices)
+
+    @cached_property
+    def building_deficit(self) -> np.ndarray:
+        """Return unfunded weekly input costs per configuration (£)."""
+        return _readonly_array(np.maximum(-self.building_surplus, 0))
 
     @cached_property
     def sell_orders(self) -> np.ndarray:
@@ -803,6 +829,7 @@ class Economy:
         self, state: EconomyState
     ) -> tuple[np.ndarray, np.ndarray]:
         """Return category-by-goods purchase shares and validated base prices."""
+        self._validate_building_goods_flow(state)
         for name in (
             "building_goods_input",
             "building_goods_output",
@@ -1008,6 +1035,91 @@ class Economy:
         return self._validate_goods_vector(
             budgets @ purchases / prices, "calculated pop_needs"
         )
+
+    @cached_property
+    def pop_wage_weights(self) -> np.ndarray:
+        """Return all professions' cooperative wage weights in pop_index order."""
+        _require_columns(self.df_pop_types, {"key", "wage_weight"}, "df_pop_types")
+        if len(set(self.pop_index)) != len(self.pop_index) or any(
+            not isinstance(key, str) or not key for key in self.pop_index
+        ):
+            raise ValueError("pop_index must contain unique non-empty keys.")
+        return _readonly_array(
+            _nonnegative_values(
+                self.df_pop_types["wage_weight"].to_numpy(), "wage_weight"
+            )
+        )
+
+    def _validate_building_goods_flow(self, state: EconomyState) -> None:
+        """Require finite signed flows aligned to this economy's configurations/goods."""
+        if state.building_goods_flow.shape != (
+            len(self.building_index),
+            len(self.goods_index),
+        ):
+            raise ValueError(
+                "state.building_goods_flow shape must match building_index and goods_index."
+            )
+        if not np.isfinite(state.building_goods_flow).all():
+            raise ValueError("state.building_goods_flow must contain finite values.")
+
+    def calculate_pop_income(self, state: EconomyState) -> np.ndarray:
+        """Allocate positive weekly goods surplus as cooperative employee income.
+
+        Each configuration distributes all of its positive ``building_surplus``
+        in proportion to ``state.pops * wage_weight``. Every profession is
+        included regardless of ``paid_private_wage``; zero weights receive no
+        income. Configurations are independent, including those of the same
+        building type. Losses pay zero wages and remain visible through
+        ``state.building_deficit``, without implicit financing.
+
+        Args:
+            state: Snapshot aligned to this economy's configuration, goods, and
+                profession indexes. Stored signed flows and market prices are
+                authoritative; production and throughput are not reconstructed.
+
+        Returns:
+            A fresh writable float64 matrix shaped like ``state.pops`` containing
+            total income in £ per week for each configuration-profession group,
+            rather than per-worker rates. The state and model tables are unchanged.
+
+        Raises:
+            ValueError: If relevant arrays are misaligned or non-finite, prices,
+                populations, or wage weights are negative, profession keys are
+                invalid, wage weights are missing, or a configuration has positive
+                surplus but no positive recipient weight.
+
+        Notes:
+            This is a simplified worker-cooperative accounting policy. It does
+            not apply taxes, transfers, dependent or subsistence income, reserves,
+            or household expenses, and does not change wealth or ``pop_balance``.
+        """
+        weights = self.pop_wage_weights
+        self._validate_building_goods_flow(state)
+        self._validate_goods_vector(state.market_prices, "state.market_prices")
+        if state.pops.shape != (len(self.building_index), len(self.pop_index)):
+            raise ValueError(
+                "state.pops shape must match building_index and pop_index."
+            )
+        pops = _nonnegative_values(state.pops, "state.pops")
+        with np.errstate(over="ignore", invalid="ignore"):
+            weighted = _nonnegative_values(pops * weights, "weighted population")
+            totals = _nonnegative_values(weighted.sum(axis=1), "total wage weight")
+            surplus = state.building_surplus
+        if not np.isfinite(surplus).all():
+            raise ValueError("state.building_surplus must contain finite values.")
+        missing = (surplus > 0) & (totals == 0)
+        if missing.any():
+            keys = [self.building_index[i] for i in np.flatnonzero(missing)]
+            raise ValueError(
+                f"Positive surplus has no positive recipient weight for: {keys}"
+            )
+        shares = np.divide(
+            weighted,
+            totals[:, None],
+            out=np.zeros_like(weighted),
+            where=totals[:, None] > 0,
+        )
+        return shares * np.maximum(surplus, 0)[:, None]
 
     @cached_property
     def employment_vector(self) -> np.ndarray:
@@ -1327,14 +1439,14 @@ class Economy:
         """
         goods_input_matrix = self.goods_input_matrix(throughput_multipliers)
         goods_output_matrix = self.goods_output_matrix(throughput_multipliers)
-        building_goods_input = building_levels @ goods_input_matrix
-        building_goods_output = building_levels @ goods_output_matrix
+        building_goods_flow = building_levels[:, None] * (
+            goods_output_matrix - goods_input_matrix
+        )
         pops = building_levels[:, None] * self.employment_matrix
 
         return EconomyState(
             building_levels=building_levels,
-            building_goods_input=building_goods_input,
-            building_goods_output=building_goods_output,
+            building_goods_flow=building_goods_flow,
             imports=imports,
             exports=exports,
             market_prices=self.base_prices,
