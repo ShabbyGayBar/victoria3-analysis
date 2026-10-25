@@ -131,6 +131,28 @@ market prices do not affect the calculation. Dependents, cultural modifiers,
 prestige goods, local-state effects, weekly adjustment, and wealth feedback are
 not modeled here.
 
+### Standard packages by wealth
+
+`calculate_buy_packages(state)` returns a DataFrame of weekly goods quantities
+per **10,000 standard workers**. Its integer index, named `wealth`, includes
+every level defined in `df_buy_packages`, sorted ascending. Columns include all
+goods in `goods_index` order, with `float64` values and zeros for unconsumed
+goods.
+
+```python
+packages = economy.calculate_buy_packages(state)
+wealth = int(packages.index[0])
+goods_at_wealth = packages.loc[wealth]
+```
+
+The packages use the state's building inputs/outputs, imports, and exports for
+goods substitution. They do not depend on population counts, occupied wealth
+levels, profession consumption multipliers, market prices, or existing
+population demand. Even an empty population has a complete package table.
+Each row's value at base prices equals its wealth tier's total category budget.
+The returned DataFrame is independently mutable; modifying it does not change
+the state, model tables, or later results.
+
 The method's docstring links the game definitions, the
 [Needs formulas](https://vic3.paradoxwikis.com/Needs#Formulas), and the
 [official developer diary](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737).

@@ -92,7 +92,7 @@ def _require_columns(frame: pd.DataFrame, columns: set[str], name: str) -> None:
 
 @dataclass(frozen=True)
 class _PopNeedsCoefficients:
-    """Cached arrays indexed by wealth, need category, good, or profession."""
+    """Cached arrays indexed by wealth, need category, or good."""
 
     wealth_levels: np.ndarray
     packages: np.ndarray
@@ -101,7 +101,6 @@ class _PopNeedsCoefficients:
     min_shares: np.ndarray
     max_shares: np.ndarray
     defaults: np.ndarray
-    consumption_multipliers: np.ndarray
 
 
 def _weighted_percentile(values: np.ndarray, weights: np.ndarray, q: float) -> float:
@@ -728,14 +727,10 @@ class Economy:
         values = _nonnegative_values(
             packages[categories].to_numpy(), "df_buy_packages need values"
         )[order]
-        for name, index in (
-            ("goods_index", self.goods_index),
-            ("pop_index", self.pop_index),
+        if len(set(self.goods_index)) != len(self.goods_index) or any(
+            not isinstance(key, str) or not key for key in self.goods_index
         ):
-            if len(set(index)) != len(index) or any(
-                not isinstance(key, str) or not key for key in index
-            ):
-                raise ValueError(f"{name} must contain unique non-empty keys.")
+            raise ValueError("goods_index must contain unique non-empty keys.")
         if any(not isinstance(key, str) or not key for key in needs["key"].tolist()):
             raise ValueError("df_pop_needs.key must contain non-empty category keys.")
         goods_positions = {key: j for j, key in enumerate(self.goods_index)}
@@ -781,11 +776,6 @@ class Economy:
             minima[i, positions] = coefficients[:, 1]
             maxima[i, positions] = coefficients[:, 2]
             defaults[i, positions] = flags.to_numpy(dtype=np.float64)
-        if "consumption_mult" in self.df_pop_types:
-            consumption = self.df_pop_types["consumption_mult"].fillna(1).to_numpy()
-        else:
-            consumption = np.ones(len(self.pop_index), dtype=np.float64)
-        consumption = _nonnegative_values(consumption, "consumption_mult")
         return _PopNeedsCoefficients(
             wealth_levels=_readonly_wealth(wealth[order], "df_buy_packages.wealth"),
             packages=_readonly_array(values),
@@ -794,7 +784,104 @@ class Economy:
             min_shares=_readonly_array(minima),
             max_shares=_readonly_array(maxima),
             defaults=_readonly_array(defaults),
-            consumption_multipliers=_readonly_array(consumption),
+        )
+
+    @cached_property
+    def _pop_consumption_multipliers(self) -> np.ndarray:
+        """Return validated profession multipliers for aggregate population demand."""
+        if len(set(self.pop_index)) != len(self.pop_index) or any(
+            not isinstance(key, str) or not key for key in self.pop_index
+        ):
+            raise ValueError("pop_index must contain unique non-empty keys.")
+        if "consumption_mult" in self.df_pop_types:
+            consumption = self.df_pop_types["consumption_mult"].fillna(1).to_numpy()
+        else:
+            consumption = np.ones(len(self.pop_index), dtype=np.float64)
+        return _readonly_array(_nonnegative_values(consumption, "consumption_mult"))
+
+    def _pop_need_purchase_shares(
+        self, state: EconomyState
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return category-by-goods purchase shares and validated base prices."""
+        for name in (
+            "building_goods_input",
+            "building_goods_output",
+            "imports",
+            "exports",
+        ):
+            self._validate_goods_vector(getattr(state, name), f"state.{name}")
+        supply = self._validate_goods_vector(state.sell_orders, "state.sell_orders")
+        prices = _nonnegative_values(self.base_prices, "base_prices")
+        if (prices == 0).any():
+            raise ValueError("base_prices must be strictly positive.")
+        data = self._pop_needs_coefficients
+        effective = np.maximum(
+            supply - 0.5 * state.building_goods_input - 0.5 * state.exports, 0
+        )
+        shares = data.eligible * effective
+        totals = shares.sum(axis=1, keepdims=True)
+        np.divide(shares, totals, out=shares, where=totals > 0)
+        purchases = np.clip(shares, data.min_shares, data.max_shares) * data.weights
+        totals = purchases.sum(axis=1, keepdims=True)
+        np.divide(purchases, totals, out=purchases, where=totals > 0)
+        return np.where(totals > 0, purchases, data.defaults), prices
+
+    def calculate_buy_packages(self, state: EconomyState) -> pd.DataFrame:
+        """Calculate weekly goods packages per 10,000 standard workers by wealth.
+
+        Convert the model's wealth-by-category values to goods quantities using
+        the supplied state's substitution shares and the model's base prices:
+        ``wealth_category_values @ category_purchase_shares / base_prices``.
+        Substitution uses effective supply, configured weights, minimum/maximum
+        supply shares, and default goods as described by `calculate_pop_needs`.
+
+        Args:
+            state: Snapshot whose goods flows align to `goods_index`. Only
+                building inputs/outputs, imports, and exports are used.
+
+        Returns:
+            An independent, mutable DataFrame with an ascending int64 index
+            named ``wealth`` containing every tier in ``df_buy_packages``.
+            Columns are all good keys in `goods_index` order, with float64
+            values in goods units per week per 10,000 standard workers.
+            Unconsumed goods have zero values. Neither the state nor model
+            tables are modified.
+
+        Raises:
+            ValueError: If goods flows are misaligned, negative, or non-finite,
+                base prices are not positive, or package/substitution
+                definitions are invalid or reference missing categories/goods.
+
+        Notes:
+            Packages are independent of represented population, occupied
+            wealth, profession consumption multipliers, market prices, and
+            existing population demand. Dependents, culture, prestige goods,
+            local-state effects, and weekly adjustment are not modeled.
+            Subtracting half of non-pop demand from supply is community-derived,
+            documented by the Needs wiki rather than game-file comments.
+            Clamping negative effective supply to zero is a model convention.
+
+        References:
+            - ``common/buy_packages/00_buy_packages.txt``: category values by
+              integer wealth.
+            - ``common/pop_needs/00_pop_needs.txt``: substitution weights,
+              supply-share limits, and default goods.
+            - [Needs wiki, Formulas](https://vic3.paradoxwikis.com/Needs#Formulas):
+              scaling per 10,000 workers and substitution, including the
+              community-derived half-non-pop-demand deduction.
+            - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
+              wealth-dependent needs and valuation at goods' base prices.
+        """
+        purchases, prices = self._pop_need_purchase_shares(state)
+        data = self._pop_needs_coefficients
+        values = _nonnegative_values(
+            data.packages @ purchases / prices, "calculated buy_packages"
+        )
+        return pd.DataFrame(
+            values,
+            index=pd.Index(data.wealth_levels, name="wealth", copy=True),
+            columns=list(self.goods_index),
+            copy=True,
         )
 
     def calculate_pop_needs(self, state: EconomyState) -> np.ndarray:
@@ -864,17 +951,7 @@ class Economy:
                     f"state.{name} shape must match building_index and pop_index."
                 )
         pops = _nonnegative_values(state.pops, "state.pops")
-        for name in (
-            "building_goods_input",
-            "building_goods_output",
-            "imports",
-            "exports",
-        ):
-            self._validate_goods_vector(getattr(state, name), f"state.{name}")
-        supply = self._validate_goods_vector(state.sell_orders, "state.sell_orders")
-        prices = _nonnegative_values(self.base_prices, "base_prices")
-        if (prices == 0).any():
-            raise ValueError("base_prices must be strictly positive.")
+        purchases, prices = self._pop_need_purchase_shares(state)
         data = self._pop_needs_coefficients
         occupied = pops > 0
         wealth, inverse = np.unique(state.pop_wealth[occupied], return_inverse=True)
@@ -882,20 +959,10 @@ class Economy:
             raise ValueError(
                 "Occupied pop_wealth tiers must be defined in df_buy_packages."
             )
-        population = (pops * data.consumption_multipliers)[occupied] / 10_000
+        population = (pops * self._pop_consumption_multipliers)[occupied] / 10_000
         counts = np.bincount(inverse, weights=population, minlength=len(wealth))
         budgets = counts @ data.packages[np.searchsorted(data.wealth_levels, wealth)]
 
-        effective = np.maximum(
-            supply - 0.5 * state.building_goods_input - 0.5 * state.exports, 0
-        )
-        shares = data.eligible * effective
-        totals = shares.sum(axis=1, keepdims=True)
-        np.divide(shares, totals, out=shares, where=totals > 0)
-        purchases = np.clip(shares, data.min_shares, data.max_shares) * data.weights
-        totals = purchases.sum(axis=1, keepdims=True)
-        np.divide(purchases, totals, out=purchases, where=totals > 0)
-        purchases = np.where(totals > 0, purchases, data.defaults)
         return self._validate_goods_vector(
             budgets @ purchases / prices, "calculated pop_needs"
         )
