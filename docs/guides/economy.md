@@ -261,6 +261,70 @@ need rows; empty population cells need no matching package. The supplied table
 and state remain unchanged. Omitting `buy_packages` retains the calculation
 using the current state's supply.
 
+### Reusable household consumption scales
+
+`calculate_pop_consumption_scales(state)` returns a fresh writable float64
+matrix aligned to configurations × professions. Each cell is a dimensionless
+multiple of a weekly basket for 10,000 standard workers:
+
+```text
+scale = workers / 10_000 * consumption_mult * (1 + 0.5 * dependents_per_worker)
+```
+
+Missing profession multipliers default to `1`. Scales are independent of wealth,
+market prices, and goods flows. Reuse scales while worker counts, workforce
+ratio, and profession multipliers remain unchanged. Reuse the basket table while
+production, trade, and substitution assumptions remain unchanged; both can be
+reused after changing household wealth or market prices.
+
+Pass either or both precomputed inputs to needs and expense calculations:
+
+```python
+packages = economy.calculate_buy_packages(state)
+scales = economy.calculate_pop_consumption_scales(state)
+needs = economy.calculate_pop_needs(
+    state, buy_packages=packages, consumption_scales=scales
+)
+expenses = economy.calculate_pop_expenses(
+    state, buy_packages=packages, consumption_scales=scales
+)
+income = economy.calculate_pop_income(state)
+balance = income - expenses
+```
+
+Supplied scales are authoritative: they must match `state.pops.shape`, contain
+finite nonnegative values, and be zero wherever worker counts are zero. They
+already include all population factors, which are not reapplied or checked
+against the current profession multipliers or workforce ratio. The caller is
+responsible for refreshing stale scales. Omitted scales are calculated using
+`calculate_pop_consumption_scales(state)`. Every occupied wealth tier needs a
+basket even if its scale is zero; empty cells need no defined wealth tier.
+
+### Household expenses
+
+`calculate_pop_expenses(state)` returns a fresh writable float64 matrix shaped
+like `state.pops`, containing household consumption expenses in pounds per week.
+It values each occupied wealth tier's goods basket at `state.market_prices`
+and multiplies by its consumption scale, including profession and dependent
+effects. Prices must be finite, nonnegative, and goods-aligned; zero prices are
+valid. Changing prices changes expenses without changing basket quantities.
+
+The `buy_packages` argument follows the same contract as for needs. Supplied
+baskets bypass unused production flows, base prices, and raw needs/package
+tables. Empty households have zero expenses; an empty population may use an
+empty supplied basket table. All calculated costs and expenses must be finite.
+
+With matching baskets and scales, total expenses equal
+`needs @ state.market_prices`. The methods aggregate quantities by wealth tier
+and do not allocate a configuration-by-profession-by-goods tensor. They leave
+the state, supplied arrays/tables, and model tables unchanged. In particular,
+`balance` above is calculated explicitly; `state.pop_balance` is unchanged.
+Expenses price target consumption without affordability limits, rationing,
+taxes, or wealth transitions. Existing solve modes do not automatically calculate
+expenses or balances.
+
+### Exporting standard packages
+
 To export packages for an economy with no buildings, run
 `examples/buy_packages.py` from the repository root:
 

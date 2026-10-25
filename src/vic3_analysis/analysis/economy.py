@@ -923,11 +923,95 @@ class Economy:
             copy=True,
         )
 
+    def _pop_consumption_population(self, state: EconomyState) -> np.ndarray:
+        """Validate household alignment and return non-negative worker counts."""
+        expected_shape = (len(self.building_index), len(self.pop_index))
+        for name in ("pops", "pop_wealth"):
+            if getattr(state, name).shape != expected_shape:
+                raise ValueError(
+                    f"state.{name} shape must match building_index and pop_index."
+                )
+        return _nonnegative_values(state.pops, "state.pops")
+
+    def calculate_pop_consumption_scales(self, state: EconomyState) -> np.ndarray:
+        """Return household consumption as multiples of a standard buy package.
+
+        Calculate ``pops / 10_000 * consumption_mult * (1 + 0.5 *
+        dependents_per_worker)``. Missing profession multipliers default to one.
+        Workers and dependents share a wealth tier; dependents consume half as
+        much per person. Wealth values, prices, and goods flows are not used.
+
+        Args:
+            state: Snapshot with aligned population and wealth matrices and
+                finite non-negative employed-worker counts.
+
+        Returns:
+            A fresh, owned, writable float64 matrix aligned to configurations
+            and professions. Values are dimensionless multiples of weekly
+            goods packages per 10,000 standard workers. Reuse them while worker
+            counts, workforce ratio, and profession multipliers remain fixed.
+            The state and model tables are unchanged.
+
+        Raises:
+            ValueError: If household shapes, worker counts, profession keys,
+                or consumption multipliers are invalid, or scales overflow.
+        """
+        pops = self._pop_consumption_population(state)
+        with np.errstate(over="ignore", invalid="ignore"):
+            scales = (
+                pops
+                / 10_000
+                * self._pop_consumption_multipliers
+                * (1.0 + 0.5 * state.dependents_per_worker)
+            )
+        return _nonnegative_values(scales, "calculated consumption_scales")
+
+    def _prepare_pop_consumption(
+        self, state: EconomyState, consumption_scales: np.ndarray | None
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Return occupied cells, unique wealth, inverse labels, and cell scales."""
+        pops = self._pop_consumption_population(state)
+        occupied = pops > 0
+        if consumption_scales is None:
+            scales = self.calculate_pop_consumption_scales(state)
+        else:
+            scales = _nonnegative_values(consumption_scales, "consumption_scales")
+            if scales.shape != pops.shape:
+                raise ValueError("consumption_scales shape must match state.pops.")
+            if (scales[~occupied] != 0).any():
+                raise ValueError("consumption_scales must be zero for empty cells.")
+        wealth, inverse = np.unique(state.pop_wealth[occupied], return_inverse=True)
+        return occupied, wealth, inverse, scales[occupied]
+
+    def _select_pop_buy_packages(
+        self, buy_packages: pd.DataFrame, wealth: np.ndarray
+    ) -> np.ndarray:
+        """Validate supplied baskets and select rows for occupied wealth tiers."""
+        _require_columns(buy_packages, set(self.goods_index), "buy_packages")
+        if len(buy_packages.columns) != len(self.goods_index):
+            raise ValueError("buy_packages columns must match goods_index exactly.")
+        tiers = _readonly_wealth(buy_packages.index.to_numpy(), "buy_packages index")
+        if (tiers == 0).any() or len(np.unique(tiers)) != len(tiers):
+            raise ValueError(
+                "buy_packages index must contain unique positive wealth tiers."
+            )
+        values = _nonnegative_values(
+            buy_packages.loc[:, list(self.goods_index)].to_numpy(),
+            "buy_packages quantities",
+        )
+        if not np.isin(wealth, tiers).all():
+            raise ValueError(
+                "Occupied pop_wealth tiers must be defined in buy_packages."
+            )
+        order = np.argsort(tiers)
+        return values[order[np.searchsorted(tiers[order], wealth)]]
+
     def calculate_pop_needs(
         self,
         state: EconomyState,
         *,
         buy_packages: pd.DataFrame | None = None,
+        consumption_scales: np.ndarray | None = None,
     ) -> np.ndarray:
         """Calculate target weekly goods demand for the represented workers.
 
@@ -965,6 +1049,13 @@ class Economy:
                 when supply changes.
                 Unused state goods flows and raw need/package tables are not
                 validated in this mode. The table is unchanged.
+            consumption_scales: Optional precomputed matrix returned by
+                `calculate_pop_consumption_scales`. Supplied values are
+                authoritative, finite, non-negative, and shaped like ``pops``;
+                empty cells must have zero scale. They already include all
+                population factors, so profession multipliers are not read or
+                reapplied. The caller ensures scales remain valid for the
+                population assumptions. The matrix is unchanged.
 
         Returns:
             A fresh writable float64 vector of shape ``(n_goods,)`` aligned
@@ -976,7 +1067,8 @@ class Economy:
                 are negative or non-finite, base prices are not positive,
                 occupied wealth tiers are undefined, or model tables have
                 invalid definitions or missing category/goods references. Also
-                raised for invalid supplied package labels or quantities.
+                raised for invalid supplied package labels, quantities, or
+                consumption scales, or non-finite calculated demand.
 
         Notes:
             The half-non-pop-demand deduction is community-derived and
@@ -1002,58 +1094,79 @@ class Economy:
             - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
               wealth-dependent needs and valuation using goods' base prices.
         """
-        expected_shape = (len(self.building_index), len(self.pop_index))
-        for name in ("pops", "pop_wealth"):
-            if getattr(state, name).shape != expected_shape:
-                raise ValueError(
-                    f"state.{name} shape must match building_index and pop_index."
-                )
-        pops = _nonnegative_values(state.pops, "state.pops")
-        occupied = pops > 0
-        wealth, inverse = np.unique(state.pop_wealth[occupied], return_inverse=True)
-        population = (
-            (pops * self._pop_consumption_multipliers)[occupied]
-            / 10_000
-            * (1.0 + 0.5 * state.dependents_per_worker)
+        _, wealth, inverse, population = self._prepare_pop_consumption(
+            state, consumption_scales
         )
-        counts = np.bincount(inverse, weights=population, minlength=len(wealth))
-
-        if buy_packages is not None:
-            _require_columns(buy_packages, set(self.goods_index), "buy_packages")
-            if len(buy_packages.columns) != len(self.goods_index):
-                raise ValueError("buy_packages columns must match goods_index exactly.")
-            tiers = _readonly_wealth(
-                buy_packages.index.to_numpy(), "buy_packages index"
-            )
-            if (tiers == 0).any() or len(np.unique(tiers)) != len(tiers):
-                raise ValueError(
-                    "buy_packages index must contain unique positive wealth tiers."
+        with np.errstate(over="ignore", invalid="ignore"):
+            counts = np.bincount(inverse, weights=population, minlength=len(wealth))
+            if buy_packages is not None:
+                selected = self._select_pop_buy_packages(buy_packages, wealth)
+                demand = counts @ selected
+            else:
+                purchases, prices = self._pop_need_purchase_shares(state)
+                data = self._pop_needs_coefficients
+                if not np.isin(wealth, data.wealth_levels).all():
+                    raise ValueError(
+                        "Occupied pop_wealth tiers must be defined in df_buy_packages."
+                    )
+                budgets = (
+                    counts @ data.packages[np.searchsorted(data.wealth_levels, wealth)]
                 )
-            values = _nonnegative_values(
-                buy_packages.loc[:, list(self.goods_index)].to_numpy(),
-                "buy_packages quantities",
-            )
-            if not np.isin(wealth, tiers).all():
-                raise ValueError(
-                    "Occupied pop_wealth tiers must be defined in buy_packages."
-                )
-            order = np.argsort(tiers)
-            selected = values[order[np.searchsorted(tiers[order], wealth)]]
-            return self._validate_goods_vector(
-                counts @ selected, "calculated pop_needs"
-            )
+                demand = budgets @ purchases / prices
+        return self._validate_goods_vector(demand, "calculated pop_needs")
 
-        purchases, prices = self._pop_need_purchase_shares(state)
-        data = self._pop_needs_coefficients
-        if not np.isin(wealth, data.wealth_levels).all():
-            raise ValueError(
-                "Occupied pop_wealth tiers must be defined in df_buy_packages."
-            )
-        budgets = counts @ data.packages[np.searchsorted(data.wealth_levels, wealth)]
+    def calculate_pop_expenses(
+        self,
+        state: EconomyState,
+        *,
+        buy_packages: pd.DataFrame | None = None,
+        consumption_scales: np.ndarray | None = None,
+    ) -> np.ndarray:
+        """Return weekly household expenses for target goods consumption.
 
-        return self._validate_goods_vector(
-            budgets @ purchases / prices, "calculated pop_needs"
+        Value each occupied wealth tier's standard goods basket at the state's
+        market prices, then multiply by its household consumption scale. This
+        uses the same baskets and scales as `calculate_pop_needs`, without a
+        configuration-by-profession-by-goods tensor.
+
+        Args:
+            state: Snapshot with aligned household matrices, finite non-negative
+                worker counts, and finite non-negative goods-aligned market
+                prices. Zero prices are valid. Empty cells need no wealth basket.
+            buy_packages: Optional goods baskets with the same contract as in
+                `calculate_pop_needs`. When omitted, call
+                `calculate_buy_packages(state)`. Supplied baskets bypass unused
+                goods flows, base prices, and raw needs/package definitions.
+            consumption_scales: Optional authoritative precomputed household
+                scales, with the same contract as in `calculate_pop_needs`.
+                When omitted, call `calculate_pop_consumption_scales(state)`.
+
+        Returns:
+            A fresh, owned, writable float64 matrix shaped like ``state.pops``
+            containing household totals in pounds per week. Empty cells have
+            zero expenses. Inputs, model tables, and ``pop_balance`` are unchanged.
+
+        Raises:
+            ValueError: If relevant state inputs, baskets, or scales are invalid,
+                occupied tiers are undefined, or calculated costs are non-finite.
+
+        Notes:
+            Expenses price target consumption without affordability restrictions,
+            rationing, taxes, or wealth transitions. Prices affect expenses but
+            do not affect the basket quantities or consumption scales.
+        """
+        occupied, wealth, inverse, scales = self._prepare_pop_consumption(
+            state, consumption_scales
         )
+        prices = self._validate_goods_vector(state.market_prices, "state.market_prices")
+        if buy_packages is None:
+            buy_packages = self.calculate_buy_packages(state)
+        selected = self._select_pop_buy_packages(buy_packages, wealth)
+        expenses = np.zeros(state.pops.shape, dtype=np.float64)
+        with np.errstate(over="ignore", invalid="ignore"):
+            costs = _nonnegative_values(selected @ prices, "calculated basket costs")
+            expenses[occupied] = scales * costs[inverse]
+        return _nonnegative_values(expenses, "calculated pop_expenses")
 
     @cached_property
     def pop_wage_weights(self) -> np.ndarray:

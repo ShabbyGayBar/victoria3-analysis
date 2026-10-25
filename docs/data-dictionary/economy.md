@@ -52,6 +52,37 @@ dependent wages mean zero. Income excludes
 taxes, transfers, reserves, and subsistence income; it does not update
 `pop_balance` or wealth.
 
+## Household consumption calculations
+
+Let `s_ij = pops_ij / 10_000 * consumption_mult_j * (1 + 0.5 * dependents_per_worker)`
+and `Q_wg` be standard goods baskets from `calculate_buy_packages(state)`.
+
+| Result | Shape / unit | Meaning / calculation |
+| --- | --- | --- |
+| `calculate_pop_consumption_scales(state)` | Configurations × professions / dimensionless | `s_ij`, multiples of a weekly basket for 10,000 standard workers. Missing profession multipliers default to one. |
+| `calculate_pop_needs(state, ...)` | Goods / units per week | `sum_ij(s_ij * Q[pop_wealth_ij, g])`. |
+| `calculate_pop_expenses(state, ...)` | Configurations × professions / £ per week | `s_ij * sum_g(Q[pop_wealth_ij, g] * market_prices_g)`, household totals. |
+
+All three return independent writable float64 arrays. Needs and expenses accept
+optional `buy_packages` and `consumption_scales`, independently. Supplied scales
+are authoritative and already include all population factors; they must match
+the population shape, be finite and nonnegative, and be zero for empty cells.
+Unused profession multipliers are not validated when scales are supplied.
+Occupied cells require a basket even when their scale is zero; empty cells
+have zero expenses and need no defined wealth tier.
+
+Scales can be reused while population assumptions are fixed; baskets can be
+reused while production, trade, and substitution assumptions are fixed. Both
+allow wealth and market prices to change. Supplied baskets skip validation of
+unused goods flows, base prices, and raw need/package definitions. Expenses use
+finite nonnegative market prices, including zero. Non-finite calculated results
+are errors.
+
+Total expenses equal population demand valued at market prices when using the
+same inputs. These helpers do not update the state; compute weekly balances as
+`calculate_pop_income(state) - calculate_pop_expenses(state)`. Expenses exclude
+taxes, rationing, affordability restrictions, and wealth transitions.
+
 ## Market report
 
 `Economy.df_market(state)` returns one row per good with positive sell **or**

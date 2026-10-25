@@ -811,6 +811,348 @@ def needs_economy() -> Economy:
     )
 
 
+@pytest.fixture
+def consumption_state(needs_economy: Economy) -> EconomyState:
+    """Mixed households at two tiers, with market prices unlike base prices."""
+    return replace(
+        needs_economy.solve(np.array([1.0, 1.0])),
+        pops=np.array([[5000.0, 2000.0], [3000.0, 4000.0]]),
+        pop_wealth=np.array([[1, 2], [2, 1]]),
+        market_prices=np.array([10.0, 40.0, 20.0]),
+    )
+
+
+@pytest.mark.parametrize("workforce_ratio", [1.0, 0.25])
+def test_pop_consumption_scales_values_and_ownership(
+    needs_economy: Economy, consumption_state: EconomyState, workforce_ratio: float
+):
+    state = replace(consumption_state, workforce_ratio=workforce_ratio)
+    original = {
+        key: value.copy()
+        for key, value in vars(state).items()
+        if isinstance(value, np.ndarray)
+    }
+    result = needs_economy.calculate_pop_consumption_scales(state)
+    expected = np.array([[0.5, 0.01], [0.3, 0.02]])
+    if workforce_ratio == 0.25:
+        expected *= 2.5
+    np.testing.assert_allclose(result, expected)
+    assert result.dtype == np.float64
+    assert result.flags.owndata and result.flags.writeable
+    for key, value in original.items():
+        np.testing.assert_array_equal(getattr(state, key), value)
+    assert not np.shares_memory(result, state.pops)
+    result[:] = 999
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_consumption_scales(state), expected
+    )
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_consumption_scales(
+            replace(state, pops=2 * state.pops)
+        ),
+        2 * expected,
+    )
+
+
+def test_pop_consumption_scales_defaults_and_independence(
+    needs_economy: Economy, consumption_state: EconomyState
+):
+    model = replace(
+        needs_economy,
+        df_pop_types=needs_economy.df_pop_types.drop(columns="consumption_mult"),
+    )
+    expected = np.array([[0.5, 0.2], [0.3, 0.4]])
+    changed = replace(
+        consumption_state,
+        pop_wealth=np.full((2, 2), 999),
+        market_prices=np.full(3, np.nan),
+        building_goods_flow=np.full((2, 3), np.nan),
+        imports=np.full(3, np.nan),
+        exports=np.full(3, np.nan),
+        pop_needs=np.full(3, np.nan),
+    )
+    np.testing.assert_allclose(
+        model.calculate_pop_consumption_scales(changed), expected
+    )
+
+
+@pytest.mark.parametrize("supply_packages", [False, True])
+@pytest.mark.parametrize("supply_scales", [False, True])
+@pytest.mark.parametrize("workforce_ratio", [1.0, 0.25])
+def test_pop_expenses_reuse_and_accounting_identity(
+    needs_economy: Economy,
+    consumption_state: EconomyState,
+    supply_packages: bool,
+    supply_scales: bool,
+    workforce_ratio: float,
+):
+    state = replace(consumption_state, workforce_ratio=workforce_ratio)
+    packages = needs_economy.calculate_buy_packages(state) if supply_packages else None
+    scales = (
+        needs_economy.calculate_pop_consumption_scales(state) if supply_scales else None
+    )
+    expenses = needs_economy.calculate_pop_expenses(
+        state, buy_packages=packages, consumption_scales=scales
+    )
+    needs = needs_economy.calculate_pop_needs(
+        state, buy_packages=packages, consumption_scales=scales
+    )
+    factor = 2.5 if workforce_ratio == 0.25 else 1.0
+    np.testing.assert_allclose(
+        expenses, np.array([[125.0, 5.0], [150.0, 5.0]]) * factor
+    )
+    np.testing.assert_allclose(needs, np.array([0.0, 5.7, 2.85]) * factor)
+    assert expenses.sum() == pytest.approx(needs @ state.market_prices)
+    assert expenses.dtype == np.float64
+    assert expenses.flags.owndata and expenses.flags.writeable
+
+
+def test_pop_expenses_snapshot_and_reordered_baskets(
+    needs_economy: Economy, consumption_state: EconomyState
+):
+    state = consumption_state
+    packages = needs_economy.calculate_buy_packages(state).iloc[::-1, ::-1]
+    scales = needs_economy.calculate_pop_consumption_scales(state)
+    source_packages = packages.copy(deep=True)
+    source_scales = scales.copy()
+    source_tables = [
+        frame.copy(deep=True)
+        for frame in (
+            needs_economy.df_pop_types,
+            needs_economy.df_pop_needs,
+            needs_economy.df_buy_packages,
+        )
+    ]
+    source_arrays = {
+        key: value.copy()
+        for key, value in vars(state).items()
+        if isinstance(value, np.ndarray)
+    }
+    result = needs_economy.calculate_pop_expenses(
+        state, buy_packages=packages, consumption_scales=scales
+    )
+    np.testing.assert_allclose(result, [[125, 5], [150, 5]])
+    for key, value in source_arrays.items():
+        np.testing.assert_array_equal(getattr(state, key), value)
+        assert not np.shares_memory(result, getattr(state, key))
+    for frame, original in zip(
+        (
+            needs_economy.df_pop_types,
+            needs_economy.df_pop_needs,
+            needs_economy.df_buy_packages,
+        ),
+        source_tables,
+    ):
+        pd.testing.assert_frame_equal(frame, original)
+    np.testing.assert_array_equal(scales, source_scales)
+    pd.testing.assert_frame_equal(packages, source_packages)
+    assert not np.shares_memory(result, scales)
+    assert not np.shares_memory(result, packages.to_numpy())
+    result[:] = 999
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_expenses(
+            state, buy_packages=packages, consumption_scales=scales
+        ),
+        [[125, 5], [150, 5]],
+    )
+
+
+def test_pop_consumption_reuse_after_wealth_and_price_changes(
+    needs_economy: Economy, consumption_state: EconomyState
+):
+    packages = needs_economy.calculate_buy_packages(consumption_state)
+    scales = needs_economy.calculate_pop_consumption_scales(consumption_state)
+    changed = replace(consumption_state, pop_wealth=np.full((2, 2), 2))
+    expected = scales * 500
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_expenses(
+            changed, buy_packages=packages, consumption_scales=scales
+        ),
+        expected,
+    )
+    zero_prices = replace(changed, market_prices=np.zeros(3))
+    np.testing.assert_array_equal(
+        needs_economy.calculate_pop_expenses(
+            zero_prices, buy_packages=packages, consumption_scales=scales
+        ),
+        np.zeros((2, 2)),
+    )
+    np.testing.assert_allclose(
+        needs_economy.calculate_pop_needs(changed, consumption_scales=scales),
+        needs_economy.calculate_pop_needs(zero_prices, consumption_scales=scales),
+    )
+
+
+@pytest.mark.parametrize("method", ["calculate_pop_needs", "calculate_pop_expenses"])
+@pytest.mark.parametrize("supply_packages", [False, True])
+def test_pop_consumption_supplied_scales_are_authoritative(
+    needs_economy: Economy,
+    consumption_state: EconomyState,
+    method: str,
+    supply_packages: bool,
+):
+    state = replace(consumption_state, workforce_ratio=0.25)
+    scales = np.array([[1.0, 2.0], [3.0, 4.0]])
+    original = scales.copy()
+    model = replace(
+        needs_economy,
+        df_pop_types=needs_economy.df_pop_types.assign(consumption_mult=[np.nan, -1]),
+    )
+    packages = needs_economy.calculate_buy_packages(state) if supply_packages else None
+    result = getattr(model, method)(
+        state, buy_packages=packages, consumption_scales=scales
+    )
+    expected = (
+        [0, 75, 37.5]
+        if method == "calculate_pop_needs"
+        else [[250, 1000], [1500, 1000]]
+    )
+    np.testing.assert_allclose(result, expected)
+    np.testing.assert_array_equal(scales, original)
+
+
+@pytest.mark.parametrize("method", ["calculate_pop_needs", "calculate_pop_expenses"])
+@pytest.mark.parametrize("case", ["shape", "negative", "nan", "inf", "empty"])
+def test_pop_consumption_rejects_invalid_supplied_scales(
+    needs_economy: Economy, method: str, case: str
+):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    scales = needs_economy.calculate_pop_consumption_scales(state)
+    if case == "shape":
+        scales = np.zeros(4)
+    elif case == "empty":
+        scales[1, 1] = 1
+    else:
+        scales[0, 0] = {"negative": -1.0, "nan": np.nan, "inf": np.inf}[case]
+    with pytest.raises(ValueError, match="consumption_scales"):
+        getattr(needs_economy, method)(state, consumption_scales=scales)
+
+
+@pytest.mark.parametrize(
+    "method", ["calculate_pop_consumption_scales", "calculate_pop_expenses"]
+)
+@pytest.mark.parametrize("field", ["pops", "pop_wealth"])
+def test_pop_consumption_rejects_misaligned_households(
+    needs_economy: Economy, consumption_state: EconomyState, method: str, field: str
+):
+    with pytest.raises(ValueError, match=field):
+        getattr(needs_economy, method)(
+            replace(consumption_state, **{field: np.zeros(1)})
+        )
+
+
+@pytest.mark.parametrize(
+    "method", ["calculate_pop_consumption_scales", "calculate_pop_expenses"]
+)
+@pytest.mark.parametrize("field", ["pops", "consumption_mult"])
+@pytest.mark.parametrize("value", [-1.0, np.inf, np.nan])
+def test_pop_consumption_rejects_invalid_population(
+    needs_economy: Economy, method: str, field: str, value: float
+):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    model = needs_economy
+    if field == "pops":
+        state = replace(state, pops=np.full((2, 2), value))
+    else:
+        model = replace(
+            model,
+            df_pop_types=model.df_pop_types.assign(consumption_mult=[value, 0.05]),
+        )
+    if field == "consumption_mult" and np.isnan(value):
+        np.testing.assert_allclose(
+            getattr(model, method)(state), getattr(needs_economy, method)(state)
+        )
+    else:
+        with pytest.raises(ValueError, match=field):
+            getattr(model, method)(state)
+
+
+@pytest.mark.parametrize("case", ["shape", "negative", "nan", "inf"])
+def test_pop_expenses_rejects_invalid_prices(needs_economy: Economy, case: str):
+    prices = (
+        np.zeros(1)
+        if case == "shape"
+        else np.full(3, {"negative": -1, "nan": np.nan, "inf": np.inf}[case])
+    )
+    state = replace(needs_economy.solve(np.array([1.0, 0.0])), market_prices=prices)
+    with pytest.raises(ValueError, match="state.market_prices"):
+        needs_economy.calculate_pop_expenses(state)
+
+
+@pytest.mark.parametrize("method", ["calculate_pop_needs", "calculate_pop_expenses"])
+def test_pop_consumption_empty_and_zero_scales(needs_economy: Economy, method: str):
+    state = needs_economy.solve(np.zeros(2))
+    expected_shape = (3,) if method == "calculate_pop_needs" else (2, 2)
+    empty_packages = pd.DataFrame(columns=list(needs_economy.goods_index))
+    for packages in (None, empty_packages):
+        np.testing.assert_array_equal(
+            getattr(needs_economy, method)(state, buy_packages=packages),
+            np.zeros(expected_shape),
+        )
+    occupied = replace(state, pops=np.ones((2, 2)))
+    with pytest.raises(ValueError, match="pop_wealth tiers.*buy_packages"):
+        getattr(needs_economy, method)(
+            occupied,
+            buy_packages=empty_packages,
+            consumption_scales=np.zeros((2, 2)),
+        )
+    np.testing.assert_array_equal(
+        getattr(needs_economy, method)(occupied, consumption_scales=np.zeros((2, 2))),
+        np.zeros(expected_shape),
+    )
+
+
+@pytest.mark.parametrize("case", ["scale", "cost", "expenses", "demand"])
+def test_pop_consumption_rejects_overflow(needs_economy: Economy, case: str):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    if case == "scale":
+        model = replace(
+            needs_economy,
+            df_pop_types=needs_economy.df_pop_types.assign(consumption_mult=1e308),
+        )
+        with pytest.raises(ValueError, match="calculated consumption_scales"):
+            model.calculate_pop_consumption_scales(replace(state, pops=state.pops * 2))
+    elif case == "cost":
+        with pytest.raises(ValueError, match="calculated basket costs"):
+            needs_economy.calculate_pop_expenses(
+                replace(state, market_prices=np.full(3, 1e308))
+            )
+    else:
+        method = (
+            "calculate_pop_expenses" if case == "expenses" else "calculate_pop_needs"
+        )
+        with pytest.raises(ValueError, match="calculated pop_"):
+            getattr(needs_economy, method)(
+                state, consumption_scales=np.array([[1e308, 0], [0, 0]])
+            )
+
+
+def test_pop_expenses_supplied_baskets_skip_unused_inputs(needs_economy: Economy):
+    state = needs_economy.solve(np.array([1.0, 0.0]))
+    packages = needs_economy.calculate_buy_packages(state).loc[[1]]
+    scales = needs_economy.calculate_pop_consumption_scales(state)
+    changed = replace(
+        state,
+        building_goods_flow=np.full((1, 1), np.nan),
+        imports=np.full(1, np.nan),
+        exports=np.full(1, np.nan),
+        pop_needs=np.full(1, np.nan),
+    )
+    model = replace(
+        needs_economy,
+        df_goods=needs_economy.df_goods.assign(cost=np.nan),
+        df_pop_types=needs_economy.df_pop_types.assign(consumption_mult=-1),
+        df_pop_needs=pd.DataFrame(),
+        df_buy_packages=pd.DataFrame(),
+    )
+    np.testing.assert_allclose(
+        model.calculate_pop_expenses(
+            changed, buy_packages=packages, consumption_scales=scales
+        ),
+        [[200, 0], [0, 0]],
+    )
+
+
 def test_calculate_pop_needs_exact_values_and_snapshot(needs_economy: Economy):
     state = needs_economy.solve(np.array([1.0, 0.0]))
     original = {
@@ -1008,31 +1350,34 @@ def test_calculate_pop_needs_supplied_packages_partial_and_empty(
         ["1", "2"],
     ],
 )
+@pytest.mark.parametrize("method", ["calculate_pop_needs", "calculate_pop_expenses"])
 def test_calculate_pop_needs_supplied_packages_reject_invalid_wealth(
-    needs_economy: Economy, index: list
+    needs_economy: Economy, index: list, method: str
 ):
     state = needs_economy.solve(np.array([1.0, 0.0]))
     packages = needs_economy.calculate_buy_packages(state)
     packages.index = pd.Index(index)
     with pytest.raises(ValueError, match="buy_packages index"):
-        needs_economy.calculate_pop_needs(state, buy_packages=packages)
+        getattr(needs_economy, method)(state, buy_packages=packages)
 
 
 @pytest.mark.parametrize(
     "columns", [["unused", "a"], ["unused", "a", "b", "extra"], ["unused", "a", "a"]]
 )
+@pytest.mark.parametrize("method", ["calculate_pop_needs", "calculate_pop_expenses"])
 def test_calculate_pop_needs_supplied_packages_reject_invalid_columns(
-    needs_economy: Economy, columns: list[str]
+    needs_economy: Economy, columns: list[str], method: str
 ):
     state = needs_economy.solve(np.array([1.0, 0.0]))
     packages = pd.DataFrame(np.zeros((1, len(columns))), index=[1], columns=columns)
     with pytest.raises(ValueError, match="buy_packages.*columns"):
-        needs_economy.calculate_pop_needs(state, buy_packages=packages)
+        getattr(needs_economy, method)(state, buy_packages=packages)
 
 
 @pytest.mark.parametrize("value", [-1, np.nan, np.inf, "invalid"])
+@pytest.mark.parametrize("method", ["calculate_pop_needs", "calculate_pop_expenses"])
 def test_calculate_pop_needs_supplied_packages_reject_invalid_quantities(
-    needs_economy: Economy, value: float | str
+    needs_economy: Economy, value: float | str, method: str
 ):
     state = needs_economy.solve(np.array([1.0, 0.0]))
     # Validate unused wealth rows too.
@@ -1040,7 +1385,7 @@ def test_calculate_pop_needs_supplied_packages_reject_invalid_quantities(
         {"unused": [0, 0], "a": [1, value], "b": [2, 3]}, index=[1, 2]
     )
     with pytest.raises(ValueError, match="buy_packages quantities"):
-        needs_economy.calculate_pop_needs(state, buy_packages=packages)
+        getattr(needs_economy, method)(state, buy_packages=packages)
 
 
 @pytest.mark.parametrize("field", ["pops", "pop_wealth"])
@@ -1462,6 +1807,28 @@ def test_calculate_pop_needs_vanilla(economy: Economy):
     np.testing.assert_allclose(
         reordered.calculate_pop_needs(reversed_state), needs[::-1]
     )
+
+
+def test_pop_consumption_expenses_vanilla(economy: Economy):
+    state = economy.solve(
+        _first_producing_levels(economy), method="market", workforce_ratio=0.25
+    )
+    packages = economy.calculate_buy_packages(state)
+    scales = economy.calculate_pop_consumption_scales(state)
+    expenses = economy.calculate_pop_expenses(state)
+    reused = economy.calculate_pop_expenses(
+        state, buy_packages=packages, consumption_scales=scales
+    )
+    needs = economy.calculate_pop_needs(
+        state, buy_packages=packages, consumption_scales=scales
+    )
+    assert expenses.shape == state.pops.shape == scales.shape
+    assert expenses.dtype == scales.dtype == np.float64
+    assert np.isfinite(expenses).all() and (expenses >= 0).all()
+    assert (expenses > 0).any()
+    np.testing.assert_allclose(expenses, reused)
+    np.testing.assert_allclose(needs, economy.calculate_pop_needs(state))
+    assert expenses.sum() == pytest.approx(needs @ state.market_prices)
 
 
 def test_calculate_buy_packages_vanilla(economy: Economy):

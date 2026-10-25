@@ -32,6 +32,22 @@ as `(1 - workforce_ratio) / workforce_ratio`. `pops` and `total_employment`
 count workers; `total_population` includes dependents. `Scenario.workforce_ratio`
 passes the same assumption to optimizer-created states.
 
+`Economy.calculate_pop_consumption_scales(state)` returns a fresh writable
+float64 matrix of dimensionless household scales:
+`pops / 10_000 * consumption_mult * (1 + 0.5 * dependents_per_worker)`.
+`calculate_pop_needs()` and `calculate_pop_expenses()` accept keyword-only
+`buy_packages=None` and `consumption_scales=None` to reuse baskets and scales
+independently. Supplied scales are authoritative, finite, nonnegative,
+population-shaped, and zero for empty cells; profession multipliers are not
+recomputed. Refresh them when the population assumptions change.
+
+`Economy.calculate_pop_expenses(state)` returns a fresh writable float64 matrix
+of weekly household consumption expenses aligned to configurations × professions.
+It prices each wealth basket at the state's market prices and applies the
+household scale. It does not change wealth, demand, or `pop_balance`.
+See [household expenses](../guides/economy.md#household-expenses) for validation,
+reuse conditions, and an explicit `income - expenses` example.
+
 ::: vic3_analysis.production_table
 
 ::: vic3_analysis.Economy
