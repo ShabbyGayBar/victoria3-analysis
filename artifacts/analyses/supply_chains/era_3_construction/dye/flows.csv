@@ -1,0 +1,2 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_dye_plantation+default_building_dye_plantation+slave_exploitation_dye+pm_road_carts,good:dye,output,dye,building_dye_plantation+default_building_dye_plantation+slave_exploitation_dye+pm_road_carts,45.0,2500.0,40.0,100000.0,True,False

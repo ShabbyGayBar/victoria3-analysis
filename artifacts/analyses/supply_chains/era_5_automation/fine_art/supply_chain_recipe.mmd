@@ -1,0 +1,604 @@
+flowchart LR
+    n0(("aeroplanes"))
+    n1(("automobiles"))
+    n2(("clippers"))
+    n3(("coal"))
+    n4(("dye"))
+    n5(("electricity"))
+    n6(("engines"))
+    n7(("explosives"))
+    n8(("fabric"))
+    n9(("fertilizer"))
+    n10(("fine_art ★"))
+    n11(("fish"))
+    n12(("fruit"))
+    n13(("glass"))
+    n14(("grain"))
+    n15(("hardwood"))
+    n16(("iron"))
+    n17(("lead"))
+    n18(("liquor"))
+    n19(("meat"))
+    n20(("oil"))
+    n21(("paper"))
+    n22(("porcelain"))
+    n23(("rubber"))
+    n24(("services"))
+    n25(("silk"))
+    n26(("steamers"))
+    n27(("steel"))
+    n28(("sugar"))
+    n29(("sulfur"))
+    n30(("tanks"))
+    n31(("tools"))
+    n32(("transportation"))
+    n33(("wood"))
+    n34["building_art_academy<br/>lvl=0"]
+    n35["building_art_academy<br/>lvl=0"]
+    n36["building_art_academy<br/>lvl=0"]
+    n37["building_art_academy<br/>lvl=50 | active"]
+    n38["building_automotive_industry<br/>lvl=0"]
+    n39["building_automotive_industry<br/>lvl=0"]
+    n40["building_automotive_industry<br/>lvl=0"]
+    n41["building_automotive_industry<br/>lvl=0"]
+    n42["building_automotive_industry<br/>lvl=0"]
+    n43["building_automotive_industry<br/>lvl=0"]
+    n44["building_automotive_industry<br/>lvl=0"]
+    n45["building_automotive_industry<br/>lvl=0"]
+    n46["building_chemical_plant<br/>lvl=0"]
+    n47["building_chemical_plant<br/>lvl=0"]
+    n48["building_chemical_plant<br/>lvl=0.2091 | active"]
+    n49["building_coal_mine<br/>lvl=0"]
+    n50["building_coal_mine<br/>lvl=0"]
+    n51["building_coal_mine<br/>lvl=1.271 | active"]
+    n52["building_cotton_plantation<br/>lvl=0"]
+    n53["building_cotton_plantation<br/>lvl=0"]
+    n54["building_cotton_plantation<br/>lvl=0"]
+    n55["building_dye_plantation<br/>lvl=0"]
+    n56["building_explosives_factory<br/>lvl=0"]
+    n57["building_explosives_factory<br/>lvl=0.268 | active"]
+    n58["building_explosives_factory<br/>lvl=0"]
+    n59["building_fishing_wharf<br/>lvl=0"]
+    n60["building_fishing_wharf<br/>lvl=0"]
+    n61["building_fishing_wharf<br/>lvl=0"]
+    n62["building_glassworks<br/>lvl=0"]
+    n63["building_glassworks<br/>lvl=0"]
+    n64["building_glassworks<br/>lvl=0"]
+    n65["building_glassworks<br/>lvl=0"]
+    n66["building_glassworks<br/>lvl=0"]
+    n67["building_glassworks<br/>lvl=0"]
+    n68["building_iron_mine<br/>lvl=0"]
+    n69["building_iron_mine<br/>lvl=0"]
+    n70["building_iron_mine<br/>lvl=1.611 | active"]
+    n71["building_lead_mine<br/>lvl=0"]
+    n72["building_lead_mine<br/>lvl=0"]
+    n73["building_lead_mine<br/>lvl=0"]
+    n74["building_livestock_ranch<br/>lvl=0"]
+    n75["building_livestock_ranch<br/>lvl=0"]
+    n76["building_livestock_ranch<br/>lvl=0"]
+    n77["building_logging_camp<br/>lvl=0"]
+    n78["building_logging_camp<br/>lvl=0"]
+    n79["building_logging_camp<br/>lvl=0"]
+    n80["building_logging_camp<br/>lvl=2.274 | active"]
+    n81["building_logging_camp<br/>lvl=0"]
+    n82["building_logging_camp<br/>lvl=0"]
+    n83["building_motor_industry<br/>lvl=0.7178 | active"]
+    n84["building_motor_industry<br/>lvl=0"]
+    n85["building_motor_industry<br/>lvl=0"]
+    n86["building_oil_rig<br/>lvl=0"]
+    n87["building_oil_rig<br/>lvl=0"]
+    n88["building_oil_rig<br/>lvl=2.475 | active"]
+    n89["building_paper_mill<br/>lvl=0"]
+    n90["building_paper_mill<br/>lvl=7.58 | active"]
+    n91["building_paper_mill<br/>lvl=0"]
+    n92["building_power_plant<br/>lvl=0"]
+    n93["building_power_plant<br/>lvl=0"]
+    n94["building_power_plant<br/>lvl=4.258 | active"]
+    n95["building_railway<br/>lvl=1.349 | active"]
+    n96["building_railway<br/>lvl=0"]
+    n97["building_railway<br/>lvl=0"]
+    n98["building_railway<br/>lvl=0"]
+    n99["building_rice_farm<br/>lvl=0"]
+    n100["building_rice_farm<br/>lvl=0"]
+    n101["building_rice_farm<br/>lvl=0"]
+    n102["building_rice_farm<br/>lvl=0"]
+    n103["building_rice_farm<br/>lvl=0"]
+    n104["building_rice_farm<br/>lvl=0"]
+    n105["building_rubber_plantation<br/>lvl=0"]
+    n106["building_rubber_plantation<br/>lvl=0.8832 | active"]
+    n107["building_rubber_plantation<br/>lvl=0"]
+    n108["building_rye_farm<br/>lvl=0"]
+    n109["building_rye_farm<br/>lvl=0"]
+    n110["building_rye_farm<br/>lvl=0"]
+    n111["building_rye_farm<br/>lvl=0"]
+    n112["building_rye_farm<br/>lvl=0"]
+    n113["building_rye_farm<br/>lvl=0"]
+    n114["building_shipyard<br/>lvl=0"]
+    n115["building_shipyard<br/>lvl=0"]
+    n116["building_shipyard<br/>lvl=0"]
+    n117["building_shipyard<br/>lvl=0"]
+    n118["building_steel_mill<br/>lvl=0"]
+    n119["building_steel_mill<br/>lvl=1.387 | active"]
+    n120["building_steel_mill<br/>lvl=0"]
+    n121["building_sulfur_mine<br/>lvl=0"]
+    n122["building_sulfur_mine<br/>lvl=0"]
+    n123["building_sulfur_mine<br/>lvl=1.138 | active"]
+    n124["building_synthetics_plant<br/>lvl=0.9476 | active"]
+    n125["building_synthetics_plant<br/>lvl=0"]
+    n126["building_tooling_workshop<br/>lvl=5.741 | active"]
+    n127["building_tooling_workshop<br/>lvl=0"]
+    n128["building_tooling_workshop<br/>lvl=0"]
+    n129["building_urban_center<br/>lvl=0"]
+    n130["building_urban_center<br/>lvl=0"]
+    n131["building_urban_center<br/>lvl=0"]
+    n3 -->|"r=15"| n59
+    n3 -->|"r=15"| n60
+    n3 -->|"r=15"| n61
+    n3 -.->|"6.445"| n70
+    n3 -.->|"r=4"| n73
+    n3 -.->|"r=5"| n74
+    n3 -.->|"r=5"| n75
+    n3 -.->|"r=5"| n76
+    n3 -.->|"r=10"| n85
+    n3 -.->|"75.8"| n90
+    n3 -.->|"r=5"| n91
+    n3 -.->|"r=20"| n92
+    n3 -.->|"r=5"| n93
+    n3 -.->|"r=2"| n99
+    n3 -.->|"r=2"| n102
+    n3 -.->|"r=1"| n109
+    n3 -.->|"r=1"| n112
+    n3 -->|"r=10"| n117
+    n3 -.->|"r=30"| n118
+    n3 -.->|"55.5"| n119
+    n3 -.->|"r=35"| n120
+    n3 -.->|"4.554"| n123
+    n3 -.->|"r=15"| n128
+    n4 -.->|"r=10"| n62
+    n4 -.->|"r=10"| n63
+    n4 -.->|"r=10"| n64
+    n4 -.->|"r=5"| n65
+    n4 -.->|"r=10"| n89
+    n4 -.->|"75.8"| n90
+    n4 -.->|"r=10"| n91
+    n5 -->|"r=5"| n34
+    n5 -->|"r=5"| n35
+    n5 -->|"r=5"| n36
+    n5 -->|"250"| n37
+    n5 -->|"r=5"| n38
+    n5 -->|"r=5"| n40
+    n5 -->|"r=5"| n42
+    n5 -->|"r=5"| n43
+    n5 -->|"r=5"| n44
+    n5 -.->|"5.36"| n57
+    n5 -->|"r=7"| n59
+    n5 -->|"r=5"| n60
+    n5 -->|"r=5"| n61
+    n5 -.->|"r=1"| n74
+    n5 -.->|"r=1"| n75
+    n5 -.->|"r=5"| n77
+    n5 -.->|"r=5"| n78
+    n5 -.->|"r=5"| n79
+    n5 -.->|"11.37"| n80
+    n5 -.->|"r=5"| n81
+    n5 -.->|"r=5"| n82
+    n5 -.->|"3.589"| n83
+    n5 -.->|"r=10"| n98
+    n5 -->|"r=30"| n114
+    n5 -.->|"r=30"| n118
+    n5 -.->|"41.62"| n119
+    n5 -.->|"r=30"| n120
+    n5 -.->|"28.7"| n126
+    n5 -.->|"r=4"| n129
+    n5 -.->|"r=4"| n130
+    n5 -.->|"r=4"| n131
+    n6 -->|"r=10"| n38
+    n6 -->|"r=10"| n39
+    n6 -->|"r=10"| n40
+    n6 -->|"r=10"| n41
+    n6 -->|"r=10"| n42
+    n6 -->|"r=10"| n43
+    n6 -->|"r=10"| n44
+    n6 -->|"r=10"| n45
+    n6 -.->|"1.271"| n51
+    n6 -->|"r=5"| n52
+    n6 -->|"r=5"| n53
+    n6 -->|"r=5"| n54
+    n6 -.->|"r=5"| n55
+    n6 -.->|"r=2"| n62
+    n6 -.->|"r=2"| n64
+    n6 -.->|"r=2"| n65
+    n6 -.->|"r=2"| n66
+    n6 -.->|"1.611"| n70
+    n6 -.->|"r=1"| n73
+    n6 -.->|"r=1"| n77
+    n6 -.->|"r=1"| n78
+    n6 -.->|"r=1"| n79
+    n6 -.->|"2.274"| n80
+    n6 -.->|"r=1"| n81
+    n6 -.->|"r=1"| n82
+    n6 -.->|"r=10"| n86
+    n6 -.->|"r=10"| n87
+    n6 -.->|"24.75"| n88
+    n6 -.->|"r=6"| n92
+    n6 -.->|"r=4"| n93
+    n6 -.->|"42.58"| n94
+    n6 -.->|"8.095"| n95
+    n6 -.->|"r=6"| n96
+    n6 -.->|"r=6"| n97
+    n6 -.->|"r=6"| n98
+    n6 -.->|"r=5"| n105
+    n6 -.->|"4.416"| n106
+    n6 -.->|"r=5"| n107
+    n6 -.->|"r=1"| n108
+    n6 -.->|"r=1"| n111
+    n6 -->|"r=10"| n114
+    n6 -->|"r=5"| n116
+    n6 -->|"r=10"| n117
+    n6 -.->|"1.138"| n123
+    n7 -.->|"r=10"| n49
+    n7 -.->|"r=10"| n50
+    n7 -.->|"12.71"| n51
+    n7 -.->|"r=10"| n68
+    n7 -.->|"r=10"| n69
+    n7 -.->|"16.11"| n70
+    n7 -.->|"r=10"| n71
+    n7 -.->|"r=10"| n72
+    n7 -.->|"r=10"| n73
+    n7 -.->|"r=10"| n121
+    n7 -.->|"r=10"| n122
+    n7 -.->|"11.38"| n123
+    n8 -->|"r=4"| n38
+    n8 -->|"r=4"| n39
+    n8 -->|"r=4"| n42
+    n8 -->|"r=4"| n43
+    n8 -->|"r=20"| n115
+    n8 -->|"r=20"| n116
+    n9 -.->|"r=30"| n56
+    n9 -.->|"13.4"| n57
+    n9 -.->|"r=40"| n58
+    n9 -.->|"r=30"| n99
+    n9 -.->|"r=30"| n100
+    n9 -.->|"r=30"| n101
+    n9 -.->|"r=30"| n102
+    n9 -.->|"r=30"| n103
+    n9 -.->|"r=30"| n104
+    n9 -.->|"r=15"| n108
+    n9 -.->|"r=15"| n109
+    n9 -.->|"r=15"| n110
+    n9 -.->|"r=15"| n111
+    n9 -.->|"r=15"| n112
+    n9 -.->|"r=15"| n113
+    n9 -.->|"28.43"| n124
+    n9 -.->|"r=30"| n125
+    n13 -.->|"r=2"| n129
+    n13 -.->|"r=2"| n130
+    n13 -.->|"r=2"| n131
+    n14 -.->|"r=15"| n74
+    n14 -.->|"r=15"| n75
+    n14 -.->|"r=15"| n76
+    n15 -->|"r=4"| n38
+    n15 -->|"r=4"| n39
+    n15 -->|"r=4"| n42
+    n15 -->|"r=4"| n43
+    n15 -->|"r=20"| n116
+    n16 -.->|"r=10"| n46
+    n16 -.->|"r=30"| n47
+    n16 -.->|"6.274"| n48
+    n16 -.->|"r=1"| n74
+    n16 -.->|"r=1"| n75
+    n16 -.->|"r=1"| n76
+    n16 -.->|"r=100"| n118
+    n16 -.->|"138.7"| n119
+    n16 -.->|"r=100"| n120
+    n17 -.->|"r=35"| n62
+    n17 -.->|"r=35"| n63
+    n17 -.->|"r=30"| n65
+    n17 -.->|"r=30"| n66
+    n17 -.->|"r=30"| n67
+    n20 -->|"r=10"| n38
+    n20 -->|"r=5"| n39
+    n20 -->|"r=10"| n40
+    n20 -->|"r=5"| n41
+    n20 -->|"r=15"| n42
+    n20 -->|"r=15"| n43
+    n20 -->|"r=15"| n44
+    n20 -->|"r=10"| n45
+    n20 -.->|"4.183"| n48
+    n20 -.->|"r=5"| n49
+    n20 -.->|"r=5"| n50
+    n20 -.->|"6.353"| n51
+    n20 -.->|"r=5"| n62
+    n20 -.->|"r=5"| n64
+    n20 -.->|"r=25"| n65
+    n20 -.->|"r=25"| n66
+    n20 -.->|"r=20"| n67
+    n20 -.->|"r=5"| n68
+    n20 -.->|"r=5"| n69
+    n20 -.->|"8.056"| n70
+    n20 -.->|"r=5"| n71
+    n20 -.->|"r=5"| n72
+    n20 -.->|"r=5"| n73
+    n20 -.->|"r=4"| n77
+    n20 -.->|"r=4"| n78
+    n20 -.->|"r=4"| n79
+    n20 -.->|"9.096"| n80
+    n20 -.->|"r=4"| n81
+    n20 -.->|"r=4"| n82
+    n20 -.->|"39.48"| n83
+    n20 -.->|"r=50"| n84
+    n20 -.->|"r=50"| n85
+    n20 -.->|"106.5"| n94
+    n20 -.->|"10.79"| n95
+    n20 -.->|"r=8"| n96
+    n20 -.->|"r=8"| n97
+    n20 -.->|"r=2"| n108
+    n20 -.->|"r=2"| n111
+    n20 -.->|"r=5"| n121
+    n20 -.->|"r=5"| n122
+    n20 -.->|"5.692"| n123
+    n20 -.->|"57.41"| n126
+    n21 -->|"r=15"| n34
+    n21 -->|"r=15"| n35
+    n21 -->|"r=15"| n36
+    n21 -->|"750"| n37
+    n21 -.->|"r=10"| n56
+    n21 -.->|"8.04"| n57
+    n21 -.->|"r=20"| n58
+    n23 -->|"r=5"| n38
+    n23 -->|"r=5"| n39
+    n23 -->|"r=5"| n40
+    n23 -->|"r=5"| n41
+    n23 -->|"r=10"| n42
+    n23 -->|"r=10"| n43
+    n23 -->|"r=10"| n44
+    n23 -->|"r=10"| n45
+    n23 -.->|"57.41"| n126
+    n23 -.->|"r=10"| n127
+    n23 -.->|"r=10"| n128
+    n26 -->|"r=5"| n59
+    n26 -->|"r=5"| n60
+    n26 -->|"r=5"| n61
+    n27 -->|"r=5"| n40
+    n27 -->|"r=5"| n41
+    n27 -->|"r=5"| n43
+    n27 -.->|"35.89"| n83
+    n27 -.->|"r=50"| n84
+    n27 -.->|"r=50"| n85
+    n27 -.->|"r=5"| n96
+    n27 -.->|"r=5"| n98
+    n27 -->|"r=30"| n114
+    n27 -->|"r=30"| n117
+    n27 -.->|"172.2"| n126
+    n27 -.->|"r=30"| n127
+    n27 -.->|"r=30"| n128
+    n27 -.->|"r=2"| n129
+    n27 -.->|"r=2"| n130
+    n27 -.->|"r=2"| n131
+    n29 -.->|"r=30"| n46
+    n29 -.->|"r=30"| n47
+    n29 -.->|"8.365"| n48
+    n29 -.->|"r=30"| n56
+    n29 -.->|"10.72"| n57
+    n29 -.->|"r=40"| n58
+    n29 -.->|"r=10"| n89
+    n29 -.->|"75.8"| n90
+    n29 -.->|"r=10"| n91
+    n29 -.->|"18.95"| n124
+    n29 -.->|"r=20"| n125
+    n31 -->|"r=10"| n34
+    n31 -->|"r=10"| n35
+    n31 -->|"r=10"| n36
+    n31 -->|"500"| n37
+    n31 -->|"r=5"| n38
+    n31 -->|"r=5"| n40
+    n31 -->|"r=5"| n42
+    n31 -->|"r=5"| n43
+    n31 -->|"r=5"| n44
+    n31 -.->|"r=15"| n49
+    n31 -.->|"r=15"| n50
+    n31 -.->|"19.06"| n51
+    n31 -.->|"r=2"| n62
+    n31 -.->|"r=2"| n64
+    n31 -.->|"r=2"| n65
+    n31 -.->|"r=2"| n66
+    n31 -.->|"r=15"| n68
+    n31 -.->|"r=15"| n69
+    n31 -.->|"24.17"| n70
+    n31 -.->|"r=15"| n71
+    n31 -.->|"r=15"| n72
+    n31 -.->|"r=15"| n73
+    n31 -.->|"r=5"| n74
+    n31 -.->|"r=5"| n75
+    n31 -.->|"r=5"| n76
+    n31 -.->|"r=10"| n77
+    n31 -.->|"r=10"| n78
+    n31 -.->|"r=10"| n79
+    n31 -.->|"22.74"| n80
+    n31 -.->|"r=10"| n81
+    n31 -.->|"r=10"| n82
+    n31 -.->|"3.589"| n83
+    n31 -.->|"r=5"| n85
+    n31 -.->|"37.9"| n90
+    n31 -.->|"r=5"| n91
+    n31 -.->|"r=4"| n99
+    n31 -.->|"r=4"| n100
+    n31 -.->|"r=4"| n102
+    n31 -.->|"r=4"| n103
+    n31 -.->|"r=2"| n109
+    n31 -.->|"r=2"| n110
+    n31 -.->|"r=2"| n112
+    n31 -.->|"r=2"| n113
+    n31 -.->|"6.937"| n119
+    n31 -.->|"r=5"| n120
+    n31 -.->|"r=15"| n121
+    n31 -.->|"r=15"| n122
+    n31 -.->|"17.08"| n123
+    n32 -.->|"r=5"| n49
+    n32 -.->|"6.353"| n51
+    n32 -->|"r=5"| n53
+    n32 -->|"r=7"| n59
+    n32 -->|"r=5"| n60
+    n32 -.->|"r=5"| n68
+    n32 -.->|"8.056"| n70
+    n32 -.->|"r=5"| n71
+    n32 -.->|"r=5"| n73
+    n32 -.->|"r=1"| n74
+    n32 -.->|"r=8"| n77
+    n32 -.->|"r=5"| n78
+    n32 -.->|"18.19"| n80
+    n32 -.->|"r=5"| n81
+    n32 -.->|"r=5"| n86
+    n32 -.->|"24.75"| n88
+    n32 -.->|"4.416"| n106
+    n32 -.->|"r=5"| n121
+    n32 -.->|"5.692"| n123
+    n33 -.->|"r=30"| n64
+    n33 -.->|"r=30"| n89
+    n33 -.->|"227.4"| n90
+    n33 -.->|"r=30"| n91
+    n33 -.->|"r=5"| n93
+    n33 -.->|"r=8"| n97
+    n33 -->|"r=40"| n115
+    n33 -->|"r=20"| n116
+    n33 -.->|"r=10"| n125
+    n34 -->|"r=10"| n10
+    n35 -->|"r=10"| n10
+    n36 -->|"r=10"| n10
+    n37 -->|"500"| n10
+    n38 -->|"r=10"| n0
+    n38 -->|"r=20"| n1
+    n39 -->|"r=10"| n0
+    n39 -->|"r=20"| n1
+    n40 -->|"r=10"| n1
+    n40 -->|"r=20"| n30
+    n41 -->|"r=10"| n1
+    n41 -->|"r=20"| n30
+    n42 -->|"r=10"| n0
+    n42 -->|"r=40"| n1
+    n43 -->|"r=10"| n0
+    n43 -->|"r=20"| n1
+    n43 -->|"r=20"| n30
+    n44 -->|"r=50"| n1
+    n45 -->|"r=50"| n1
+    n46 -.->|"r=90"| n9
+    n47 -.->|"r=140"| n9
+    n48 -.->|"41.83"| n9
+    n49 -.->|"r=115"| n3
+    n50 -.->|"r=115"| n3
+    n51 -.->|"142.3"| n3
+    n52 -->|"r=100"| n8
+    n53 -->|"r=100"| n8
+    n54 -->|"r=90"| n8
+    n55 -.->|"r=60"| n4
+    n56 -.->|"r=80"| n7
+    n57 -.->|"40.2"| n7
+    n58 -.->|"r=110"| n7
+    n59 -->|"r=100"| n11
+    n60 -->|"r=100"| n11
+    n61 -->|"r=100"| n11
+    n62 -.->|"r=40"| n13
+    n62 -->|"r=30"| n22
+    n63 -.->|"r=40"| n13
+    n63 -->|"r=30"| n22
+    n64 -.->|"r=10"| n13
+    n64 -->|"r=30"| n22
+    n65 -.->|"r=90"| n13
+    n65 -->|"r=10"| n22
+    n66 -.->|"r=100"| n13
+    n67 -.->|"r=100"| n13
+    n68 -.->|"r=90"| n16
+    n69 -.->|"r=90"| n16
+    n70 -.->|"145"| n16
+    n71 -.->|"r=90"| n17
+    n72 -.->|"r=90"| n17
+    n73 -.->|"r=90"| n17
+    n74 -->|"r=25"| n8
+    n74 -.->|"r=5"| n9
+    n74 -->|"r=35"| n19
+    n75 -->|"r=25"| n8
+    n75 -.->|"r=5"| n9
+    n75 -->|"r=35"| n19
+    n76 -->|"r=25"| n8
+    n76 -.->|"r=5"| n9
+    n76 -->|"r=35"| n19
+    n77 -->|"r=20"| n15
+    n77 -.->|"r=60"| n33
+    n78 -->|"r=20"| n15
+    n78 -.->|"r=60"| n33
+    n79 -->|"r=20"| n15
+    n79 -.->|"r=60"| n33
+    n80 -.->|"227.4"| n33
+    n81 -.->|"r=100"| n33
+    n82 -.->|"r=100"| n33
+    n83 -.->|"86.14"| n6
+    n84 -.->|"r=120"| n6
+    n85 -.->|"r=120"| n6
+    n86 -.->|"r=100"| n20
+    n87 -.->|"r=100"| n20
+    n88 -.->|"247.5"| n20
+    n89 -.->|"r=100"| n21
+    n90 -.->|"758"| n21
+    n91 -.->|"r=100"| n21
+    n92 -.->|"r=50"| n5
+    n93 -.->|"r=25"| n5
+    n94 -.->|"340.6"| n5
+    n95 -.->|"67.46"| n32
+    n96 -.->|"r=65"| n32
+    n97 -.->|"r=60"| n32
+    n98 -.->|"r=60"| n32
+    n99 -->|"r=15"| n12
+    n99 -.->|"r=80"| n14
+    n99 -->|"r=2"| n28
+    n100 -->|"r=15"| n12
+    n100 -.->|"r=80"| n14
+    n100 -->|"r=2"| n28
+    n101 -->|"r=15"| n12
+    n101 -.->|"r=80"| n14
+    n101 -->|"r=2"| n28
+    n102 -.->|"r=100"| n14
+    n103 -.->|"r=100"| n14
+    n104 -.->|"r=100"| n14
+    n105 -.->|"r=65"| n23
+    n106 -.->|"57.41"| n23
+    n107 -.->|"r=50"| n23
+    n108 -.->|"r=50"| n14
+    n108 -->|"r=10"| n18
+    n109 -.->|"r=50"| n14
+    n109 -->|"r=10"| n18
+    n110 -.->|"r=50"| n14
+    n110 -->|"r=10"| n18
+    n111 -.->|"r=55"| n14
+    n111 -->|"r=4"| n28
+    n112 -.->|"r=55"| n14
+    n112 -->|"r=4"| n28
+    n113 -.->|"r=55"| n14
+    n113 -->|"r=4"| n28
+    n114 -->|"r=80"| n26
+    n115 -->|"r=40"| n2
+    n116 -->|"r=70"| n2
+    n117 -->|"r=65"| n26
+    n118 -.->|"r=150"| n27
+    n119 -.->|"208.1"| n27
+    n120 -.->|"r=150"| n27
+    n121 -.->|"r=100"| n29
+    n122 -.->|"r=100"| n29
+    n123 -.->|"113.8"| n29
+    n124 -.->|"75.8"| n4
+    n125 -.->|"r=70"| n4
+    n125 -->|"r=30"| n25
+    n126 -.->|"631.5"| n31
+    n127 -.->|"r=110"| n31
+    n128 -.->|"r=110"| n31
+    n129 -->|"r=40"| n24
+    n129 -.->|"r=2"| n32
+    n130 -->|"r=40"| n24
+    n130 -.->|"r=2"| n32
+    n131 -->|"r=40"| n24
+    n131 -.->|"r=2"| n32
+    class n3,n4,n5,n6,n7,n9,n13,n14,n16,n17,n20,n21,n23,n27,n29,n31,n32,n33,n46,n47,n48,n49,n50,n51,n55,n56,n57,n58,n62,n63,n64,n65,n66,n67,n68,n69,n70,n71,n72,n73,n74,n75,n76,n77,n78,n79,n80,n81,n82,n83,n84,n85,n86,n87,n88,n89,n90,n91,n92,n93,n94,n95,n96,n97,n98,n99,n100,n101,n102,n103,n104,n105,n106,n107,n108,n109,n110,n111,n112,n113,n118,n119,n120,n121,n122,n123,n124,n125,n126,n127,n128,n129,n130,n131 cyclic
+    class n49,n50,n51,n59,n60,n61,n68,n69,n70,n71,n72,n73,n77,n78,n79,n80,n81,n82,n86,n87,n88,n105,n106,n107,n121,n122,n123 resource
+    class n37,n48,n51,n57,n70,n80,n83,n88,n90,n94,n95,n106,n119,n123,n124,n126 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

@@ -1,0 +1,61 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("explosives"))
+    n3(("fertilizer"))
+    n4(("iron"))
+    n5(("paper"))
+    n6(("rubber"))
+    n7(("steel"))
+    n8(("sulfur"))
+    n9(("tools ★"))
+    n10(("wood"))
+    n11["building_chemical_plant<br/>lvl=0.2865 | active"]
+    n12["building_coal_mine<br/>lvl=3.472 | active"]
+    n13["building_dye_plantation<br/>lvl=0.04456 | active"]
+    n14["building_explosives_factory<br/>lvl=1.003 | active"]
+    n15["building_iron_mine<br/>lvl=6.924 | active"]
+    n16["building_logging_camp<br/>lvl=0.1003 | active"]
+    n17["building_paper_mill<br/>lvl=0.2005 | active"]
+    n18["building_rubber_plantation<br/>lvl=5.386 | active"]
+    n19["building_steel_mill<br/>lvl=6.059 | active"]
+    n20["building_sulfur_mine<br/>lvl=0.6339 | active"]
+    n21["building_tooling_workshop<br/>lvl=24.24 | active"]
+    n0 -.->|"103.9"| n15
+    n0 -.->|"181.8"| n19
+    n0 -.->|"9.508"| n20
+    n1 -->|"2.005"| n17
+    n2 -.->|"34.72"| n12
+    n2 -.->|"69.24"| n15
+    n2 -.->|"6.339"| n20
+    n3 -.->|"40.11"| n14
+    n4 -.->|"8.595"| n11
+    n4 -.->|"545.3"| n19
+    n5 -.->|"20.05"| n14
+    n6 -->|"242.4"| n21
+    n7 -.->|"727.1"| n21
+    n8 -.->|"8.595"| n11
+    n8 -.->|"40.11"| n14
+    n8 -.->|"2.005"| n17
+    n9 -.->|"52.08"| n12
+    n9 -.->|"103.9"| n15
+    n9 -.->|"0.5014"| n16
+    n9 -.->|"9.508"| n20
+    n10 -.->|"6.016"| n17
+    n11 -.->|"40.11"| n3
+    n12 -.->|"295.1"| n0
+    n13 -->|"2.005"| n1
+    n14 -.->|"110.3"| n2
+    n15 -.->|"553.9"| n4
+    n16 -.->|"6.016"| n10
+    n17 -.->|"20.05"| n5
+    n18 -->|"242.4"| n6
+    n19 -.->|"727.1"| n7
+    n20 -.->|"50.71"| n8
+    n21 -.->|"2666"| n9
+    class n0,n2,n3,n4,n5,n7,n8,n9,n10,n11,n12,n14,n15,n16,n17,n19,n20,n21 cyclic
+    class n12,n15,n16,n18,n20 resource
+    class n11,n12,n13,n14,n15,n16,n17,n18,n19,n20,n21 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

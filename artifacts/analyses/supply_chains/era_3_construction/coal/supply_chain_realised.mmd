@@ -1,0 +1,61 @@
+flowchart LR
+    n0(("coal ★"))
+    n1(("dye"))
+    n2(("explosives"))
+    n3(("fertilizer"))
+    n4(("iron"))
+    n5(("paper"))
+    n6(("rubber"))
+    n7(("steel"))
+    n8(("sulfur"))
+    n9(("tools"))
+    n10(("wood"))
+    n11["building_chemical_plant<br/>lvl=1.179 | active"]
+    n12["building_coal_mine<br/>lvl=40.61 | active"]
+    n13["building_dye_plantation<br/>lvl=0.1835 | active"]
+    n14["building_explosives_factory<br/>lvl=4.128 | active"]
+    n15["building_iron_mine<br/>lvl=2.189 | active"]
+    n16["building_logging_camp<br/>lvl=0.4128 | active"]
+    n17["building_paper_mill<br/>lvl=0.8256 | active"]
+    n18["building_rubber_plantation<br/>lvl=1.38 | active"]
+    n19["building_steel_mill<br/>lvl=1.553 | active"]
+    n20["building_sulfur_mine<br/>lvl=2.61 | active"]
+    n21["building_tooling_workshop<br/>lvl=6.211 | active"]
+    n0 -.->|"32.84"| n15
+    n0 -.->|"46.58"| n19
+    n0 -.->|"39.14"| n20
+    n1 -->|"8.256"| n17
+    n2 -.->|"406.1"| n12
+    n2 -.->|"21.89"| n15
+    n2 -.->|"26.1"| n20
+    n3 -.->|"165.1"| n14
+    n4 -.->|"35.38"| n11
+    n4 -.->|"139.7"| n19
+    n5 -.->|"82.56"| n14
+    n6 -->|"62.11"| n21
+    n7 -.->|"186.3"| n21
+    n8 -.->|"35.38"| n11
+    n8 -.->|"165.1"| n14
+    n8 -.->|"8.256"| n17
+    n9 -.->|"609.2"| n12
+    n9 -.->|"32.84"| n15
+    n9 -.->|"2.064"| n16
+    n9 -.->|"39.14"| n20
+    n10 -.->|"24.77"| n17
+    n11 -.->|"165.1"| n3
+    n12 -.->|"3452"| n0
+    n13 -->|"8.256"| n1
+    n14 -.->|"454.1"| n2
+    n15 -.->|"175.1"| n4
+    n16 -.->|"24.77"| n10
+    n17 -.->|"82.56"| n5
+    n18 -->|"62.11"| n6
+    n19 -.->|"186.3"| n7
+    n20 -.->|"208.8"| n8
+    n21 -.->|"683.2"| n9
+    class n0,n2,n3,n4,n5,n7,n8,n9,n10,n11,n12,n14,n15,n16,n17,n19,n20,n21 cyclic
+    class n12,n15,n16,n18,n20 resource
+    class n11,n12,n13,n14,n15,n16,n17,n18,n19,n20,n21 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

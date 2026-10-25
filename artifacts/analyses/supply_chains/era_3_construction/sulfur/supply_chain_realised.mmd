@@ -1,0 +1,61 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("explosives"))
+    n3(("fertilizer"))
+    n4(("iron"))
+    n5(("paper"))
+    n6(("rubber"))
+    n7(("steel"))
+    n8(("sulfur ★"))
+    n9(("tools"))
+    n10(("wood"))
+    n11["building_chemical_plant<br/>lvl=0.8846 | active"]
+    n12["building_coal_mine<br/>lvl=5.458 | active"]
+    n13["building_dye_plantation<br/>lvl=0.1376 | active"]
+    n14["building_explosives_factory<br/>lvl=3.096 | active"]
+    n15["building_iron_mine<br/>lvl=1.642 | active"]
+    n16["building_logging_camp<br/>lvl=0.3096 | active"]
+    n17["building_paper_mill<br/>lvl=0.6192 | active"]
+    n18["building_rubber_plantation<br/>lvl=1.035 | active"]
+    n19["building_steel_mill<br/>lvl=1.165 | active"]
+    n20["building_sulfur_mine<br/>lvl=26.96 | active"]
+    n21["building_tooling_workshop<br/>lvl=4.658 | active"]
+    n0 -.->|"24.63"| n15
+    n0 -.->|"34.94"| n19
+    n0 -.->|"404.4"| n20
+    n1 -->|"6.192"| n17
+    n2 -.->|"54.58"| n12
+    n2 -.->|"16.42"| n15
+    n2 -.->|"269.6"| n20
+    n3 -.->|"123.8"| n14
+    n4 -.->|"26.54"| n11
+    n4 -.->|"104.8"| n19
+    n5 -.->|"61.92"| n14
+    n6 -->|"46.58"| n21
+    n7 -.->|"139.7"| n21
+    n8 -.->|"26.54"| n11
+    n8 -.->|"123.8"| n14
+    n8 -.->|"6.192"| n17
+    n9 -.->|"81.87"| n12
+    n9 -.->|"24.63"| n15
+    n9 -.->|"1.548"| n16
+    n9 -.->|"404.4"| n20
+    n10 -.->|"18.58"| n17
+    n11 -.->|"123.8"| n3
+    n12 -.->|"463.9"| n0
+    n13 -->|"6.192"| n1
+    n14 -.->|"340.6"| n2
+    n15 -.->|"131.3"| n4
+    n16 -.->|"18.58"| n10
+    n17 -.->|"61.92"| n5
+    n18 -->|"46.58"| n6
+    n19 -.->|"139.7"| n7
+    n20 -.->|"2157"| n8
+    n21 -.->|"512.4"| n9
+    class n0,n2,n3,n4,n5,n7,n8,n9,n10,n11,n12,n14,n15,n16,n17,n19,n20,n21 cyclic
+    class n12,n15,n16,n18,n20 resource
+    class n11,n12,n13,n14,n15,n16,n17,n18,n19,n20,n21 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

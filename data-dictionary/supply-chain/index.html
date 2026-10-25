@@ -1,0 +1,3096 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Every summary and detailed supply-chain report column, sweep field, and example addition.">
+      
+      
+      
+        <link rel="canonical" href="https://shabbygaybar.github.io/victoria3-analysis/data-dictionary/supply-chain/">
+      
+      
+        <link rel="prev" href="../economy/">
+      
+      
+        <link rel="next" href="../../api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Supply-chain reports - Victoria 3 Analysis</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#supply-chain-reports" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Victoria 3 Analysis" class="md-header__button md-logo" aria-label="Victoria 3 Analysis" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m16 11.78 4.24-7.33 1.73 1-5.23 9.05-6.51-3.75L5.46 19H22v2H2V3h2v14.54L9.5 8z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Victoria 3 Analysis
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Supply-chain reports
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ShabbyGayBar/victoria3-analysis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ShabbyGayBar/victoria3-analysis
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../showcase/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Showcase
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Data dictionary
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../roadmap/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Victoria 3 Analysis" class="md-nav__button md-logo" aria-label="Victoria 3 Analysis" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m16 11.78 4.24-7.33 1.73 1-5.23 9.05-6.51-3.75L5.46 19H22v2H2V3h2v14.54L9.5 8z"/></svg>
+
+    </a>
+    Victoria 3 Analysis
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ShabbyGayBar/victoria3-analysis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ShabbyGayBar/victoria3-analysis
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsing game data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../showcase/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Showcase
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Showcase
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/parsed-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsed data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/production-unit-rankings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-unit rankings (Chinese)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/buy-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Buy packages (English)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/buy-packages-zh-CN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Buy packages (简体中文)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/supply-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/resource-limited-optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resource-limited optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data dictionary
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data dictionary
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parser outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production configurations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain reports
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scope-prices-and-graph-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope, prices, and graph views
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-building-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource building levels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#processes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Goods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flows
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workforce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workforce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints-and-bottlenecks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints and bottlenecks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sweep-summary-and-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sweep summary and failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-csv-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example CSV additions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsing and utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy and production
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../supply-chain-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain design references
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scope-prices-and-graph-views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope, prices, and graph views
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-building-levels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource building levels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#processes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Goods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Flows
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workforce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workforce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constraints-and-bottlenecks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constraints and bottlenecks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sweep-summary-and-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sweep summary and failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-csv-additions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example CSV additions
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Data dictionary
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="supply-chain-reports">Supply-chain reports<a class="headerlink" href="#supply-chain-reports" title="Permanent link">&para;</a></h1>
+<p><code>SupplyChainAnalyzer</code> solves a nominal scenario for exactly one positive target
+good. Its immutable result exposes the reports below. All schemas remain
+present when a report is empty. See <a href="../">shared conventions</a> and the
+<a href="../../guides/supply-chain/">supply-chain guide</a>.</p>
+<h2 id="scope-prices-and-graph-views">Scope, prices, and graph views<a class="headerlink" href="#scope-prices-and-graph-views" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>System</strong> means every configuration in the solved state, including any
+  production outside the terminal good's upstream chain.</li>
+<li><strong>Chain</strong> means processes in the realized terminal graph: active upstream
+  producers, with their input goods and <strong>all</strong> coproduct outputs retained.
+  Each included process contributes its whole employment, cost, and value
+  added; nothing is allocated to individual coproducts.</li>
+<li><code>realized</code> graphs start from configurations whose level exceeds <code>tolerance</code>
+  (default <code>1e-9</code>). <code>allowed</code> graphs start from configurations not disabled by
+  the era cap, PM bans, exact building-group bans, or building limits at or
+  below tolerance. Both are restricted to the terminal's upstream graph and
+  attached coproducts. Allowed membership does not prove LP feasibility.</li>
+<li><code>processes(view)</code>, <code>goods(view)</code>, and <code>flows(view)</code> use the requested graph,
+  defaulting to <code>realized</code>. Even in <code>allowed</code>, quantities use the <strong>same solved
+  levels</strong>; inactive alternatives do not get hypothetical production.</li>
+<li>Input/output coefficients include the compiled fixed throughput multiplier.
+  It scales goods, not employment, construction, land, or infrastructure.
+  Coefficients split production-table net flows into positive input/output
+  magnitudes; flows already offset in that table cannot be recovered.</li>
+<li>Prices are state prices: base prices for the public nominal analyzer. The
+  market automobile example at the end of this page has a separate schema.</li>
+</ul>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<p><code>result.summary()</code> is a Series with these fixed fields and the resource-building
+column families below, named after the terminal good. Sweeps turn them into columns.
+On a successful analyzer result, all fields
+are present. Let <code>Q</code> denote <strong>whole-system</strong> terminal net output, <code>G_chain</code> chain
+weekly value added, and <code>L_chain</code> chain employment. Safe division returns zero
+only for an exactly zero denominator.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scenario</code></td>
+<td>String / label</td>
+<td><code>Scenario.display_name()</code>.</td>
+<td>Uses explicit scenario name or the generated display name.</td>
+</tr>
+<tr>
+<td><code>terminal_good</code></td>
+<td>String / identifier</td>
+<td>The single good being analyzed.</td>
+<td>Matches the scenario's production target.</td>
+</tr>
+<tr>
+<td><code>objective</code></td>
+<td>String / category</td>
+<td>Nominal objective: <code>gdp</code>, <code>employment</code>, <code>automation</code>, or <code>construction_cost</code>.</td>
+<td><code>gdp_per_capita</code> is rejected by the analyzer.</td>
+</tr>
+<tr>
+<td><code>solver_status</code></td>
+<td>Integer / status code</td>
+<td>HiGHS result status.</td>
+<td>Successful solves normally report 0; sweep failures use synthetic -1.</td>
+</tr>
+<tr>
+<td><code>solver_message</code></td>
+<td>String / diagnostic text</td>
+<td>HiGHS message retained from the solve.</td>
+<td>Sweep failures instead retain the exception message.</td>
+</tr>
+<tr>
+<td><code>objective_value</code></td>
+<td>Float / objective units</td>
+<td>Whole-system attained objective: weekly GDP (£/week), employment (workers), automation (workers), or construction points.</td>
+<td>Sign restored for maximized GDP/employment; not necessarily a chain-only metric.</td>
+</tr>
+<tr>
+<td><code>target_quantity</code></td>
+<td>Float / goods units per week</td>
+<td>Requested production target.</td>
+<td>Strictly positive; a lower bound on net production, not realized gross output.</td>
+</tr>
+<tr>
+<td><code>target_base_value</code></td>
+<td>Float / £ per week</td>
+<td>Target quantity times terminal state price.</td>
+<td>Equals base value in nominal analysis; sweep preserves requested value on failure.</td>
+</tr>
+<tr>
+<td><code>terminal_base_price</code></td>
+<td>Float / £ per goods unit</td>
+<td>Terminal price from the state.</td>
+<td>Base price in nominal analysis; not an annual rate.</td>
+</tr>
+<tr>
+<td><code>terminal_gross_output</code></td>
+<td>Float / goods units per week</td>
+<td>Whole-system terminal <code>building_goods_output</code>.</td>
+<td>Before subtracting terminal consumption by processes.</td>
+</tr>
+<tr>
+<td><code>terminal_net_output</code></td>
+<td>Float / goods units per week</td>
+<td><code>Q = levels @ net_matrix[:, terminal]</code>.</td>
+<td>Whole-system output minus process inputs; not reduced by exports or population orders.</td>
+</tr>
+<tr>
+<td><code>terminal_surplus</code></td>
+<td>Float / goods units per week</td>
+<td><code>terminal_net_output - target_quantity</code>.</td>
+<td>Can be slightly negative within solver tolerance; not a market order balance.</td>
+</tr>
+<tr>
+<td><code>system_gdp_weekly</code></td>
+<td>Float / £ per week</td>
+<td>Sum of system output minus input quantities valued at state prices.</td>
+<td>Excludes payroll; imports/exports are not separately added to GDP.</td>
+</tr>
+<tr>
+<td><code>system_gdp_annual</code></td>
+<td>Float / £ per year</td>
+<td><code>52 * system_gdp_weekly</code>.</td>
+<td>Annualization only, not a second solve.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_weekly</code></td>
+<td>Float / £ per week</td>
+<td><code>G_chain = sum(realized process value_added)</code>.</td>
+<td>Includes entire coproduct values of included processes.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_annual</code></td>
+<td>Float / £ per year</td>
+<td><code>52 * chain_gdp_weekly</code>.</td>
+<td>Same process scope as weekly chain GDP.</td>
+</tr>
+<tr>
+<td><code>system_employment</code></td>
+<td>Float / workers</td>
+<td>Sum of all state employment.</td>
+<td>Model population means employed workers.</td>
+</tr>
+<tr>
+<td><code>chain_employment</code></td>
+<td>Float / workers</td>
+<td><code>L_chain = sum(realized process employment)</code>.</td>
+<td>No allocation to individual output goods.</td>
+</tr>
+<tr>
+<td><code>system_construction_cost</code></td>
+<td>Float / construction points</td>
+<td>Whole-system levels dotted with construction coefficients.</td>
+<td>A stock of required construction, not a weekly cost.</td>
+</tr>
+<tr>
+<td><code>chain_construction_cost</code></td>
+<td>Float / construction points</td>
+<td>Sum of realized process construction costs.</td>
+<td>Can be zero for zero-cost configurations.</td>
+</tr>
+<tr>
+<td><code>system_arable_land</code></td>
+<td>Float / arable-land units</td>
+<td>Whole-system levels dotted with land coefficients.</td>
+<td>Uses the immediate agricultural group rule on the economy dictionary page.</td>
+</tr>
+<tr>
+<td><code>chain_arable_land</code></td>
+<td>Float / arable-land units</td>
+<td>Sum of realized process arable land.</td>
+<td>Zero when no included process consumes modeled arable land.</td>
+</tr>
+<tr>
+<td><code>system_net_infrastructure_usage</code></td>
+<td>Float / infrastructure points</td>
+<td>Whole-system levels dotted with net infrastructure coefficients.</td>
+<td>Negative means net infrastructure provision.</td>
+</tr>
+<tr>
+<td><code>chain_net_infrastructure_usage</code></td>
+<td>Float / infrastructure points</td>
+<td>Sum of realized process net infrastructure usage.</td>
+<td>Also signed; not an absolute consumption total.</td>
+</tr>
+<tr>
+<td><code>employment_per_terminal_unit</code></td>
+<td>Float / workers per unit/week of output capacity</td>
+<td><code>L_chain / Q</code>.</td>
+<td>Safe division; denominator is net <strong>system</strong> output, not the target or gross output.</td>
+</tr>
+<tr>
+<td><code>construction_per_terminal_unit</code></td>
+<td>Float / construction points per unit/week of output capacity</td>
+<td><code>chain_construction_cost / Q</code>.</td>
+<td>Safe division; construction is not annualized.</td>
+</tr>
+<tr>
+<td><code>gdp_per_terminal_unit</code></td>
+<td>Float / £ per terminal goods unit</td>
+<td><code>G_chain / Q</code>.</td>
+<td>Both GDP and net production are weekly; their time factors cancel.</td>
+</tr>
+<tr>
+<td><code>output_per_10k_workers</code></td>
+<td>Float / goods units per week per 10,000 workers</td>
+<td><code>Q * 10000 / L_chain</code>.</td>
+<td>Safe division; zero if chain employment is exactly zero.</td>
+</tr>
+<tr>
+<td><code>realized_process_count</code></td>
+<td>Integer / nodes</td>
+<td>Number of configurations in the realized graph.</td>
+<td>Counts configurations, not summed building levels.</td>
+</tr>
+<tr>
+<td><code>realized_good_count</code></td>
+<td>Integer / nodes</td>
+<td>Number of good nodes in the realized graph.</td>
+<td>Includes terminal and attached coproduct goods.</td>
+</tr>
+<tr>
+<td><code>realized_edge_count</code></td>
+<td>Integer / edges</td>
+<td>Number of directed goods/process edges in the realized graph.</td>
+<td>Input and output edges count separately.</td>
+</tr>
+<tr>
+<td><code>allowed_process_count</code></td>
+<td>Integer / nodes</td>
+<td>Number of configurations in the allowed graph.</td>
+<td>Includes inactive alternatives upstream of the terminal.</td>
+</tr>
+<tr>
+<td><code>allowed_good_count</code></td>
+<td>Integer / nodes</td>
+<td>Number of good nodes in the allowed graph.</td>
+<td>Does not count every good in the economy.</td>
+</tr>
+<tr>
+<td><code>allowed_edge_count</code></td>
+<td>Integer / edges</td>
+<td>Number of directed edges in the allowed graph.</td>
+<td>Not the number of diagram edges after visualization pruning.</td>
+</tr>
+<tr>
+<td><code>cyclic_component_count</code></td>
+<td>Integer / components</td>
+<td>Realized strongly connected components with more than one node, or a self-loop.</td>
+<td>Zero for an acyclic graph.</td>
+</tr>
+<tr>
+<td><code>cyclic_node_count</code></td>
+<td>Integer / nodes</td>
+<td>Number of realized nodes participating in a directed cycle.</td>
+<td>Counts both goods and process nodes.</td>
+</tr>
+<tr>
+<td><code>condensation_depth</code></td>
+<td>Integer / edges</td>
+<td>Longest directed-path length after each realized strongly connected component becomes one node.</td>
+<td>Zero for an empty or single-component condensation; counts bipartite graph edges.</td>
+</tr>
+<tr>
+<td><code>extractive_process_count</code></td>
+<td>Integer / configurations</td>
+<td>Count of realized processes marked <code>is_extractive</code>.</td>
+<td>Uses immediate parent <code>bg_extraction</code> or either resource flag.</td>
+</tr>
+<tr>
+<td><code>resource_process_count</code></td>
+<td>Integer / configurations</td>
+<td>Count with <code>discoverable_resource</code> <strong>or</strong> <code>depletable_resource</code>.</td>
+<td>A process with both flags counts once; not resource capacity or remaining stock.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_share</code></td>
+<td>Float / signed ratio</td>
+<td><code>chain_gdp_weekly / system_gdp_weekly</code>.</td>
+<td>Safe division; negative or offsetting contributions can put the ratio outside [0, 1].</td>
+</tr>
+<tr>
+<td><code>chain_employment_share</code></td>
+<td>Float / fraction</td>
+<td><code>chain_employment / system_employment</code>.</td>
+<td>Safe division.</td>
+</tr>
+<tr>
+<td><code>chain_construction_share</code></td>
+<td>Float / fraction</td>
+<td><code>chain_construction_cost / system_construction_cost</code>.</td>
+<td>Safe division.</td>
+</tr>
+<tr>
+<td><code>chain_arable_land_share</code></td>
+<td>Float / fraction</td>
+<td><code>chain_arable_land / system_arable_land</code>.</td>
+<td>Safe division.</td>
+</tr>
+<tr>
+<td><code>chain_infrastructure_share</code></td>
+<td>Float / signed ratio</td>
+<td><code>chain_net_infrastructure_usage / system_net_infrastructure_usage</code>.</td>
+<td>Safe division; cancellation and negative values mean it need not lie in [0, 1].</td>
+</tr>
+<tr>
+<td><code>system_gdp_per_capita_weekly</code></td>
+<td>Float / £ per worker per week</td>
+<td><code>system_gdp_weekly / system_employment</code>.</td>
+<td>Safe division; population means employed workers.</td>
+</tr>
+<tr>
+<td><code>system_gdp_per_capita_annual</code></td>
+<td>Float / £ per worker per year</td>
+<td><code>52 * system_gdp_per_capita_weekly</code>.</td>
+<td>Included in every summary and sweep, including the video export.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_per_capita_weekly</code></td>
+<td>Float / £ per worker per week</td>
+<td><code>chain_gdp_weekly / chain_employment</code>.</td>
+<td>Safe division; includes whole-process coproduct contributions.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_per_capita_annual</code></td>
+<td>Float / £ per worker per year</td>
+<td><code>52 * chain_gdp_per_capita_weekly</code>.</td>
+<td>Same realized-chain scope.</td>
+</tr>
+<tr>
+<td><code>system_wage_normalized_employment</code></td>
+<td>Float / private-wage-equivalent workers</td>
+<td>Sum of system levels times production-table <code>wage_normalized_employment</code>.</td>
+<td>NaN if the column or any contributing coefficient is unavailable/nonfinite; inactive missing coefficients are ignored.</td>
+</tr>
+<tr>
+<td><code>chain_wage_normalized_employment</code></td>
+<td>Float / private-wage-equivalent workers</td>
+<td>Sum of realized-chain levels times production-table <code>wage_normalized_employment</code>.</td>
+<td>Same missing-data policy, restricted to contributing chain processes.</td>
+</tr>
+<tr>
+<td><code>system_gdp_per_wage_normalized_employment_weekly</code></td>
+<td>Float / £ per wage-equivalent worker per week</td>
+<td><code>system_gdp_weekly / system_wage_normalized_employment</code>.</td>
+<td>Safe division; NaN when wage coefficients are unavailable.</td>
+</tr>
+<tr>
+<td><code>system_gdp_per_wage_normalized_employment_annual</code></td>
+<td>Float / £ per wage-equivalent worker per year</td>
+<td><code>52 * system_gdp_per_wage_normalized_employment_weekly</code>.</td>
+<td>NaN when wage coefficients are unavailable.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_per_wage_normalized_employment_weekly</code></td>
+<td>Float / £ per wage-equivalent worker per week</td>
+<td><code>chain_gdp_weekly / chain_wage_normalized_employment</code>.</td>
+<td>Safe division; NaN when contributing chain wage coefficients are unavailable.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_per_wage_normalized_employment_annual</code></td>
+<td>Float / £ per wage-equivalent worker per year</td>
+<td><code>52 * chain_gdp_per_wage_normalized_employment_weekly</code>.</td>
+<td>Same realized-chain scope.</td>
+</tr>
+<tr>
+<td><code>system_gdp_per_construction_cost_weekly</code></td>
+<td>Float / £ per construction point per week</td>
+<td><code>system_gdp_weekly / system_construction_cost</code>.</td>
+<td>Safe division; construction is a stock, not a weekly expense.</td>
+</tr>
+<tr>
+<td><code>system_gdp_per_construction_cost_annual</code></td>
+<td>Float / £ per construction point per year</td>
+<td><code>52 * system_gdp_per_construction_cost_weekly</code>.</td>
+<td>Annualizes GDP only.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_per_construction_cost_weekly</code></td>
+<td>Float / £ per construction point per week</td>
+<td><code>chain_gdp_weekly / chain_construction_cost</code>.</td>
+<td>Safe division; includes all construction of realized-chain processes.</td>
+</tr>
+<tr>
+<td><code>chain_gdp_per_construction_cost_annual</code></td>
+<td>Float / £ per construction point per year</td>
+<td><code>52 * chain_gdp_per_construction_cost_weekly</code>.</td>
+<td>Annualizes GDP only.</td>
+</tr>
+</tbody>
+</table>
+<p>Graph counts use the complete retained graphs. They are independent of the
+top-producer pruning used by a plotted or Mermaid allowed view.</p>
+<h2 id="resource-building-levels">Resource building levels<a class="headerlink" href="#resource-building-levels" title="Permanent link">&para;</a></h2>
+<p>These summary column families use full building identifiers, for example
+<code>chain_levels_building_coal_mine</code> and
+<code>chain_levels_per_10k_pop_building_coal_mine</code>. Extraction membership uses the
+same rule as <code>is_extractive</code>: immediate parent <code>bg_extraction</code>, or a discoverable
+or depletable resource flag. This includes ordinary mines, logging camps,
+fishing wharves, whaling stations, rubber plantations, and oil rigs. Farms,
+ranches, and other arable-land plantations remain represented by arable land.</p>
+<p>Types come from the full economy production table, including banned and unused
+types. Columns follow the fixed summary fields, sorted by building identifier;
+within each type, system raw/normalized levels precede chain raw/normalized
+levels. All summaries from one economy share this schema, even empty sweeps
+and all-failure sweeps. Successful unused types are zero; failed solves are NaN.</p>
+<table>
+<thead>
+<tr>
+<th>Column family</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>system_levels_&lt;building&gt;</code></td>
+<td>Float / building levels</td>
+<td>Sum of all solved configuration levels for this extraction building type.</td>
+<td>Fractional levels are retained; no aggregate resource-level total is added.</td>
+</tr>
+<tr>
+<td><code>system_levels_per_10k_pop_&lt;building&gt;</code></td>
+<td>Float / levels per 10,000 workers</td>
+<td><code>system_levels_&lt;building&gt; * 10000 / system_employment</code>.</td>
+<td>Safe division; excludes dependents and unemployed people.</td>
+</tr>
+<tr>
+<td><code>chain_levels_&lt;building&gt;</code></td>
+<td>Float / building levels</td>
+<td>Sum of realized-chain configuration levels for this extraction building type.</td>
+<td>Multiple PM configurations of one building type are combined.</td>
+</tr>
+<tr>
+<td><code>chain_levels_per_10k_pop_&lt;building&gt;</code></td>
+<td>Float / levels per 10,000 workers</td>
+<td><code>chain_levels_&lt;building&gt; * 10000 / chain_employment</code>.</td>
+<td>Safe division; 5 levels and 2,000 chain workers give 25 levels per 10,000 workers.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="processes">Processes<a class="headerlink" href="#processes" title="Permanent link">&para;</a></h2>
+<p><code>result.processes(view)</code> has one row per configuration in the requested graph,
+in production-table row order. Let <code>x</code> be its solved level, <code>m</code> its throughput
+multiplier, <code>I</code> its adjusted input value per level, and <code>O</code> its adjusted output
+value per level. Unit economics retain all output goods.</p>
+<p>Here, <strong>process</strong> means a building with its complete PM combination, rather
+than the building type alone. The guide explains the
+<a href="../../guides/supply-chain/#why-the-graph-uses-processes">naming rationale and parallels with Brightway</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config</code></td>
+<td>String / configuration identifier</td>
+<td><code>Economy.building_index</code> key for the row.</td>
+<td>Joins to <code>flows.process</code> and workforce/alternatives <code>config</code>.</td>
+</tr>
+<tr>
+<td><code>building</code></td>
+<td>String / identifier</td>
+<td>Source building key.</td>
+<td>Multiple configurations may share it.</td>
+</tr>
+<tr>
+<td><code>production_method</code></td>
+<td>String / compound identifiers</td>
+<td>Complete chosen method combination.</td>
+<td>Methods are joined by <code>+</code>.</td>
+</tr>
+<tr>
+<td><code>building_group</code></td>
+<td>String / identifier</td>
+<td>Immediate source building group.</td>
+<td>Missing metadata defaults to empty string.</td>
+</tr>
+<tr>
+<td><code>parent_group</code></td>
+<td>String / identifier</td>
+<td>Immediate parent metadata of that group.</td>
+<td>Missing metadata defaults to empty string.</td>
+</tr>
+<tr>
+<td><code>land_usage</code></td>
+<td>String / category</td>
+<td>Source resolved land-use metadata.</td>
+<td>Missing metadata defaults to empty string; not the land coefficient itself.</td>
+</tr>
+<tr>
+<td><code>era</code></td>
+<td>Integer / era number</td>
+<td>Source configuration era.</td>
+<td>Required by the reporting implementation.</td>
+</tr>
+<tr>
+<td><code>allowed</code></td>
+<td>Boolean / membership flag</td>
+<td>Process node is in the terminal's allowed graph.</td>
+<td>Graph membership, not independent LP feasibility.</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>Boolean / solved flag</td>
+<td><code>x &gt; tolerance</code>.</td>
+<td>May be false in the allowed view.</td>
+</tr>
+<tr>
+<td><code>in_terminal_chain</code></td>
+<td>Boolean / membership flag</td>
+<td>Configuration appears in the realized terminal graph.</td>
+<td>An active process elsewhere in the system can still be false.</td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td>Float / building levels</td>
+<td><code>x</code>, from the whole solved state.</td>
+<td>Fractional or zero levels are valid.</td>
+</tr>
+<tr>
+<td><code>throughput_multiplier</code></td>
+<td>Float / multiplier</td>
+<td>Compiled fixed goods multiplier <code>m</code>.</td>
+<td><code>1</code> means unchanged; excludes level-dependent economy of scale.</td>
+</tr>
+<tr>
+<td><code>unit_input_cost</code></td>
+<td>Float / £ per week per level</td>
+<td><code>I = adjusted input row @ state prices</code>.</td>
+<td>Includes throughput; zero with no modeled inputs.</td>
+</tr>
+<tr>
+<td><code>unit_output_value</code></td>
+<td>Float / £ per week per level</td>
+<td><code>O = adjusted output row @ state prices</code>.</td>
+<td>Includes every coproduct.</td>
+</tr>
+<tr>
+<td><code>unit_value_added</code></td>
+<td>Float / £ per week per level</td>
+<td><code>O - I</code>.</td>
+<td>Can be negative; excludes wages.</td>
+</tr>
+<tr>
+<td><code>input_cost</code></td>
+<td>Float / £ per week</td>
+<td><code>I * x</code>.</td>
+<td>Zero for a zero-level allowed alternative.</td>
+</tr>
+<tr>
+<td><code>output_value</code></td>
+<td>Float / £ per week</td>
+<td><code>O * x</code>.</td>
+<td>Zero for a zero-level allowed alternative.</td>
+</tr>
+<tr>
+<td><code>value_added</code></td>
+<td>Float / £ per week</td>
+<td><code>(O - I) * x</code>.</td>
+<td>Entire process contribution, not allocated to one good.</td>
+</tr>
+<tr>
+<td><code>employment</code></td>
+<td>Float / workers</td>
+<td>Per-level employment coefficient times <code>x</code>.</td>
+<td>Not multiplied by <code>m</code>.</td>
+</tr>
+<tr>
+<td><code>construction_cost</code></td>
+<td>Float / construction points</td>
+<td>Per-level construction coefficient times <code>x</code>.</td>
+<td>Not multiplied by <code>m</code>.</td>
+</tr>
+<tr>
+<td><code>arable_land</code></td>
+<td>Float / arable-land units</td>
+<td>Per-level land coefficient times <code>x</code>.</td>
+<td>Uses immediate group membership; not multiplied by <code>m</code>.</td>
+</tr>
+<tr>
+<td><code>net_infrastructure_usage</code></td>
+<td>Float / infrastructure points</td>
+<td>Per-level net infrastructure coefficient times <code>x</code>.</td>
+<td>Signed; not multiplied by <code>m</code>.</td>
+</tr>
+<tr>
+<td><code>is_extractive</code></td>
+<td>Boolean / classification flag</td>
+<td>Immediate <code>parent_group == "bg_extraction"</code> or either resource flag in allowed-graph metadata.</td>
+<td>Defaults false if no matching metadata; does not traverse ancestors.</td>
+</tr>
+<tr>
+<td><code>is_subsistence</code></td>
+<td>Boolean / source flag</td>
+<td>Source subsistence metadata.</td>
+<td>Missing metadata defaults false.</td>
+</tr>
+<tr>
+<td><code>discoverable_resource</code></td>
+<td>Boolean / source flag</td>
+<td>Source discoverable-resource metadata.</td>
+<td>Missing metadata defaults false.</td>
+</tr>
+<tr>
+<td><code>depletable_resource</code></td>
+<td>Boolean / source flag</td>
+<td>Source depletable-resource metadata.</td>
+<td>Missing metadata defaults false; depletion is not simulated.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="goods">Goods<a class="headerlink" href="#goods" title="Permanent link">&para;</a></h2>
+<p><code>result.goods(view)</code> has one row per good node in the requested graph, in
+economy goods order. Production and consumption sum only processes in that
+view, while imports, exports, and population orders come from the <strong>whole
+state</strong>. This mix of scopes means these balances need not equal whole-system
+market balances. Producer counts use the two retained graphs irrespective of
+the requested view.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>good</code></td>
+<td>String / identifier</td>
+<td>Good key.</td>
+<td>Includes attached coproduct goods.</td>
+</tr>
+<tr>
+<td><code>terminal</code></td>
+<td>Boolean / flag</td>
+<td>Whether this is the analyzed terminal good.</td>
+<td>True only for the terminal key.</td>
+</tr>
+<tr>
+<td><code>price</code></td>
+<td>Float / £ per goods unit</td>
+<td>State price for this good.</td>
+<td>Base price in nominal analysis.</td>
+</tr>
+<tr>
+<td><code>production</code></td>
+<td>Float / goods units per week</td>
+<td>View-process levels times adjusted output coefficients.</td>
+<td>Zero is valid for an input-only good or inactive allowed production.</td>
+</tr>
+<tr>
+<td><code>consumption</code></td>
+<td>Float / goods units per week</td>
+<td>View-process levels times adjusted input coefficients.</td>
+<td>Positive magnitude, not a negative signed flow.</td>
+</tr>
+<tr>
+<td><code>imports</code></td>
+<td>Float / goods units per week</td>
+<td>Whole-state imported orders.</td>
+<td>Zero when no imports supplied.</td>
+</tr>
+<tr>
+<td><code>exports</code></td>
+<td>Float / goods units per week</td>
+<td>Whole-state exported orders.</td>
+<td>Zero when no exports supplied.</td>
+</tr>
+<tr>
+<td><code>pop_needs</code></td>
+<td>Float / goods units per week</td>
+<td>Whole-state exogenous population orders.</td>
+<td>Zero when no population orders supplied.</td>
+</tr>
+<tr>
+<td><code>sell_orders</code></td>
+<td>Float / goods units per week</td>
+<td>View <code>production + imports</code>.</td>
+<td>Combines view and state scope.</td>
+</tr>
+<tr>
+<td><code>buy_orders</code></td>
+<td>Float / goods units per week</td>
+<td>View <code>consumption + exports + pop_needs</code>.</td>
+<td>Combines view and state scope.</td>
+</tr>
+<tr>
+<td><code>net_balance</code></td>
+<td>Float / goods units per week</td>
+<td><code>sell_orders - buy_orders</code>.</td>
+<td>Signed; differs from terminal net production.</td>
+</tr>
+<tr>
+<td><code>output_value</code></td>
+<td>Float / £ per week</td>
+<td>View <code>production * price</code>.</td>
+<td>Imports are not included.</td>
+</tr>
+<tr>
+<td><code>input_value</code></td>
+<td>Float / £ per week</td>
+<td>View <code>consumption * price</code>.</td>
+<td>Exports/population orders are not included.</td>
+</tr>
+<tr>
+<td><code>input_cost_share</code></td>
+<td>Float / fraction</td>
+<td><code>input_value / total input value of all view processes</code>.</td>
+<td>Safe division; zero when total input value is zero.</td>
+</tr>
+<tr>
+<td><code>allowed_producers</code></td>
+<td>Integer / configurations</td>
+<td>Process predecessors of this good in the allowed graph.</td>
+<td>Restricted graph count, not every producer in the economy.</td>
+</tr>
+<tr>
+<td><code>active_producers</code></td>
+<td>Integer / configurations</td>
+<td>Process predecessors of this good in the realized graph.</td>
+<td>Count unaffected by <code>view</code>; does not sum their levels.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="flows">Flows<a class="headerlink" href="#flows" title="Permanent link">&para;</a></h2>
+<p><code>result.flows(view)</code> has one row per directed graph edge, sorted by the source
+and target node strings. Inputs point from goods to processes; outputs point
+from processes to goods. Rates and amounts are positive magnitudes.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td>String / node identifier</td>
+<td>Edge source: <code>good:&lt;key&gt;</code> or <code>process:&lt;config&gt;</code>.</td>
+<td>Direction depends on role.</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>String / node identifier</td>
+<td>Edge target: <code>process:&lt;config&gt;</code> or <code>good:&lt;key&gt;</code>.</td>
+<td>Direction depends on role.</td>
+</tr>
+<tr>
+<td><code>role</code></td>
+<td>String / category</td>
+<td><code>input</code> or <code>output</code>.</td>
+<td>Distinguishes flow direction without a signed rate.</td>
+</tr>
+<tr>
+<td><code>good</code></td>
+<td>String / identifier</td>
+<td>Good carried by this edge.</td>
+<td>Same key as the goods report.</td>
+</tr>
+<tr>
+<td><code>process</code></td>
+<td>String / configuration identifier</td>
+<td>Configuration key, without the <code>process:</code> prefix.</td>
+<td>Same key as process <code>config</code>.</td>
+</tr>
+<tr>
+<td><code>unit_rate</code></td>
+<td>Float / goods units per week per level</td>
+<td>Adjusted input or output coefficient.</td>
+<td>Includes throughput; edges are created only for coefficients &gt; 0.</td>
+</tr>
+<tr>
+<td><code>realized_amount</code></td>
+<td>Float / goods units per week</td>
+<td><code>unit_rate * solved process level</code>.</td>
+<td>Can be zero for an allowed alternative.</td>
+</tr>
+<tr>
+<td><code>price</code></td>
+<td>Float / £ per goods unit</td>
+<td>State price for the edge's good.</td>
+<td>Base price in nominal analysis.</td>
+</tr>
+<tr>
+<td><code>realized_value</code></td>
+<td>Float / £ per week</td>
+<td><code>realized_amount * price</code>.</td>
+<td>Zero for an inactive flow.</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>Boolean / flow flag</td>
+<td><code>realized_amount &gt; tolerance</code>.</td>
+<td>Amount threshold, distinct from process level threshold.</td>
+</tr>
+<tr>
+<td><code>in_cycle</code></td>
+<td>Boolean / endpoint flag</td>
+<td>Both endpoints are cyclic nodes in the requested graph.</td>
+<td>Does not require them to belong to the same cyclic component; do not interpret it as an exact cycle-edge test.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="workforce">Workforce<a class="headerlink" href="#workforce" title="Permanent link">&para;</a></h2>
+<p><code>result.workforce()</code> uses only realized-chain configurations, in row order then
+profession order. It omits process/profession employment at or below tolerance.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config</code></td>
+<td>String / configuration identifier</td>
+<td>Configuration employing the profession.</td>
+<td>Joins to processes.</td>
+</tr>
+<tr>
+<td><code>building</code></td>
+<td>String / identifier</td>
+<td>Configuration's source building.</td>
+<td>Multiple rows can share it.</td>
+</tr>
+<tr>
+<td><code>profession</code></td>
+<td>String / identifier</td>
+<td>Profession key from the economy's profession index.</td>
+<td>No row for employment at or below tolerance.</td>
+</tr>
+<tr>
+<td><code>employment</code></td>
+<td>Float / workers</td>
+<td>State employment cell for this configuration/profession.</td>
+<td>Per-level profession coefficient times solved level; throughput does not change it.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="constraints-and-bottlenecks">Constraints and bottlenecks<a class="headerlink" href="#constraints-and-bottlenecks" title="Permanent link">&para;</a></h2>
+<p><code>result.constraints()</code> exposes compiled LP rows, inequalities first and
+equalities second, in their named slice order. Constraints apply to the whole
+system. Inequalities are stored in canonical form <code>A_ub @ levels &lt;= b_ub</code>;
+for example a minimum production target is stored with negative coefficients
+and a negative bound. Interpret the <strong>compiled</strong> sign before converting a
+marginal to a gameplay change. Variable bounds are not rows in this report.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td>String / category</td>
+<td><code>inequality</code> or <code>equality</code>.</td>
+<td>Determines slack/residual interpretation.</td>
+</tr>
+<tr>
+<td><code>family</code></td>
+<td>String / constraint identifier</td>
+<td>Named compiled constraint slice, such as <code>min_goods_output</code>, <code>default_min_goods_output</code>, or <code>building_level_caps</code>.</td>
+<td>Only families present in the compiled problem appear.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>String / row label</td>
+<td>Good/building/group key for applicable families; PM bans use their <code>+</code>-joined keys; other rows use the family name.</td>
+<td>If label count differs from row count, uses <code>family[i]</code>.</td>
+</tr>
+<tr>
+<td><code>realized_value</code></td>
+<td>Float / compiled row units</td>
+<td><code>A_row @ solved levels</code>.</td>
+<td>Signed canonical left-hand side, not always the physical quantity named by the family.</td>
+</tr>
+<tr>
+<td><code>bound</code></td>
+<td>Float / compiled row units</td>
+<td>Stored right-hand side <code>b_row</code>.</td>
+<td>A lower-bound target can be represented as a negative bound.</td>
+</tr>
+<tr>
+<td><code>slack</code></td>
+<td>Float / compiled row units</td>
+<td>For inequalities, <code>bound - realized_value</code>.</td>
+<td>NaN for equalities; slightly negative values can occur within solver tolerance.</td>
+</tr>
+<tr>
+<td><code>residual</code></td>
+<td>Float / compiled row units</td>
+<td>For equalities, <code>realized_value - bound</code>.</td>
+<td>Exactly 0 in this column for inequalities.</td>
+</tr>
+<tr>
+<td><code>binding</code></td>
+<td>Boolean / threshold flag</td>
+<td>Inequality <code>slack &lt;= tolerance</code>; equality <code>abs(residual) &lt;= tolerance</code>.</td>
+<td>Numerical criterion, not proof that relaxing the row improves the objective.</td>
+</tr>
+<tr>
+<td><code>solver_marginal</code></td>
+<td>Float / solver objective units per compiled bound unit</td>
+<td>Raw HiGHS derivative of its <strong>minimized</strong> objective with respect to this right-hand side.</td>
+<td>NaN if diagnostics unavailable; GDP/employment objectives are negated for minimization.</td>
+</tr>
+<tr>
+<td><code>improvement_per_unit</code></td>
+<td>Float / solver objective units per compiled bound unit</td>
+<td>For a finite inequality marginal, <code>max(0, -solver_marginal)</code>.</td>
+<td>NaN for equalities or unavailable/nonfinite marginals; local sensitivity to increasing the canonical bound.</td>
+</tr>
+</tbody>
+</table>
+<p>For minimized construction/automation, positive improvement means lowering
+the minimized cost. For maximized GDP/employment, it means increasing the
+reported objective. It measures one unit of the compiled RHS, so relaxing a
+negative production constraint means lowering its requested physical minimum.
+It is local LP sensitivity and is not a guaranteed finite-change benefit.</p>
+<p><code>result.bottlenecks()</code> returns the <strong>same columns</strong>, restricted to binding
+inequalities with <code>improvement_per_unit &gt; tolerance</code>, sorted by improvement
+descending, then family and label. It has no separate schema.</p>
+<h2 id="alternatives">Alternatives<a class="headerlink" href="#alternatives" title="Permanent link">&para;</a></h2>
+<p><code>result.alternatives(good)</code> lists producer predecessors of the specified good
+in the terminal's allowed graph. With no argument it covers all goods in that
+graph. It sorts by good, selected first, unit output descending, then config.
+Unit costs and values describe the <strong>entire process</strong>, not only the requested
+good. “Selected” means membership in the realized chain, not simply a positive
+level anywhere in the system.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>good</code></td>
+<td>String / identifier</td>
+<td>Good for which this process is an alternative producer.</td>
+<td>A coproduct process can appear once per output good.</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>String / configuration identifier</td>
+<td>Allowed producer configuration key.</td>
+<td>No row if the good has no producer in the allowed graph.</td>
+</tr>
+<tr>
+<td><code>building</code></td>
+<td>String / identifier</td>
+<td>Source building key.</td>
+<td>Same metadata as the process report.</td>
+</tr>
+<tr>
+<td><code>production_method</code></td>
+<td>String / compound identifiers</td>
+<td>Complete method combination.</td>
+<td><code>+</code>-joined.</td>
+</tr>
+<tr>
+<td><code>era</code></td>
+<td>Integer / era number</td>
+<td>Configuration's required era.</td>
+<td>Same metadata as the process report.</td>
+</tr>
+<tr>
+<td><code>unit_output</code></td>
+<td>Float / goods units per week per level</td>
+<td>Adjusted output coefficient for <strong>this good</strong>.</td>
+<td>Includes throughput, unlike the all-goods monetary unit fields.</td>
+</tr>
+<tr>
+<td><code>unit_input_cost</code></td>
+<td>Float / £ per week per level</td>
+<td>Whole adjusted process input row valued at state prices.</td>
+<td>Includes all process inputs.</td>
+</tr>
+<tr>
+<td><code>unit_output_value</code></td>
+<td>Float / £ per week per level</td>
+<td>Whole adjusted process output row valued at state prices.</td>
+<td>Includes every coproduct.</td>
+</tr>
+<tr>
+<td><code>unit_value_added</code></td>
+<td>Float / £ per week per level</td>
+<td><code>unit_output_value - unit_input_cost</code>.</td>
+<td>Excludes wages; can be negative.</td>
+</tr>
+<tr>
+<td><code>selected</code></td>
+<td>Boolean / membership flag</td>
+<td>Configuration occurs in the realized terminal graph.</td>
+<td>False for alternatives outside that chain, even if active elsewhere.</td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td>Float / building levels</td>
+<td>Whole-state solved level of the configuration.</td>
+<td>Zero allowed for an inactive alternative.</td>
+</tr>
+<tr>
+<td><code>parent_group</code></td>
+<td>String / identifier</td>
+<td>Parent metadata from the allowed graph.</td>
+<td>Missing metadata defaults to empty string.</td>
+</tr>
+<tr>
+<td><code>land_usage</code></td>
+<td>String / category</td>
+<td>Land-use metadata from the allowed graph.</td>
+<td>Missing metadata defaults to empty string.</td>
+</tr>
+<tr>
+<td><code>is_extractive</code></td>
+<td>Boolean / classification flag</td>
+<td>Immediate parent <code>bg_extraction</code> or either resource flag.</td>
+<td>No ancestor traversal.</td>
+</tr>
+<tr>
+<td><code>is_subsistence</code></td>
+<td>Boolean / source flag</td>
+<td>Source subsistence flag.</td>
+<td>Missing metadata defaults false.</td>
+</tr>
+<tr>
+<td><code>discoverable_resource</code></td>
+<td>Boolean / source flag</td>
+<td>Source discoverable-resource flag.</td>
+<td>Missing metadata defaults false.</td>
+</tr>
+<tr>
+<td><code>depletable_resource</code></td>
+<td>Boolean / source flag</td>
+<td>Source depletable-resource flag.</td>
+<td>Missing metadata defaults false.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sweep-summary-and-failures">Sweep summary and failures<a class="headerlink" href="#sweep-summary-and-failures" title="Permanent link">&para;</a></h2>
+<p><code>sweep_supply_chains()</code> generates one scenario per requested good, preserving
+the requested order (by default <code>economy.producible_goods</code> order). Each quantity
+is <code>target_value / base_price</code>; every requested base price must be finite and
+positive. <code>sweep.summary</code> contains these fields followed by <strong>all</strong>
+<a href="#summary">summary fields</a>. <code>sweep.failures</code> is the failed subset with the same
+columns and a reset index, including when empty.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>good</code></td>
+<td>String / identifier</td>
+<td>Good selected for this sweep row.</td>
+<td>Matches <code>terminal_good</code>; retained on failures.</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>String / category</td>
+<td><code>success</code> or <code>failure</code>.</td>
+<td>Failed solves do not stop subsequent goods.</td>
+</tr>
+<tr>
+<td><code>error_type</code></td>
+<td>String / exception name</td>
+<td>Type of caught analysis exception.</td>
+<td>Empty on success; currently <code>ValueError</code> on recorded failures.</td>
+</tr>
+<tr>
+<td><code>error_message</code></td>
+<td>String / diagnostic text</td>
+<td>Caught exception message.</td>
+<td>Empty on success; retained on failure.</td>
+</tr>
+</tbody>
+</table>
+<p>On failure, scenario, terminal good, objective, target quantity, requested base
+value, and terminal base price remain populated. <code>solver_status</code> becomes <code>-1</code>
+and <code>solver_message</code> becomes the exception text. All remaining summary fields
+are NaN, including counts and <code>objective_value</code>; they do <strong>not</strong> mean zero.
+Sweep input-validation errors raise before an applicable result rather than
+becoming failure rows. A template's <code>min_goods_output</code> basket is ignored with a warning.</p>
+<h2 id="example-csv-additions">Example CSV additions<a class="headerlink" href="#example-csv-additions" title="Permanent link">&para;</a></h2>
+<p>The nominal example exports retain every sweep field, including its failure
+policy, and add these labels. The comparison <code>summary.csv</code> has one row per
+configuration/good pair; video <code>summary.csv</code> files have one row per
+variant/good pair. Detailed results live under
+<code>analyses/supply_chains/&lt;configuration&gt;/&lt;good&gt;/</code>; cross-good <code>summary.csv</code>
+files live at configuration level. Cross-configuration comparisons live under
+<code>analyses/supply_chains/comparison/summary.csv</code>, alongside the population,
+construction, and annual GDP per capita charts <code>pop.svg</code>,
+<code>construction_points.svg</code>, and <code>gdp_per_capita.svg</code>.
+Labels describe presets, not additional economic metrics.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / source</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>configuration</code></td>
+<td>String / preset label</td>
+<td>Scenario preset in <code>examples/supply_chain_compare.py</code>.</td>
+<td>In comparison and preset summary CSVs; rows retain it on failure.</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td>String / preset label</td>
+<td><code>base</code> or a named product-specific variant in <code>examples/supply_chain_cangshulun.py</code>.</td>
+<td>Only in video summary CSVs; base covers all producible goods, named variants selected goods.</td>
+</tr>
+<tr>
+<td><code>ban_config</code></td>
+<td>String / preset label</td>
+<td>Ban-policy label supplied by the example.</td>
+<td>Retained on failure; an empty label in the comparison export does not mean no default building-group bans.</td>
+</tr>
+</tbody>
+</table>
+<p>See the <a href="../../api/supply-chain/">supply-chain API</a> for report calls and the
+<a href="../../showcase/supply-chains/">showcase</a> for example downloads and commands.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.tabs.link", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

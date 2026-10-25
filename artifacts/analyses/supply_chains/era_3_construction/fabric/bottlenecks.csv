@@ -1,0 +1,4 @@
+kind,family,label,realized_value,bound,slack,residual,binding,solver_marginal,improvement_per_unit
+inequality,import_limit,engines,0.0,0.0,0.0,0.0,True,-21.538461538461547,21.538461538461547
+inequality,produce,fabric,-5000.0,-5000.0,0.0,0.0,True,-3.076923076923077,3.076923076923077
+inequality,import_limit,steel,0.0,0.0,0.0,0.0,True,-2.051282051282063,2.051282051282063

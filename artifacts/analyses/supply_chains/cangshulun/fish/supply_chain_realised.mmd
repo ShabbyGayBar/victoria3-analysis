@@ -1,0 +1,120 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("electricity"))
+    n3(("engines"))
+    n4(("explosives"))
+    n5(("fertilizer"))
+    n6(("fish ★"))
+    n7(("iron"))
+    n8(("oil"))
+    n9(("paper"))
+    n10(("rubber"))
+    n11(("steamers"))
+    n12(("steel"))
+    n13(("sulfur"))
+    n14(("tools"))
+    n15(("transportation"))
+    n16(("wood"))
+    n17["building_chemical_plant<br/>lvl=0.3128 | active"]
+    n18["building_coal_mine<br/>lvl=10.25 | active"]
+    n19["building_explosives_factory<br/>lvl=0.8565 | active"]
+    n20["building_fishing_wharf<br/>lvl=50 | active"]
+    n21["building_iron_mine<br/>lvl=2.132 | active"]
+    n22["building_logging_camp<br/>lvl=0.07708 | active"]
+    n23["building_motor_industry<br/>lvl=2.156 | active"]
+    n24["building_oil_rig<br/>lvl=0.6424 | active"]
+    n25["building_paper_mill<br/>lvl=0.2569 | active"]
+    n26["building_power_plant<br/>lvl=13.02 | active"]
+    n27["building_railway<br/>lvl=7.046 | active"]
+    n28["building_rubber_plantation<br/>lvl=0.3002 | active"]
+    n29["building_shipyard<br/>lvl=3.125 | active"]
+    n30["building_steel_mill<br/>lvl=1.825 | active"]
+    n31["building_sulfur_mine<br/>lvl=0.4685 | active"]
+    n32["building_synthetics_plant<br/>lvl=0.03212 | active"]
+    n33["building_tooling_workshop<br/>lvl=1.952 | active"]
+    n0 -->|"750"| n20
+    n0 -.->|"8.529"| n21
+    n0 -.->|"0.3083"| n22
+    n0 -.->|"21.56"| n23
+    n0 -.->|"2.569"| n25
+    n0 -.->|"260.5"| n26
+    n0 -.->|"73.01"| n30
+    n0 -.->|"1.874"| n31
+    n0 -.->|"29.27"| n33
+    n1 -.->|"2.569"| n25
+    n2 -.->|"17.13"| n19
+    n2 -->|"350"| n20
+    n2 -.->|"0.3854"| n22
+    n2 -.->|"64.69"| n23
+    n2 -.->|"70.46"| n27
+    n2 -->|"93.75"| n29
+    n2 -.->|"54.76"| n30
+    n3 -.->|"10.25"| n18
+    n3 -.->|"2.132"| n21
+    n3 -.->|"0.07708"| n22
+    n3 -.->|"6.424"| n24
+    n3 -.->|"78.14"| n26
+    n3 -.->|"42.28"| n27
+    n3 -.->|"1.501"| n28
+    n3 -->|"31.25"| n29
+    n3 -.->|"0.4685"| n31
+    n4 -.->|"102.5"| n18
+    n4 -.->|"21.32"| n21
+    n4 -.->|"4.685"| n31
+    n5 -.->|"42.82"| n19
+    n5 -.->|"0.9635"| n32
+    n7 -.->|"9.383"| n17
+    n7 -.->|"182.5"| n30
+    n8 -.->|"51.23"| n18
+    n8 -.->|"10.66"| n21
+    n8 -.->|"2.343"| n31
+    n9 -.->|"25.69"| n19
+    n10 -.->|"19.52"| n33
+    n11 -->|"250"| n20
+    n12 -.->|"86.26"| n23
+    n12 -.->|"35.23"| n27
+    n12 -->|"93.75"| n29
+    n12 -.->|"58.55"| n33
+    n13 -.->|"9.383"| n17
+    n13 -.->|"34.26"| n19
+    n13 -.->|"2.569"| n25
+    n13 -.->|"0.6424"| n32
+    n14 -.->|"153.7"| n18
+    n14 -.->|"31.98"| n21
+    n14 -.->|"0.7708"| n22
+    n14 -.->|"10.78"| n23
+    n14 -.->|"1.285"| n25
+    n14 -.->|"9.126"| n30
+    n14 -.->|"7.028"| n31
+    n15 -.->|"51.23"| n18
+    n15 -->|"350"| n20
+    n15 -.->|"10.66"| n21
+    n15 -.->|"0.6167"| n22
+    n15 -.->|"6.424"| n24
+    n15 -.->|"1.501"| n28
+    n15 -.->|"2.343"| n31
+    n16 -.->|"7.708"| n25
+    n17 -.->|"43.79"| n5
+    n18 -.->|"1148"| n0
+    n19 -.->|"128.5"| n4
+    n20 -->|"5000"| n6
+    n21 -.->|"191.9"| n7
+    n22 -.->|"7.708"| n16
+    n23 -.->|"172.5"| n3
+    n24 -.->|"64.24"| n8
+    n25 -.->|"25.69"| n9
+    n26 -.->|"651.2"| n2
+    n27 -.->|"422.8"| n15
+    n28 -.->|"19.52"| n10
+    n29 -->|"250"| n11
+    n30 -.->|"273.8"| n12
+    n31 -.->|"46.85"| n13
+    n32 -.->|"2.569"| n1
+    n33 -.->|"214.7"| n14
+    class n0,n1,n2,n3,n4,n5,n7,n8,n9,n10,n12,n13,n14,n15,n16,n17,n18,n19,n21,n22,n23,n24,n25,n26,n27,n28,n30,n31,n32,n33 cyclic
+    class n18,n20,n21,n22,n24,n28,n31 resource
+    class n17,n18,n19,n20,n21,n22,n23,n24,n25,n26,n27,n28,n29,n30,n31,n32,n33 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

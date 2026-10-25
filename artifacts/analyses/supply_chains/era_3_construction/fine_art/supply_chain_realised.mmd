@@ -1,0 +1,66 @@
+flowchart LR
+    n0(("coal"))
+    n1(("dye"))
+    n2(("explosives"))
+    n3(("fertilizer"))
+    n4(("fine_art ★"))
+    n5(("iron"))
+    n6(("paper"))
+    n7(("rubber"))
+    n8(("steel"))
+    n9(("sulfur"))
+    n10(("tools"))
+    n11(("wood"))
+    n12["building_art_academy<br/>lvl=62.5 | active"]
+    n13["building_chemical_plant<br/>lvl=0.1014 | active"]
+    n14["building_coal_mine<br/>lvl=0.9828 | active"]
+    n15["building_dye_plantation<br/>lvl=2.099 | active"]
+    n16["building_explosives_factory<br/>lvl=0.3551 | active"]
+    n17["building_iron_mine<br/>lvl=1.527 | active"]
+    n18["building_logging_camp<br/>lvl=4.723 | active"]
+    n19["building_paper_mill<br/>lvl=9.446 | active"]
+    n20["building_rubber_plantation<br/>lvl=1.176 | active"]
+    n21["building_steel_mill<br/>lvl=1.323 | active"]
+    n22["building_sulfur_mine<br/>lvl=1.396 | active"]
+    n23["building_tooling_workshop<br/>lvl=5.293 | active"]
+    n0 -.->|"22.9"| n17
+    n0 -.->|"39.7"| n21
+    n0 -.->|"20.94"| n22
+    n1 -->|"94.46"| n19
+    n2 -.->|"9.828"| n14
+    n2 -.->|"15.27"| n17
+    n2 -.->|"13.96"| n22
+    n3 -.->|"14.2"| n16
+    n5 -.->|"3.043"| n13
+    n5 -.->|"119.1"| n21
+    n6 -->|"937.5"| n12
+    n6 -.->|"7.101"| n16
+    n7 -->|"52.93"| n23
+    n8 -.->|"158.8"| n23
+    n9 -.->|"3.043"| n13
+    n9 -.->|"14.2"| n16
+    n9 -.->|"94.46"| n19
+    n10 -->|"500"| n12
+    n10 -.->|"14.74"| n14
+    n10 -.->|"22.9"| n17
+    n10 -.->|"23.62"| n18
+    n10 -.->|"20.94"| n22
+    n11 -.->|"283.4"| n19
+    n12 -->|"500"| n4
+    n13 -.->|"14.2"| n3
+    n14 -.->|"83.54"| n0
+    n15 -->|"94.46"| n1
+    n16 -.->|"39.06"| n2
+    n17 -.->|"122.1"| n5
+    n18 -.->|"283.4"| n11
+    n19 -.->|"944.6"| n6
+    n20 -->|"52.93"| n7
+    n21 -.->|"158.8"| n8
+    n22 -.->|"111.7"| n9
+    n23 -.->|"582.2"| n10
+    class n0,n2,n3,n5,n6,n8,n9,n10,n11,n13,n14,n16,n17,n18,n19,n21,n22,n23 cyclic
+    class n14,n17,n18,n20,n22 resource
+    class n12,n13,n14,n15,n16,n17,n18,n19,n20,n21,n22,n23 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8
