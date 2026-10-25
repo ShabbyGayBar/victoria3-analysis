@@ -272,18 +272,16 @@ The following examples compare annual nominal value added per employed worker
 | Coal-fired electricity | 73.08 | 73.14 | +0.1% |
 | Rubber | 32.11 | 32.21 | +0.3% |
 | Luxury furniture + surplus wood | 63.60 | 57.86 | −9.0% |
-| Fine art | 36.80 | 18.10 | −50.8% |
-| Urban services + transportation | 26.55 | 14.01 | −47.2% |
+| Fine art | 36.80 | 37.32 | +1.4% |
+| Urban services + transportation | 26.55 | 26.83 | +1.1% |
 
 The electricity, luxury-furniture, and urban-service rows use the
 `coal_fired_plant:electricity`, `luxury_furniture:luxury_furniture`, and
 `urban_center_transportation:services` scenarios respectively; the other rows
-use `base:<good>` scenarios. The close results support the video's broad
-productivity ranking, but several rows with larger differences prevent an exact reproduction.
+use `base:<good>` scenarios. Most rows shown agree within 3%, supporting the
+video's broad productivity ranking, except for luxury furniture, which remains 9.0% lower.
 Production-method and coproduct choices can differ because the optimizer
 selects a minimum-employment chain rather than the video's fixed recipe.
-
-Looking back on the results, the drastic drops in fine-art and urban-service productivity are due to throughput bonuses in the video that are not present in the script's preset. In particular, the video excludes the company bonus for urban centers and arts academies, which does not imply zero throughput bonuses overall.
 
 [:material-download: Download 1.12 selected results (1.12.5 inputs)](../artifacts/analyses/supply_chains/cangshulun_video/summary_1.12.csv)
 · [:material-download: Download latest complete results (1.13.11)](../artifacts/analyses/supply_chains/cangshulun_video/summary.csv)

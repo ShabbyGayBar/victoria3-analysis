@@ -107,6 +107,8 @@ CANGSHULUN_THROUGHPUT_GROUPS = (
     ("bg_fishing", 2.15),
     ("bg_whaling", 2.15),
     ("bg_oil_extraction", 2.15),
+    ("bg_arts", 2.45),
+    ("bg_service", 2.0),  # Urban centers: +100%, excluding company bonus
 )
 
 # These PMs are intentionally disabled for the video comparison.  The
