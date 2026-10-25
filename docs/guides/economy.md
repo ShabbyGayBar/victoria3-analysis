@@ -153,6 +153,28 @@ Each row's value at base prices equals its wealth tier's total category budget.
 The returned DataFrame is independently mutable; modifying it does not change
 the state, model tables, or later results.
 
+Pass this table to `calculate_pop_needs` to reuse its goods baskets:
+
+```python
+packages = economy.calculate_buy_packages(state)
+needs = economy.calculate_pop_needs(state, buy_packages=packages)
+next_state = economy.solve(levels, method="market", pop_needs=needs)
+next_needs = economy.calculate_pop_needs(next_state, buy_packages=packages)
+```
+
+Supplied baskets stay fixed when market supply changes. Demand is calculated
+directly from each occupied wealth tier's goods quantities, scaled by worker
+counts and profession consumption multipliers per 10,000 workers. Substitution,
+base-price conversion, and validation of unused state goods flows and raw
+need/package tables are skipped.
+
+The table must have unique positive integer-valued wealth labels and exactly
+the model's goods columns, with finite nonnegative quantities. Rows and columns
+can be in any order, and the index name is ignored. Only occupied wealth tiers
+need rows; empty population cells need no matching package. The supplied table
+and state remain unchanged. Omitting `buy_packages` retains the calculation
+using the current state's supply.
+
 To export packages for an economy with no buildings, run
 `examples/buy_packages.py` from the repository root:
 
