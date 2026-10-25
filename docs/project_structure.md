@@ -162,11 +162,14 @@ Run `uv run python examples/parse.py`, then
 `uv run python examples/production_analysis.py`, then the desired analysis
 scripts. Parsed inputs are read from `artifacts/datasets/parsed/`; downstream
 studies also read `artifacts/datasets/production/production_table.csv`.
+The `buy_packages.py` example reads the game installation directly and needs
+no previously generated tables.
 
 | Script | Output collection relative to `artifacts/` |
 |---|---|
 | `parse.py` | `datasets/parsed/*.csv`; `datasets/parsed/buy_packages/buy_packages.csv` and `figures/*.svg` within that buy-package collection |
 | `production_analysis.py` | `datasets/production/production_table.csv` |
+| `buy_packages.py` | `analyses/buy_packages/default.csv`: goods packages per 10,000 standard workers at every wealth tier, using a state with zero building levels |
 | `optimize_jap.py` | `analyses/optimization/japan/employment_sweep.csv` |
 | `supply_chain_compare.py` | `analyses/supply_chains/<configuration>/<good>/` reports, plots, and diagrams; each configuration's `summary.csv`; combined `comparison/summary.csv` with `pop.svg`, `construction_points.svg`, and `gdp_per_capita.svg` grouped by good and configuration |
 | `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun_video/summary.csv`, containing all goods and variants |

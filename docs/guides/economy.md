@@ -153,6 +153,27 @@ Each row's value at base prices equals its wealth tier's total category budget.
 The returned DataFrame is independently mutable; modifying it does not change
 the state, model tables, or later results.
 
+To export packages for an economy with no buildings, run
+`examples/buy_packages.py` from the repository root:
+
+```bash
+uv run python examples/buy_packages.py
+# Equivalent module invocation:
+uv run python -m examples.buy_packages
+```
+
+The example parses the local game installation directly, without requiring
+previously exported parser tables. Initialize the artifact checkout first with
+`git submodule update --init --recursive` if necessary. It constructs an
+`EconomyState` with zero building levels, production, imports, exports, and
+represented employment. Standard packages remain defined for all wealth tiers:
+with zero supply, minimum shares apply, and categories with zero purchase
+weights fall back to their default goods.
+
+The UTF-8 output is `artifacts/analyses/buy_packages/default.csv`, with `wealth`
+as the first column followed by goods in model order. Re-running the example
+replaces this CSV, and the script prints its output path.
+
 The method's docstring links the game definitions, the
 [Needs formulas](https://vic3.paradoxwikis.com/Needs#Formulas), and the
 [official developer diary](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737).

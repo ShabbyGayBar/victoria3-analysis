@@ -71,3 +71,8 @@ artifacts = [
 script = "examples/optimize_jap.py"
 page = "showcase/resource-limited-optimization.md"
 artifacts = ["artifacts/analyses/optimization/japan/employment_sweep.csv"]
+
+[[collection]]
+script = "examples/buy_packages.py"
+page = "guides/economy.md"
+artifacts = ["artifacts/analyses/buy_packages/default.csv"]
