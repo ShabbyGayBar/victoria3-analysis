@@ -21,20 +21,27 @@ class Scenario:
     The optimizer interpreting a scenario owns all economy-dependent
     compilation. This object only records assumptions shared by the nominal
     and market formulations.
+
+    ``min_goods_output`` sets minimum weekly net domestic output by good,
+    after production inputs are deducted. Explicit entries override
+    ``default_min_goods_output``, which applies to all other goods. Negative
+    minima allow production deficits. The default of ``0.0`` requires
+    nonnegative net output for unspecified goods; ``None`` leaves them
+    unconstrained.
     """
 
-    produce: tuple[tuple[str, float], ...] = ()
+    min_goods_output: tuple[tuple[str, float], ...] = ()
     objective: str = "automation"
-    import_limit: float | None = 0.0
+    default_min_goods_output: float | None = 0.0
     banned_pms: tuple[str, ...] = ()
-    building_limits: tuple[tuple[str, float], ...] = ()
+    building_level_caps: tuple[tuple[str, float], ...] = ()
     banned_building_groups: tuple[str, ...] = ()
-    throughput_bonuses: tuple[tuple[str, float], ...] = ()
+    throughput_multipliers: tuple[tuple[str, float], ...] = ()
     era_cap: int | None = None
     construction_cost_cap: float | None = None
     employment_cap: float | None = None
     arable_land_cap: float | None = None
-    min_infrastructure: float | None = None
+    min_net_infrastructure_usage: float | None = None
     urbanization_per_center: float | None = None
     name: str | None = None
     imports: tuple[tuple[str, float], ...] = ()
@@ -47,9 +54,9 @@ class Scenario:
             raise ValueError(f"Unknown objective: {self.objective!r}")
 
     def display_name(self) -> str:
-        """Return the explicit name or one derived from the produce basket."""
+        """Return the explicit name or one derived from the minimum goods output basket."""
         if self.name is not None:
             return self.name
-        if self.produce:
-            return "+".join(good for good, _amount in self.produce)
+        if self.min_goods_output:
+            return "+".join(good for good, _amount in self.min_goods_output)
         return "unnamed"

@@ -44,7 +44,7 @@ class Variant:
     name: str
     good: str
     banned_pms: tuple[str, ...] = ()
-    building_limits: tuple[tuple[str, float], ...] = ()
+    building_level_caps: tuple[tuple[str, float], ...] = ()
     era_cap: int = 5
 
 
@@ -109,7 +109,7 @@ _VARIANTS = (
 )
 
 
-def _video_throughput_bonuses(economy: Economy) -> tuple[tuple[str, float], ...]:
+def _video_throughput_multipliers(economy: Economy) -> tuple[tuple[str, float], ...]:
     """Expand group bonuses to each distinct building in table order."""
     group_multipliers = dict(CANGSHULUN_THROUGHPUT_GROUPS)
     if "building_group" not in economy.df_production.columns:
@@ -130,19 +130,20 @@ def _video_throughput_bonuses(economy: Economy) -> tuple[tuple[str, float], ...]
 def _template(
     *,
     name: str,
-    throughput_bonuses: tuple[tuple[str, float], ...],
+    throughput_multipliers: tuple[tuple[str, float], ...],
     banned_pms: tuple[str, ...] = CANGSHULUN_VIDEO_BANNED_PMS,
-    building_limits: tuple[tuple[str, float], ...] = CANGSHULUN_BUILDING_LIMITS,
+    building_level_caps: tuple[tuple[str, float], ...] = CANGSHULUN_BUILDING_LIMITS,
     era_cap: int = 5,
 ) -> Scenario:
     return Scenario(
         name=name,
+        default_min_goods_output=0.0,
         objective="automation",
         era_cap=era_cap,
         banned_building_groups=DEFAULT_BANNED_BGS,
         banned_pms=banned_pms,
-        building_limits=building_limits,
-        throughput_bonuses=throughput_bonuses,
+        building_level_caps=building_level_caps,
+        throughput_multipliers=throughput_multipliers,
     )
 
 
@@ -151,11 +152,11 @@ def main(
 ) -> pd.DataFrame:
     """Solve the detail basket and save one configuration-level summary."""
     economy = load_economy(datasets_dir)
-    bonuses = _video_throughput_bonuses(economy)
+    bonuses = _video_throughput_multipliers(economy)
 
     base = sweep_supply_chains(
         economy,
-        _template(name="base", throughput_bonuses=bonuses),
+        _template(name="base", throughput_multipliers=bonuses),
         target_value=NORMALIZED_VALUE,
     ).summary
     base.insert(1, "variant", "base")
@@ -168,9 +169,11 @@ def main(
             economy,
             _template(
                 name=variant.name,
-                throughput_bonuses=bonuses,
+                throughput_multipliers=bonuses,
                 banned_pms=CANGSHULUN_VIDEO_BANNED_PMS + variant.banned_pms,
-                building_limits=(CANGSHULUN_BUILDING_LIMITS + variant.building_limits),
+                building_level_caps=(
+                    CANGSHULUN_BUILDING_LIMITS + variant.building_level_caps
+                ),
                 era_cap=variant.era_cap,
             ),
             goods=[variant.good],

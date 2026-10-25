@@ -66,8 +66,8 @@ def test_common_context_and_cumulative_bonuses(economy: Economy):
     problem = optimizer.compile(
         Scenario(
             objective="construction_cost",
-            import_limit=None,
-            throughput_bonuses=((building, 2.0), (building, 1.5)),
+            default_min_goods_output=None,
+            throughput_multipliers=((building, 2.0), (building, 1.5)),
             imports=(("tools", 2.0), ("tools", 3.0)),
             exports=(("coal", 4.0),),
             pop_needs=(("grain", 5.0),),
@@ -147,30 +147,38 @@ def test_context_rejects_overflowing_duplicate_total(economy: Economy):
 
 def test_inequality_compilation_and_named_slices(economy: Economy):
     scenario = Scenario(
-        produce=(("automobiles", 1.0), ("steel", 2.0)),
+        min_goods_output=(("automobiles", 1.0), ("steel", 2.0)),
+        default_min_goods_output=0.0,
         objective="construction_cost",
         construction_cost_cap=5000.0,
         employment_cap=1000.0,
-        building_limits=(("building_dye_plantation", 0.0),),
+        building_level_caps=(("building_dye_plantation", 0.0),),
         arable_land_cap=25.0,
-        min_infrastructure=5.0,
+        min_net_infrastructure_usage=5.0,
     )
     problem = NominalOptimizer(economy).compile(scenario)
     assert problem.A_ub is not None
     assert problem.b_ub is not None
     assert tuple(problem.inequality_slices) == (
-        "import_limit",
+        "default_min_goods_output",
         "construction_cost_cap",
         "employment_cap",
-        "produce",
-        "building_limits",
+        "min_goods_output",
+        "building_level_caps",
         "arable_land_cap",
-        "min_infrastructure",
+        "min_net_infrastructure_usage",
     )
-    import_rows = problem.inequality_slices["import_limit"]
-    np.testing.assert_allclose(problem.A_ub[import_rows], -problem.net_matrix.T)
-    produce_rows = problem.inequality_slices["produce"]
-    np.testing.assert_array_equal(problem.b_ub[produce_rows], [-1.0, -2.0])
+    default_rows = problem.inequality_slices["default_min_goods_output"]
+    default_positions = [
+        i
+        for i, good in enumerate(economy.goods_index)
+        if good not in {"automobiles", "steel"}
+    ]
+    np.testing.assert_allclose(
+        problem.A_ub[default_rows], -problem.net_matrix[:, default_positions].T
+    )
+    output_rows = problem.inequality_slices["min_goods_output"]
+    np.testing.assert_array_equal(problem.b_ub[output_rows], [-1.0, -2.0])
     assert problem.A_ub.shape[0] == problem.b_ub.shape[0]
 
 
@@ -204,7 +212,7 @@ def test_equality_compilation_and_named_slices(economy: Economy):
 
 def test_empty_constraint_compilation(economy: Economy):
     problem = NominalOptimizer(economy).compile(
-        Scenario(objective="construction_cost", import_limit=None)
+        Scenario(objective="construction_cost", default_min_goods_output=None)
     )
     assert problem.A_ub is None
     assert problem.b_ub is None
@@ -214,9 +222,11 @@ def test_empty_constraint_compilation(economy: Economy):
     assert not problem.equality_slices
 
 
-def test_unknown_produce_good_raises_during_compilation(economy: Economy):
+def test_unknown_min_goods_output_good_raises_during_compilation(economy: Economy):
     with pytest.raises(ValueError, match="not found in goods index"):
-        NominalOptimizer(economy).compile(Scenario(produce=(("not_a_real_good", 1.0),)))
+        NominalOptimizer(economy).compile(
+            Scenario(min_goods_output=(("not_a_real_good", 1.0),))
+        )
 
 
 def test_named_constraint_stack_rejects_mismatched_rows():

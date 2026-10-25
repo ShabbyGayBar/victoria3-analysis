@@ -33,13 +33,15 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
                 "MarketOptimizer requires objective='gdp' or "
                 "objective='gdp_per_capita'."
             )
-        if scenario.import_limit is not None:
-            raise ValueError("MarketOptimizer requires scenario.import_limit=None.")
+        if scenario.default_min_goods_output is not None:
+            raise ValueError(
+                "MarketOptimizer requires scenario.default_min_goods_output=None."
+            )
 
         data = self._compile_common(scenario)
         warm_start_objective = (
             self.model.employment_vector
-            if scenario.objective == "gdp_per_capita" and scenario.produce
+            if scenario.objective == "gdp_per_capita" and scenario.min_goods_output
             else -data.gdp_vector
         )
         warm_start = self._extract_fixed_zero_bounds(

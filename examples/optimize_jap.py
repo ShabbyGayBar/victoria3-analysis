@@ -47,9 +47,9 @@ for employment_cap in employment_caps:
     scenarios.append(
         Scenario(
             objective="gdp",
-            import_limit=0.0,
+            default_min_goods_output=0.0,
             banned_building_groups=DEFAULT_BANNED_BGS,
-            building_limits=tuple(resource_limits.items()),
+            building_level_caps=tuple(resource_limits.items()),
             employment_cap=employment_cap,
             arable_land_cap=arable_land_cap,
             era_cap=5,

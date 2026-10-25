@@ -41,7 +41,7 @@ def sweep_supply_chains(
 ) -> SupplyChainSweepResult:
     """Analyze every requested good at an equal base-price target value.
 
-    A non-empty ``scenario_template.produce`` basket is ignored with a
+    A non-empty ``scenario_template.min_goods_output`` basket is ignored with a
     ``UserWarning`` because the sweep generates one normalized target for each
     requested good.
 
@@ -49,9 +49,9 @@ def sweep_supply_chains(
     levels derived from the full economy, including banned and unused types.
     Empty sweeps retain the same columns; failed solves use NaN for metrics.
     """
-    if scenario_template.produce:
+    if scenario_template.min_goods_output:
         warnings.warn(
-            "scenario_template.produce is ignored; sweep targets are generated "
+            "scenario_template.min_goods_output is ignored; sweep targets are generated "
             "from goods and target_value.",
             UserWarning,
             stacklevel=2,
@@ -82,7 +82,7 @@ def sweep_supply_chains(
         )
         scenario = replace(
             scenario_template,
-            produce=((good, amount),),
+            min_goods_output=((good, amount),),
             name=name,
         )
         try:

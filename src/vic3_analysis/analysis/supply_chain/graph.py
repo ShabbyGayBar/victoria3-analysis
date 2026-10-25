@@ -61,9 +61,9 @@ def allowed_process_mask(
             .isin(scenario.banned_building_groups)
             .to_numpy()
         )
-    if scenario.building_limits:
+    if scenario.building_level_caps:
         buildings = production["building"].astype(str).to_numpy()
-        for building, limit in scenario.building_limits:
+        for building, limit in scenario.building_level_caps:
             if float(limit) <= tolerance:
                 allowed &= buildings != building
     return allowed

@@ -321,7 +321,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
     def _throughput_multipliers(self, scenario: Scenario) -> np.ndarray:
         multipliers = np.ones(len(self.model.df_production), dtype=np.float64)
         buildings = self.model.df_production["building"].to_numpy()
-        for building_key, multiplier in scenario.throughput_bonuses:
+        for building_key, multiplier in scenario.throughput_multipliers:
             multipliers[buildings == building_key] *= multiplier
         return multipliers
 
@@ -329,14 +329,20 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         self, scenario: Scenario, net_matrix: np.ndarray
     ) -> tuple[np.ndarray | None, np.ndarray | None, ConstraintSlices]:
         blocks: list[tuple[str, np.ndarray, np.ndarray]] = []
-        if scenario.import_limit is not None:
+        explicit_goods = {good for good, _amount in scenario.min_goods_output}
+        default_positions = [
+            i
+            for i, good in enumerate(self.model.goods_index)
+            if good not in explicit_goods
+        ]
+        if scenario.default_min_goods_output is not None and default_positions:
             blocks.append(
                 (
-                    "import_limit",
-                    -net_matrix.T,
+                    "default_min_goods_output",
+                    -net_matrix[:, default_positions].T,
                     np.full(
-                        net_matrix.shape[1],
-                        scenario.import_limit,
+                        len(default_positions),
+                        -scenario.default_min_goods_output,
                         dtype=np.float64,
                     ),
                 )
@@ -357,34 +363,34 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
                     np.array([scenario.employment_cap], dtype=np.float64),
                 )
             )
-        if scenario.produce:
+        if scenario.min_goods_output:
             positions = {good: i for i, good in enumerate(self.model.goods_index)}
             rows: list[np.ndarray] = []
             amounts: list[float] = []
-            for good, amount in scenario.produce:
+            for good, amount in scenario.min_goods_output:
                 if good not in positions:
                     raise ValueError(f"Good '{good}' not found in goods index.")
                 rows.append(-net_matrix[:, positions[good]])
                 amounts.append(-amount)
             blocks.append(
                 (
-                    "produce",
+                    "min_goods_output",
                     np.vstack(rows),
                     np.asarray(amounts, dtype=np.float64),
                 )
             )
-        if scenario.building_limits:
+        if scenario.building_level_caps:
             buildings = self.model.df_production["building"].to_numpy()
             rows = [
                 (buildings == building_key).astype(np.float64)
-                for building_key, _limit in scenario.building_limits
+                for building_key, _limit in scenario.building_level_caps
             ]
             blocks.append(
                 (
-                    "building_limits",
+                    "building_level_caps",
                     np.vstack(rows),
                     np.asarray(
-                        [limit for _building, limit in scenario.building_limits],
+                        [limit for _building, limit in scenario.building_level_caps],
                         dtype=np.float64,
                     ),
                 )
@@ -397,7 +403,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
                     np.array([scenario.arable_land_cap], dtype=np.float64),
                 )
             )
-        if scenario.min_infrastructure is not None:
+        if scenario.min_net_infrastructure_usage is not None:
             infrastructure = (
                 self.model.df_production["infrastructure_usage_per_level"]
                 .fillna(0)
@@ -405,9 +411,11 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             )
             blocks.append(
                 (
-                    "min_infrastructure",
+                    "min_net_infrastructure_usage",
                     -infrastructure,
-                    np.array([-scenario.min_infrastructure], dtype=np.float64),
+                    np.array(
+                        [-scenario.min_net_infrastructure_usage], dtype=np.float64
+                    ),
                 )
             )
         return self._stack_named(blocks)

@@ -55,9 +55,9 @@ class SupplyChainAnalyzer:
         goods_index = economy.goods_index
         if terminal_good not in goods_index:
             raise ValueError(f"Good '{terminal_good}' not found in goods index.")
-        if len(scenario.produce) != 1:
+        if len(scenario.min_goods_output) != 1:
             raise ValueError("Scenario must contain exactly one production target.")
-        target_good, target_amount = scenario.produce[0]
+        target_good, target_amount = scenario.min_goods_output[0]
         if target_good != terminal_good:
             raise ValueError("terminal_good must match the Scenario production target.")
         try:

@@ -41,23 +41,26 @@ NORMALIZED_VALUE = 100_000.0
 TEMPLATES = (
     Scenario(
         name="era_3_construction",
+        default_min_goods_output=0.0,
         objective="construction_cost",
         banned_building_groups=DEFAULT_BANNED_BGS,
         era_cap=3,
     ),
     Scenario(
         name="era_5_automation",
+        default_min_goods_output=0.0,
         objective="automation",
         banned_building_groups=DEFAULT_BANNED_BGS,
         era_cap=5,
     ),
     Scenario(
         name="cangshulun",
+        default_min_goods_output=0.0,
         objective="automation",
         banned_building_groups=DEFAULT_BANNED_BGS,
         era_cap=5,
         banned_pms=CANGSHULUN_BANNED_PMS,
-        building_limits=CANGSHULUN_BUILDING_LIMITS,
+        building_level_caps=CANGSHULUN_BUILDING_LIMITS,
     ),
 )
 COMPARISON_COLUMNS = [

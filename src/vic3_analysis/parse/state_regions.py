@@ -112,7 +112,7 @@ def state_region_resource_limits(
 
     Returns:
         An insertion-ordered mapping suitable for
-        ``Scenario(building_limits=tuple(limits.items()))``.
+        ``Scenario(building_level_caps=tuple(limits.items()))``.
 
     Raises:
         ValueError: If the DataFrame has no ``key`` column.

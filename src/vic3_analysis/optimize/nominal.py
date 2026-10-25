@@ -54,12 +54,17 @@ class NominalOptimizer(BaseOptimizer[LinearProblem]):
         return self._state_from_levels(problem, np.asarray(result.x, dtype=np.float64))
 
     def import_marginals(self) -> np.ndarray | None:
-        """Return import-cap shadow prices from the latest successful solve."""
+        """Return shadow prices for relaxing default goods-output minima.
+
+        Values align to the goods index, with zero for goods whose explicit
+        minimum overrides the default. Each value measures the objective
+        change per unit decrease in the default minimum for that good.
+        """
         problem = self.problem
         result = self.result
         if problem is None or result is None:
             return None
-        row_slice = problem.inequality_slices.get("import_limit")
+        row_slice = problem.inequality_slices.get("default_min_goods_output")
         if row_slice is None:
             return None
         ineqlin = getattr(result, "ineqlin", None)
@@ -72,4 +77,10 @@ class NominalOptimizer(BaseOptimizer[LinearProblem]):
         stop = row_slice.stop
         if stop is None or values.shape[0] < stop:
             return None
-        return values[row_slice]
+        explicit_goods = {good for good, _amount in problem.scenario.min_goods_output}
+        default_goods = np.array(
+            [good not in explicit_goods for good in problem.economy.goods_index]
+        )
+        aligned = np.zeros(len(problem.economy.goods_index), dtype=np.float64)
+        aligned[default_goods] = values[row_slice]
+        return aligned

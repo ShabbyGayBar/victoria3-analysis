@@ -451,13 +451,16 @@ class SupplyChainResult:
         return pd.DataFrame(rows, columns=WORKFORCE_COLUMNS)
 
     def _constraint_labels(self, family: str, count: int) -> tuple[str, ...]:
-        if family == "import_limit":
-            labels = self.goods_index
-        elif family == "produce":
-            labels = tuple(good for good, _amount in self.scenario.produce)
-        elif family == "building_limits":
+        if family == "default_min_goods_output":
+            explicit_goods = {good for good, _amount in self.scenario.min_goods_output}
             labels = tuple(
-                building for building, _limit in self.scenario.building_limits
+                good for good in self.goods_index if good not in explicit_goods
+            )
+        elif family == "min_goods_output":
+            labels = tuple(good for good, _amount in self.scenario.min_goods_output)
+        elif family == "building_level_caps":
+            labels = tuple(
+                building for building, _limit in self.scenario.building_level_caps
             )
         elif family == "banned_building_groups":
             labels = self.scenario.banned_building_groups

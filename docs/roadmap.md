@@ -71,10 +71,10 @@ The nominal supply-chain toolkit is implemented as the
 per solve.
 
 - [x] `Scenario` dataclass (now in `optimize/scenario.py`): an optimisation
-  recipe as data (multi-good produce baskets, objective, import limit,
-  banned PMs / buildings / building groups, per-building level limits,
-  throughput bonuses, era / construction-cost / employment caps,
-  infrastructure floor, urban-center tie).
+  recipe as data (per-good and default output minima, objective,
+  banned PMs / buildings / building groups, per-building level caps,
+  throughput multipliers, era / construction-cost / employment caps,
+  net infrastructure usage floor, urban-center tie).
 - [x] `SupplyChainAnalyzer` validates a single matching positive target and
   performs exactly one nominal solve.
 - [x] Immutable `SupplyChainResult` snapshots matrices, state arrays,

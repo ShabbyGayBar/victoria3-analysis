@@ -18,7 +18,8 @@ from vic3_analysis import Economy, Scenario, SupplyChainAnalyzer
 economy = Economy()
 scenario = Scenario(
     name="automobiles",
-    produce=(("automobiles", 1.0),),
+    default_min_goods_output=0.0,
+    min_goods_output=(("automobiles", 1.0),),
     objective="automation",
 )
 result = SupplyChainAnalyzer(economy, scenario, "automobiles").run()
@@ -120,6 +121,7 @@ from vic3_analysis import Scenario, sweep_supply_chains
 
 template = Scenario(
     name="era_3",
+    default_min_goods_output=0.0,
     objective="construction_cost",
     era_cap=3,
 )
@@ -135,7 +137,7 @@ failures = sweep.failures
 automobiles = sweep.result_for("automobiles")
 ```
 
-The sweep ignores a non-empty template `produce` basket and emits a
+The sweep ignores a non-empty template `min_goods_output` basket and emits a
 `UserWarning`, because each target is derived from `goods` and `target_value`.
 By default, it follows `economy.producible_goods` order and targets an equal
 base-price value for each good. Infeasible or unbounded goods become failure

@@ -241,7 +241,7 @@ marginal to a gameplay change. Variable bounds are not rows in this report.
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
 | `kind` | String / category | `inequality` or `equality`. | Determines slack/residual interpretation. |
-| `family` | String / constraint identifier | Named compiled constraint slice, such as `produce`, `import_limit`, or `building_limits`. | Only families present in the compiled problem appear. |
+| `family` | String / constraint identifier | Named compiled constraint slice, such as `min_goods_output`, `default_min_goods_output`, or `building_level_caps`. | Only families present in the compiled problem appear. |
 | `label` | String / row label | Good/building/group key for applicable families; PM bans use their `+`-joined keys; other rows use the family name. | If label count differs from row count, uses `family[i]`. |
 | `realized_value` | Float / compiled row units | `A_row @ solved levels`. | Signed canonical left-hand side, not always the physical quantity named by the family. |
 | `bound` | Float / compiled row units | Stored right-hand side `b_row`. | A lower-bound target can be represented as a negative bound. |
@@ -311,7 +311,7 @@ value, and terminal base price remain populated. `solver_status` becomes `-1`
 and `solver_message` becomes the exception text. All remaining summary fields
 are NaN, including counts and `objective_value`; they do **not** mean zero.
 Sweep input-validation errors raise before an applicable result rather than
-becoming failure rows. A template's `produce` basket is ignored with a warning.
+becoming failure rows. A template's `min_goods_output` basket is ignored with a warning.
 
 ## Example CSV additions
 
