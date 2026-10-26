@@ -3002,3 +3002,281 @@ def test_prepared_context_vanilla(economy: Economy):
         len(economy.df_buy_packages),
         len(economy.goods_index),
     )
+
+
+@pytest.fixture
+def wealth_economy(needs_economy: Economy) -> Economy:
+    """Consumption model with cooperative weights and annual dependent wages."""
+    professions = needs_economy.df_pop_types.copy()
+    professions["wage_weight"] = [1.0, 2.0]
+    professions["dependent_wage"] = [52.0, 104.0]
+    return replace(needs_economy, df_pop_types=professions)
+
+
+@pytest.fixture
+def wealth_context() -> EconomyContext:
+    """Prepared trade economy with a profitable cooperative and a loss."""
+    return EconomyContext(
+        building_levels=np.ones(2),
+        building_goods_flow=np.array([[0.0, 20.0, -1.0], [0.0, -10.0, 2.0]]),
+        imports=np.array([0.0, 5.0, 3.0]),
+        exports=np.array([0.0, 2.0, 1.0]),
+        pops=np.array([[10_000.0, 5000.0], [5000.0, 0.0]]),
+        workforce_ratio=0.5,
+        buy_packages=np.array([[0.0, 2.0, 1.0], [0.0, 4.0, 2.0]]),
+        buy_package_wealth=np.array([1, 2]),
+        consumption_scales=np.array([[1.0, 0.5], [0.5, 0.0]]),
+    )
+
+
+def test_evaluate_wealth_exact_finances_and_snapshot(
+    wealth_economy: Economy, wealth_context: EconomyContext
+):
+    wealth = np.array([[1.0, 2.0], [2.0, 999.0]])
+    source_wealth = wealth.copy()
+    source_arrays = {
+        name: value.copy()
+        for name, value in vars(wealth_context).items()
+        if isinstance(value, np.ndarray)
+    }
+    source_tables = {
+        name: getattr(wealth_economy, name).copy(deep=True)
+        for name in (
+            "df_production",
+            "df_goods",
+            "df_pop_types",
+            "df_pop_needs",
+            "df_buy_packages",
+        )
+    }
+    market, households = wealth_economy.evaluate_wealth(wealth_context, wealth)
+    state = EconomyState(market.context, market, households)
+    assert market.context is wealth_context
+    np.testing.assert_array_equal(households.pop_wealth, wealth)
+    np.testing.assert_array_equal(households.pop_needs, [0, 6, 3])
+    np.testing.assert_allclose(market.market_prices, [10, 85 / 6, 40])
+    np.testing.assert_allclose(market.building_surplus, [730 / 3, -185 / 3])
+    np.testing.assert_allclose(market.building_deficit, [0, 185 / 3])
+    assert households.pop_income is not None
+    assert households.pop_expenses is not None
+    assert households.pop_balance is not None
+    np.testing.assert_allclose(
+        households.pop_income, [[10_000 + 365 / 3, 10_000 + 365 / 3], [5000, 0]]
+    )
+    np.testing.assert_allclose(
+        households.pop_expenses, [[205 / 3, 205 / 3], [205 / 3, 0]]
+    )
+    np.testing.assert_allclose(
+        households.pop_balance, households.pop_income - households.pop_expenses
+    )
+    assert households.pop_expenses.sum() == pytest.approx(
+        households.pop_needs @ market.market_prices
+    )
+    repeated_market, repeated_households = wealth_economy.evaluate_wealth(
+        wealth_context, wealth
+    )
+    repeated = EconomyState(
+        repeated_market.context, repeated_market, repeated_households
+    )
+    for name, value in _state_arrays(state).items():
+        np.testing.assert_array_equal(value, getattr(repeated, name))
+        assert not value.flags.writeable
+        if name in (
+            "market_prices",
+            "pop_wealth",
+            "pop_needs",
+            "pop_income",
+            "pop_expenses",
+        ):
+            assert value.flags.owndata
+            assert not np.shares_memory(value, wealth)
+    assert households.pop_wealth.dtype == np.int64
+    assert households.pop_balance is not None
+    assert not households.pop_balance.flags.writeable
+    for name, values in source_arrays.items():
+        np.testing.assert_array_equal(getattr(wealth_context, name), values)
+    for name, frame in source_tables.items():
+        pd.testing.assert_frame_equal(getattr(wealth_economy, name), frame)
+    np.testing.assert_array_equal(wealth, source_wealth)
+    wealth[:] = 0
+    np.testing.assert_array_equal(households.pop_wealth, source_wealth)
+
+
+@pytest.mark.parametrize("supply_packages", [False, True])
+@pytest.mark.parametrize("supply_scales", [False, True])
+def test_evaluate_wealth_prepares_only_missing_fields(
+    wealth_economy: Economy,
+    wealth_context: EconomyContext,
+    supply_packages: bool,
+    supply_scales: bool,
+):
+    context = replace(
+        wealth_context,
+        buy_packages=wealth_context.buy_packages if supply_packages else None,
+        buy_package_wealth=wealth_context.buy_package_wealth
+        if supply_packages
+        else None,
+        consumption_scales=wealth_context.consumption_scales if supply_scales else None,
+    )
+    wealth = np.array([[1, 2], [2, 999]])
+    market, households = wealth_economy.evaluate_wealth(context, wealth)
+    prepared = market.context
+    assert (prepared is context) == (supply_packages and supply_scales)
+    assert prepared.buy_packages is not None
+    assert prepared.consumption_scales is not None
+    if supply_packages:
+        np.testing.assert_array_equal(prepared.buy_packages, context.buy_packages)
+    else:
+        assert context.buy_packages is None and context.buy_package_wealth is None
+        np.testing.assert_allclose(
+            prepared.buy_packages,
+            wealth_economy.calculate_buy_packages(context).to_numpy(),
+        )
+    if supply_scales:
+        np.testing.assert_array_equal(
+            prepared.consumption_scales, context.consumption_scales
+        )
+    else:
+        assert context.consumption_scales is None
+        np.testing.assert_allclose(
+            prepared.consumption_scales,
+            [[1.5, 0.0375], [0.75, 0]],
+        )
+    assert households.pop_expenses is not None
+    assert households.pop_expenses.sum() == pytest.approx(
+        households.pop_needs @ market.market_prices
+    )
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_evaluate_wealth_zero_consumption_and_empty_population(
+    wealth_economy: Economy, wealth_context: EconomyContext, empty: bool
+):
+    context = replace(
+        wealth_context,
+        consumption_scales=np.zeros((2, 2)),
+        pops=np.zeros((2, 2)) if empty else wealth_context.pops,
+        building_goods_flow=np.zeros((2, 3))
+        if empty
+        else wealth_context.building_goods_flow,
+        buy_packages=np.zeros((0, 3)) if empty else wealth_context.buy_packages,
+        buy_package_wealth=np.array([], dtype=np.int64)
+        if empty
+        else wealth_context.buy_package_wealth,
+    )
+    wealth = np.full((2, 2), 999) if empty else np.array([[1, 2], [2, 999]])
+    market, households = wealth_economy.evaluate_wealth(context, wealth)
+    assert market.context is context
+    np.testing.assert_array_equal(households.pop_needs, np.zeros(3))
+    np.testing.assert_array_equal(households.pop_expenses, np.zeros((2, 2)))
+    if empty:
+        np.testing.assert_array_equal(households.pop_income, np.zeros((2, 2)))
+
+
+@pytest.mark.parametrize(
+    ("wealth", "message"),
+    [
+        (np.ones(2), "pop_wealth shape"),
+        (np.ones((2, 1)), "pop_wealth shape"),
+        (np.full((2, 2), -1), "non-negative int64"),
+        (np.full((2, 2), 1.5), "non-negative int64"),
+        (np.full((2, 2), np.nan), "non-negative int64"),
+        (np.full((2, 2), np.inf), "non-negative int64"),
+        (np.full((2, 2), 2**63, dtype=np.uint64), "non-negative int64"),
+        (np.full((2, 2), 999), "pop_wealth tiers.*buy_packages"),
+        (np.zeros((2, 2)), "pop_wealth tiers.*buy_packages"),
+    ],
+)
+def test_evaluate_wealth_rejects_invalid_wealth(
+    wealth_economy: Economy,
+    wealth_context: EconomyContext,
+    wealth: np.ndarray,
+    message: str,
+):
+    with pytest.raises(ValueError, match=message):
+        wealth_economy.evaluate_wealth(wealth_context, wealth)
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"building_goods_flow": np.zeros((1, 3))}, "building_goods_flow shape"),
+        ({"building_goods_flow": np.full((2, 3), np.nan)}, "finite"),
+        (
+            {"imports": np.zeros(2), "buy_packages": None, "buy_package_wealth": None},
+            "context.imports length",
+        ),
+        ({"imports": np.array([0, -1, 3])}, "context.imports.*non-negative"),
+        ({"exports": np.array([0, -1, 1])}, "context.exports.*non-negative"),
+        ({"exports": np.full(3, np.inf)}, "context.exports.*finite"),
+        ({"exports": np.zeros((1, 3))}, "context.exports.*1-D"),
+        ({"pops": np.zeros((1, 2)), "consumption_scales": None}, "pops shape"),
+        (
+            {"pops": np.full((2, 2), -1), "consumption_scales": None},
+            "pops.*non-negative",
+        ),
+    ],
+)
+def test_evaluate_wealth_rejects_invalid_context(
+    wealth_economy: Economy, wealth_context: EconomyContext, changes, message: str
+):
+    context = replace(wealth_context, **changes)
+    with pytest.raises(ValueError, match=message):
+        wealth_economy.evaluate_wealth(context, np.array([[1, 2], [2, 999]]))
+
+
+def test_evaluate_wealth_propagates_preparation_failure(
+    wealth_economy: Economy, wealth_context: EconomyContext
+):
+    model = replace(wealth_economy, df_buy_packages=pd.DataFrame())
+    context = replace(wealth_context, buy_packages=None, buy_package_wealth=None)
+    with pytest.raises(ValueError, match="df_buy_packages"):
+        model.evaluate_wealth(context, np.array([[1, 2], [2, 999]]))
+    assert context.buy_packages is None and context.buy_package_wealth is None
+    np.testing.assert_array_equal(
+        context.consumption_scales, wealth_context.consumption_scales
+    )
+
+
+def test_evaluate_wealth_propagates_income_failure(
+    wealth_economy: Economy, wealth_context: EconomyContext
+):
+    professions = wealth_economy.df_pop_types.copy()
+    professions["wage_weight"] = 0.0
+    model = replace(wealth_economy, df_pop_types=professions)
+    with pytest.raises(ValueError, match="Positive surplus.*recipient weight"):
+        model.evaluate_wealth(wealth_context, np.array([[1, 2], [2, 999]]))
+
+
+def test_evaluate_wealth_vanilla(economy: Economy):
+    initial = economy.solve(_first_producing_levels(economy), workforce_ratio=0.25)
+    market, households = economy.evaluate_wealth(initial.context, initial.pop_wealth)
+    state = EconomyState(market.context, market, households)
+    assert state.context is not initial.context
+    assert initial.context.buy_packages is None
+    assert initial.context.consumption_scales is None
+    assert state.context.buy_packages is not None
+    assert state.context.consumption_scales is not None
+    assert market.market_prices.shape == (len(economy.goods_index),)
+    assert households.pop_needs.shape == (len(economy.goods_index),)
+    np.testing.assert_array_equal(households.pop_wealth, initial.pop_wealth)
+    assert households.pop_wealth.dtype == np.int64
+    for values in (
+        households.pop_income,
+        households.pop_expenses,
+        households.pop_balance,
+    ):
+        assert values is not None
+        assert values.shape == initial.pops.shape
+        assert values.dtype == np.float64
+        assert np.isfinite(values).all()
+        assert not values.flags.writeable
+    assert households.pop_income is not None
+    assert households.pop_expenses is not None
+    assert households.pop_balance is not None
+    np.testing.assert_allclose(
+        households.pop_balance, households.pop_income - households.pop_expenses
+    )
+    assert households.pop_expenses.sum() == pytest.approx(
+        households.pop_needs @ market.market_prices
+    )

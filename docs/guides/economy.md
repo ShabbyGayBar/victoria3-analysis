@@ -408,6 +408,35 @@ Expenses price target consumption without affordability limits, rationing,
 taxes, or wealth transitions. Existing solve modes do not automatically calculate
 expenses or balances.
 
+### Evaluating fixed wealth
+
+`evaluate_wealth(context, pop_wealth)` evaluates one wealth assignment and returns
+matching market and household components. It calls `prepare_context()` to fill
+missing baskets and consumption scales, preserving any supplied prepared fields.
+It then calculates household goods demand, derives market prices from industrial,
+export, and household buy orders against production and import sell orders, and
+evaluates cooperative income and household expenses at those same prices.
+
+```python
+initial = economy.solve(building_levels, workforce_ratio=0.25)
+market, households = economy.evaluate_wealth(initial.context, initial.pop_wealth)
+state = EconomyState(market.context, market, households)
+balance = state.pop_balance  # Evaluated, read-only weekly income minus expenses.
+```
+
+Use `market.context` when composing the result: it is the supplied context when
+already fully prepared, or a newly prepared context otherwise. Inputs and model
+tables remain unchanged. Returned arrays are read-only, and supplied wealth
+values are preserved as `int64`. Wealth must match configurations × professions;
+every occupied tier needs a basket, including households with zero consumption
+scales. Empty cells may use undefined nonnegative integer tiers.
+
+Total household expenses equal `households.pop_needs @ market.market_prices`
+within floating-point precision. Existing preparation, input validation, and
+income-allocation errors propagate. This evaluates target consumption without
+affordability limits or wealth transitions; nominal and market solve modes
+continue to leave household finances unevaluated.
+
 ### Exporting standard packages
 
 To export packages for an economy with no buildings, run

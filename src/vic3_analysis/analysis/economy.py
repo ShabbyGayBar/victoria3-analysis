@@ -1129,6 +1129,68 @@ class Economy:
             )
         return replace(context, **changes)
 
+    def evaluate_wealth(
+        self, context: EconomyContext, pop_wealth: np.ndarray
+    ) -> tuple[MarketState, PopState]:
+        """Evaluate demand, market prices, and finances at fixed household wealth.
+
+        Prepare missing context baskets and consumption scales, preserving any
+        supplied prepared fields. Calculate demand first, then market prices
+        from total buy orders and fixed sell orders, and finally cooperative
+        income and household expenses at those same prices.
+
+        Args:
+            context: Fixed production, trade, and worker counts aligned to this
+                economy. Prepared baskets and scales are optional.
+            pop_wealth: Non-negative integer wealth matrix aligned to
+                configurations and professions. Occupied tiers need baskets;
+                empty cells may use undefined tiers.
+
+        Returns:
+            Matching market and household components, in that order, with
+            read-only arrays and fully evaluated household finances. Wealth
+            values are preserved. The market shares the supplied context when
+            fully prepared; otherwise it references a newly prepared context.
+            Compose a complete snapshot with
+            ``EconomyState(market.context, market, households)``.
+
+        Raises:
+            ValueError: If context inputs or wealth are invalid or misaligned,
+                preparation fails, occupied tiers lack baskets, income cannot
+                be allocated, or calculated results are non-finite.
+
+        Notes:
+            Inputs and model tables are unchanged. This evaluates one wealth
+            assignment without affordability limits or wealth transitions.
+        """
+        self._validate_building_goods_flow(context)
+        self._validate_goods_vector(context.imports, "context.imports")
+        self._validate_goods_vector(context.exports, "context.exports")
+        context = self.prepare_context(context)
+        state = EconomyState(
+            context=context,
+            market=MarketState(context, self.base_prices),
+            households=PopState(pop_wealth, np.zeros(len(self.goods_index))),
+        )
+        demand = self.calculate_pop_needs(state)
+        market = MarketState(
+            context,
+            self.market_prices(
+                context.non_pop_buy_orders + demand, context.sell_orders
+            ),
+        )
+        state = replace(
+            state,
+            market=market,
+            households=replace(state.households, pop_needs=demand),
+        )
+        households = replace(
+            state.households,
+            pop_income=self.calculate_pop_income(state),
+            pop_expenses=self.calculate_pop_expenses(state),
+        )
+        return market, households
+
     def calculate_buy_packages(
         self, state: EconomyState | EconomyContext
     ) -> pd.DataFrame:

@@ -34,6 +34,15 @@ must be supplied or cleared together. `consumption_scales` is an optional
 read-only configuration-by-profession array. Goods and profession axes follow
 the owning economy's indexes. Existing solves leave these fields unprepared.
 
+`Economy.evaluate_wealth(context, pop_wealth)` returns `(market, households)`
+for one fixed wealth assignment. It automatically prepares missing context
+baskets and scales, calculates demand and market prices, then evaluates income
+and expenses at those prices. Balance is derived from the returned finances.
+The market references the prepared context: fully prepared inputs retain their
+identity; incomplete inputs produce a new context without modifying the original.
+Compose the results with `EconomyState(market.context, market, households)`.
+See [evaluating fixed wealth](../guides/economy.md#evaluating-fixed-wealth).
+
 `Economy.calculate_pop_income(state)` returns a fresh writable float64 matrix
 of weekly cooperative income totals aligned to configurations × professions.
 It allocates each configuration's positive surplus using employee counts times
