@@ -95,7 +95,7 @@ Consequently, `process:<configuration-key>` identifies a node, `building`
 remains its source metadata, and `result.processes()` reports configuration
 economics. The term does not mean an operating-system process.
 
-The [supply-chain design references](../supply-chain-design.md) compare this
+The [supply-chain design references](../design/supply-chain.md) compare this
 architecture with Brightway, PyPSA, Calliope, pymrio, and openLCA. They explain
 the shared ideas behind graphs, optimization, economic accounting, and explicit
 coproduct treatment, together with the limits of each comparison.

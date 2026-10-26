@@ -159,8 +159,11 @@ nav:
       - Economy and production: api/economy.md
       - Optimization: api/optimization.md
       - Supply chains: api/supply-chain.md
+  - Design:
+      - design/index.md
+      - Economy dependencies: design/economy-dependencies.md
+      - Supply-chain design references: design/supply-chain.md
   - Project:
       - Roadmap: roadmap.md
-      - Supply-chain design references: supply-chain-design.md
       - Repository structure: project_structure.md
       - License: license.md

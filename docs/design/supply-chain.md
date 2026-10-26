@@ -11,9 +11,9 @@ for different parts of that design. The comparisons below describe
 architectural parallels; they do not establish implementation provenance or
 imply dependencies on these packages.
 
-For usage, see the [supply-chain guide](guides/supply-chain.md). For exact
+For usage, see the [supply-chain guide](../guides/supply-chain.md). For exact
 formulas and report boundaries, see the
-[supply-chain data dictionary](data-dictionary/supply-chain.md).
+[supply-chain data dictionary](../data-dictionary/supply-chain.md).
 
 | Reference | Most relevant design topic | Corresponding part of this package |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ supporting combined process/product nodes used in existing datasets. A process
 can have multiple functional edges. This supports our choice to model a
 complete building/PM configuration as a process, keep goods independent of
 their producers, and retain every coproduct output. The guide explains
-[why building, method, producer, and recipe name different concepts](guides/supply-chain.md#why-the-graph-uses-processes).
+[why building, method, producer, and recipe name different concepts](../guides/supply-chain.md#why-the-graph-uses-processes).
 [Brightway inventory model](https://docs.brightway.dev/en/latest/content/overview/inventory.html#processes-products-and-something-in-between).
 
 Our physical directions, good → consuming process and process → output good,

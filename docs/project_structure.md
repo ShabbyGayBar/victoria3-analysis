@@ -130,7 +130,7 @@ or expose a `pyradox.Tree` subclass with helper methods.
   lists goods with at least one producer configuration.
   The [supply-chain guide](guides/supply-chain.md#why-the-graph-uses-processes)
   explains the process/configuration terminology. The
-  [design references](supply-chain-design.md) compare graphs, optimization,
+  [design references](design/supply-chain.md) compare graphs, optimization,
   accounting, and coproduct treatment with Brightway, PyPSA, Calliope, pymrio,
   and openLCA.
 
@@ -247,9 +247,12 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
   explanations. Economy modeling and optimization have separate guide pages.
 - `showcase/` — Curated previews and downloads for every tracked table and
   figure, plus the artifact-to-example registry used by documentation tests.
+- `design/` — Design notes with an index, color-coded economy calculation
+  dependencies and storage owners, and supply-chain architectural references.
 - `hooks.py` — Adds artifact-checkout collections to the site and expands CSV
   preview directives during builds.
-- `stylesheets/extra.css` — Responsive gallery and table-preview styling.
+- `stylesheets/extra.css` — Responsive gallery and table-preview styling, plus
+  light/dark storage-owner colors for the economy dependency diagrams.
 - `license.md` — License page.
 - `project_structure.md` — This document.
 - `roadmap.md` — Roadmap placeholder (currently empty; see `AGENTS.md` for

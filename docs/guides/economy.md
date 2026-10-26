@@ -5,6 +5,9 @@ description: Model Victoria 3 goods flows and evaluate building levels with nomi
 
 # Economy modeling
 
+For calculation dependencies and the owner of each state value, see the
+[economy dependency graphs](../design/economy-dependencies.md).
+
 See the [production-table dictionary](../data-dictionary/production.md) for
 input coefficients and the [economy-report dictionary](../data-dictionary/economy.md)
 for exported state columns, formulas, and units.
