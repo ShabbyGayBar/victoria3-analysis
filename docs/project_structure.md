@@ -111,7 +111,15 @@ or expose a `pyradox.Tree` subclass with helper methods.
     profit, employment, per-profession employment, and `goods_<good>` columns.
     Optional technology and pop-type tables add era/localization and
     private-wage-normalized metrics, respectively.
-- `economy.py` — Economy model and frozen snapshot components.
+- `economy/` — Economy model and frozen snapshot components. `__init__.py`
+  preserves the public exports. `model.py` defines `Economy`, retaining its
+  initialization, cached properties, and delegating methods; calculation
+  functions live in `production.py` (coefficients, throughput, and resources),
+  `consumption.py` (baskets, demand, and expenses), `income.py` (household
+  earnings), `market.py` (prices and nominal/market solves), `equilibrium.py`
+  (wealth evaluation, iteration, and equilibrium solves), and `reports.py`
+  (DataFrame exports). `_utils.py` shares array and validation helpers.
+  `states.py` defines the snapshot components, diagnostics, and errors.
   `EconomyContext` owns fixed production, trade, worker counts, workforce ratio,
   and optional prepared baskets/scales. `MarketState` references that context
   and owns prices, deriving building finances and GDP. `PopState` owns wealth,

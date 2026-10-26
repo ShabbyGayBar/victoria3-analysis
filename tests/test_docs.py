@@ -80,7 +80,21 @@ def _export_origins() -> dict[str, tuple[str, str]]:
         if not isinstance(node, ast.ImportFrom) or node.module is None:
             continue
         for alias in node.names:
-            origins[alias.asname or alias.name] = (node.module, alias.name)
+            module, source_name = node.module, alias.name
+            path = ROOT / "src" / Path(*module.split("."))
+            while path.is_dir():
+                package = ast.parse((path / "__init__.py").read_text(encoding="utf-8"))
+                imports = [
+                    (item.module, name.name)
+                    for item in package.body
+                    if isinstance(item, ast.ImportFrom) and item.module is not None
+                    for name in item.names
+                    if (name.asname or name.name) == source_name
+                ]
+                assert len(imports) == 1, f"cannot resolve {module}.{source_name}"
+                module, source_name = imports[0]
+                path = ROOT / "src" / Path(*module.split("."))
+            origins[alias.asname or alias.name] = (module, source_name)
     return origins
 
 
@@ -341,7 +355,9 @@ def test_dictionary_covers_optional_production_fields() -> None:
 def test_dictionary_covers_economy_report_columns() -> None:
     """Public state export dictionaries have a complete table-specific reference."""
     tree = ast.parse(
-        (SRC_PACKAGE / "analysis" / "economy.py").read_text(encoding="utf-8")
+        (SRC_PACKAGE / "analysis" / "economy" / "reports.py").read_text(
+            encoding="utf-8"
+        )
     )
     for method, section in (
         ("df_buildings", "Building registry"),
