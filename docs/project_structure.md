@@ -117,9 +117,10 @@ or expose a `pyradox.Tree` subclass with helper methods.
   and owns prices, deriving building finances and GDP. `PopState` owns wealth,
   demand, and optional income/expenses, deriving balance when evaluated.
   `EconomyState` composes them, preserves flat attribute reads, and derives
-  combined reports. `Economy` provides nominal/market solving, explicit
-  `prepare_context()`, and consumption and income calculations; wealth
-  iteration remains deferred.
+  combined reports. `Economy` provides nominal/market/equilibrium solving,
+  explicit preparation, fixed-wealth evaluation, and simultaneous one-tier
+  iteration. Immutable `EquilibriumDiagnostics` records numerical outcomes
+  and financial flags; `EquilibriumError` retains consistent failure snapshots.
 - `supply_chain/` — Single-terminal nominal supply-chain analysis. The package
   separates analyzer/result orchestration, cyclic bipartite NetworkX graph
   construction, metrics, Matplotlib/Mermaid visualization, and sequential

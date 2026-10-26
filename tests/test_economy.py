@@ -8,7 +8,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from vic3_analysis import Economy, EconomyContext, EconomyState, MarketState, PopState
+from vic3_analysis import (
+    Economy,
+    EconomyContext,
+    EconomyState,
+    EquilibriumDiagnostics,
+    EquilibriumError,
+    MarketState,
+    PopState,
+)
 
 
 @pytest.fixture
@@ -3246,6 +3254,597 @@ def test_evaluate_wealth_propagates_income_failure(
     model = replace(wealth_economy, df_pop_types=professions)
     with pytest.raises(ValueError, match="Positive surplus.*recipient weight"):
         model.evaluate_wealth(wealth_context, np.array([[1, 2], [2, 999]]))
+
+
+@pytest.fixture
+def equilibrium_economy() -> Economy:
+    """One food cooperative with a hand-calculable stable second wealth tier."""
+    return Economy(
+        df_production=pd.DataFrame(
+            {
+                "building": ["farm"],
+                "production_method": ["pm_farm"],
+                "goods_food": [2.1],
+                "employment_workers": [10_000.0],
+            }
+        ),
+        df_goods=pd.DataFrame({"key": ["food"], "cost": [1.0]}),
+        df_pop_types=pd.DataFrame(
+            {
+                "key": ["workers", "unused"],
+                "start_quality_of_life": [1, 999],
+                "wage_weight": [1.0, 1.0],
+                "consumption_mult": [1.0, 1.0],
+                "dependent_wage": [0.0, 0.0],
+            }
+        ),
+        df_pop_needs=pd.DataFrame(
+            {
+                "key": ["popneed_food"],
+                "goods": ["food"],
+                "weight": [1.0],
+                "min_supply_share": [0.0],
+                "max_supply_share": [1.0],
+                "is_default": [True],
+            }
+        ),
+        df_buy_packages=pd.DataFrame(
+            {"wealth": [1, 2, 3], "popneed_food": [1.0, 2.0, 3.0]}
+        ),
+    )
+
+
+@pytest.fixture
+def cycling_economy(equilibrium_economy: Economy) -> Economy:
+    """Income buys next-tier imports at low demand, but not at high demand."""
+    return replace(
+        equilibrium_economy,
+        df_production=pd.DataFrame(
+            {
+                "building": ["factory"],
+                "production_method": ["pm_factory"],
+                "goods_output": [2.5],
+                "goods_food": [0.0],
+                "employment_workers": [10_000.0],
+            }
+        ),
+        df_goods=pd.DataFrame({"key": ["output", "food"], "cost": [1.0, 1.0]}),
+    )
+
+
+def _assert_evaluated_state(model: Economy, state: EconomyState) -> None:
+    """Check every reported quantity against public independent calculators."""
+    assert state.pop_income is not None
+    assert state.pop_expenses is not None
+    assert state.pop_balance is not None
+    np.testing.assert_allclose(state.pop_needs, model.calculate_pop_needs(state))
+    np.testing.assert_allclose(
+        state.market_prices, model.market_prices(state.buy_orders, state.sell_orders)
+    )
+    np.testing.assert_allclose(state.pop_income, model.calculate_pop_income(state))
+    np.testing.assert_allclose(state.pop_expenses, model.calculate_pop_expenses(state))
+    np.testing.assert_allclose(state.pop_balance, state.pop_income - state.pop_expenses)
+    assert state.pop_expenses.sum() == pytest.approx(
+        state.pop_needs @ state.market_prices
+    )
+    for array in _state_arrays(state).values():
+        assert not array.flags.writeable
+
+
+@pytest.mark.parametrize("starting_tier", [1, 2, 3])
+def test_equilibrium_known_solution_and_iteration_boundary(
+    equilibrium_economy: Economy, starting_tier: int
+):
+    initial_wealth = np.array([[starting_tier, 777]])
+    initial_copy = initial_wealth.copy()
+    result = equilibrium_economy.solve(
+        np.ones(1),
+        method="equilibrium",
+        initial_wealth=initial_wealth,
+        max_iterations=1,
+    )
+    np.testing.assert_array_equal(initial_wealth, initial_copy)
+    np.testing.assert_array_equal(result.pop_wealth, [[2, 777]])
+    np.testing.assert_allclose(result.pop_needs, [2])
+    np.testing.assert_allclose(result.market_prices, [0.9625])
+    assert result.pop_income is not None
+    assert result.pop_expenses is not None
+    np.testing.assert_allclose(result.pop_income, [[2.02125, 0]])
+    np.testing.assert_allclose(result.pop_expenses, [[1.925, 0]])
+    diagnostics = result.equilibrium_diagnostics
+    assert diagnostics == EquilibriumDiagnostics(
+        status="converged", iterations=int(starting_tier != 2)
+    )
+    attribute = "status"
+    with pytest.raises(FrozenInstanceError):
+        setattr(diagnostics, attribute, "cycle")
+    _assert_evaluated_state(equilibrium_economy, result)
+    new_market, new_households = equilibrium_economy.iterate(
+        result.context, result.market, result.households
+    )
+    assert new_market is result.market
+    assert new_households is result.households
+
+
+def test_equilibrium_default_wealth_and_legacy_modes(equilibrium_economy: Economy):
+    result = equilibrium_economy.solve(np.ones(1), method="equilibrium")
+    np.testing.assert_array_equal(result.pop_wealth, [[2, 999]])
+    for method in ("nominal", "market"):
+        original = equilibrium_economy.solve(np.ones(1), method=method)
+        ignored = equilibrium_economy.solve(
+            np.ones(1),
+            method=method,
+            initial_wealth=np.array([[3, 0]]),
+            max_iterations=0,
+            rtol=-1,
+            atol=-1,
+        )
+        for name, array in _state_arrays(original).items():
+            np.testing.assert_array_equal(array, getattr(ignored, name))
+        assert original.equilibrium_diagnostics is None
+        assert ignored.equilibrium_diagnostics is None
+
+
+@pytest.mark.parametrize(
+    ("tier", "income", "rtol", "atol", "expected"),
+    [
+        (2, 1.96, 0.0, 0.0, 2),  # Strict decrease: equality holds.
+        (2, 1.95, 0.0, 0.0, 1),
+        (2, 3.06, 0.0, 0.0, 3),  # Inclusive advancement equality.
+        (2, 3.05, 0.0, 0.0, 2),
+        (2, 1.95, 0.0, 0.02, 2),
+        (2, 1.95, 0.01, 0.0, 2),
+        (2, 3.05, 0.0, 0.02, 3),
+        (2, 3.05, 0.01, 0.0, 3),
+        (1, 0.0, 0.0, 0.0, 1),  # Unaffordable floor stays bounded.
+        (3, 100.0, 0.0, 0.0, 3),
+    ],
+)
+def test_iterate_thresholds_and_tolerance(
+    equilibrium_economy: Economy,
+    tier: int,
+    income: float,
+    rtol: float,
+    atol: float,
+    expected: int,
+):
+    initial = equilibrium_economy.solve(np.ones(1))
+    context = equilibrium_economy.prepare_context(initial.context)
+    market = MarketState(context, np.ones(1))
+    households = PopState(
+        np.array([[tier, 999]]),
+        np.array([float(tier)]),
+        np.array([[income, 0.0]]),
+        np.array([[float(tier), 0.0]]),
+    )
+    market_after, households_after = equilibrium_economy.iterate(
+        context, market, households, rtol=rtol, atol=atol
+    )
+    np.testing.assert_array_equal(households_after.pop_wealth, [[expected, 999]])
+    assert market_after.context is context
+    if expected == tier:
+        assert market_after is market
+        assert households_after is households
+    else:
+        _assert_evaluated_state(
+            equilibrium_economy, EconomyState(context, market_after, households_after)
+        )
+    np.testing.assert_array_equal(households.pop_wealth, [[tier, 999]])
+
+
+def test_iterate_simultaneous_changes_and_nonmonotonic_costs(
+    wealth_economy: Economy, wealth_context: EconomyContext
+):
+    context = replace(
+        wealth_context,
+        buy_package_wealth=np.array([1, 2, 3]),
+        buy_packages=np.array([[0.0, 2.0, 0.0], [0.0, 10.0, 0.0], [0.0, 1.0, 0.0]]),
+    )
+    market = MarketState(context, np.ones(3))
+    households = PopState(
+        np.array([[2, 1], [2, 999]]),
+        np.zeros(3),
+        np.array([[5.0, 10.0], [5.0, 0.0]]),
+        np.zeros((2, 2)),
+    )
+    next_market, next_households = wealth_economy.iterate(
+        context, market, households, rtol=0, atol=0
+    )
+    # Cell (0, 0) can afford the cheaper next tier but must decrease first.
+    np.testing.assert_array_equal(next_households.pop_wealth, [[1, 2], [3, 999]])
+    assert next_market.context is context
+    _assert_evaluated_state(
+        wealth_economy, EconomyState(context, next_market, next_households)
+    )
+
+
+def test_iterate_zero_consumption_and_empty_population(equilibrium_economy: Economy):
+    initial = equilibrium_economy.solve(np.ones(1))
+    context = replace(
+        equilibrium_economy.prepare_context(initial.context),
+        consumption_scales=np.zeros((1, 2)),
+    )
+    market, households = equilibrium_economy.evaluate_wealth(
+        context, initial.pop_wealth
+    )
+    next_market, next_households = equilibrium_economy.iterate(
+        context, market, households
+    )
+    np.testing.assert_array_equal(next_households.pop_wealth, [[2, 999]])
+    np.testing.assert_array_equal(next_households.pop_expenses, [[0, 0]])
+    _assert_evaluated_state(
+        equilibrium_economy, EconomyState(context, next_market, next_households)
+    )
+    empty_context = replace(
+        context,
+        building_levels=np.zeros(1),
+        building_goods_flow=np.zeros((1, 1)),
+        pops=np.zeros((1, 2)),
+        buy_packages=np.empty((0, 1)),
+        buy_package_wealth=np.array([], dtype=int),
+    )
+    empty_market, empty_households = equilibrium_economy.evaluate_wealth(
+        empty_context, np.array([[777, 888]])
+    )
+    same_market, same_households = equilibrium_economy.iterate(
+        empty_context, empty_market, empty_households
+    )
+    assert same_market is empty_market
+    assert same_households is empty_households
+    result = equilibrium_economy.solve(np.zeros(1), method="equilibrium")
+    assert result.equilibrium_diagnostics == EquilibriumDiagnostics("converged", 0)
+    _assert_evaluated_state(equilibrium_economy, result)
+
+
+def test_equilibrium_dependents_and_financial_flags(equilibrium_economy: Economy):
+    professions = equilibrium_economy.df_pop_types.copy()
+    professions["dependent_wage"] = [52 / 10_000, 0.0]
+    model = replace(equilibrium_economy, df_pop_types=professions)
+    result = model.solve(np.ones(1), method="equilibrium", workforce_ratio=0.25)
+    np.testing.assert_array_equal(result.pop_wealth, [[1, 999]])
+    assert result.consumption_scales is not None
+    assert result.pop_income is not None
+    np.testing.assert_allclose(result.consumption_scales, [[2.5, 0]])
+    np.testing.assert_allclose(result.pop_income, [[2.4 + 3, 0]])
+    _assert_evaluated_state(model, result)
+
+    production = equilibrium_economy.df_production.copy()
+    production["goods_food"] = [-1.0]
+    loss_model = replace(equilibrium_economy, df_production=production)
+    flagged = loss_model.solve(
+        np.ones(1), method="equilibrium", imports=np.array([10.0])
+    )
+    assert flagged.equilibrium_diagnostics == EquilibriumDiagnostics(
+        "converged",
+        0,
+        unaffordable_floor_cells=((0, 0),),
+        loss_buildings=(0,),
+    )
+    _assert_evaluated_state(loss_model, flagged)
+    no_material_loss = loss_model.solve(
+        np.ones(1), method="equilibrium", imports=np.array([10.0]), atol=0.3
+    )
+    assert no_material_loss.equilibrium_diagnostics == EquilibriumDiagnostics(
+        "converged", 0
+    )
+
+
+@pytest.mark.parametrize(
+    ("initial_tier", "budget", "status", "iterations", "cycle_start"),
+    [
+        (1, 1, "max_iterations", 1, None),
+        (1, 2, "cycle", 2, 0),
+        (1, 10, "cycle", 2, 0),
+        (3, 3, "cycle", 3, 1),
+    ],
+)
+def test_equilibrium_cycle_and_exhaustion(
+    cycling_economy: Economy,
+    initial_tier: int,
+    budget: int,
+    status: str,
+    iterations: int,
+    cycle_start: int | None,
+):
+    with pytest.raises(EquilibriumError) as caught:
+        cycling_economy.solve(
+            np.ones(1),
+            method="equilibrium",
+            imports=np.array([0.0, 1.0]),
+            exports=np.array([2.5, 0.0]),
+            initial_wealth=np.array([[initial_tier, 999]]),
+            max_iterations=budget,
+        )
+    error = caught.value
+    assert error.diagnostics is error.state.equilibrium_diagnostics
+    assert error.diagnostics.status == status
+    assert error.diagnostics.iterations == iterations
+    assert error.diagnostics.cycle_start == cycle_start
+    assert error.diagnostics.cycle_length == (None if cycle_start is None else 2)
+    assert error.diagnostics.increasing_cells or error.diagnostics.decreasing_cells
+    _assert_evaluated_state(cycling_economy, error.state)
+    with pytest.raises(ValueError, match="read-only"):
+        error.state.pop_wealth[0, 0] = 3
+
+
+def test_equilibrium_evaluation_failure_preserves_preceding_state(
+    cycling_economy: Economy,
+):
+    production = pd.DataFrame(
+        {
+            "building": ["factory", "unemployed"],
+            "production_method": ["pm_factory", "pm_trade"],
+            "goods_output": [2.5, -1.2],
+            "goods_food": [0.0, 1.0],
+            "employment_workers": [10_000.0, 0.0],
+        }
+    )
+    model = replace(cycling_economy, df_production=production)
+    with pytest.raises(
+        EquilibriumError, match="no positive recipient weight"
+    ) as caught:
+        model.solve(np.ones(2), method="equilibrium", exports=np.array([1.3, 0.0]))
+    error = caught.value
+    assert error.diagnostics.status == "evaluation_failed"
+    assert error.diagnostics.iterations == 0
+    assert error.diagnostics.increasing_cells == ((0, 0),)
+    assert error.diagnostics.loss_buildings == (1,)
+    assert isinstance(error.__cause__, ValueError)
+    np.testing.assert_array_equal(error.state.pop_wealth, [[1, 999], [1, 999]])
+    _assert_evaluated_state(model, error.state)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("rtol", -1.0),
+        ("rtol", float("nan")),
+        ("rtol", float("inf")),
+        ("rtol", True),
+        ("atol", -1.0),
+        ("atol", float("nan")),
+        ("atol", float("inf")),
+        ("atol", True),
+        ("max_iterations", 0),
+        ("max_iterations", -1),
+        ("max_iterations", 1.5),
+        ("max_iterations", True),
+    ],
+)
+def test_equilibrium_rejects_invalid_controls(
+    equilibrium_economy: Economy, name: str, value
+):
+    with pytest.raises(ValueError, match=name):
+        equilibrium_economy.solve(np.ones(1), method="equilibrium", **{name: value})
+
+
+@pytest.mark.parametrize(
+    "wealth",
+    [
+        np.array([1, 2]),
+        np.array([[0, 999]]),
+        np.array([[4, 999]]),
+        np.array([[1.5, 999]]),
+        np.array([[-1, 999]]),
+        np.array([[np.nan, 999]]),
+    ],
+)
+def test_equilibrium_rejects_invalid_initial_wealth(
+    equilibrium_economy: Economy, wealth: np.ndarray
+):
+    with pytest.raises(ValueError, match="pop_wealth"):
+        equilibrium_economy.solve(
+            np.ones(1), method="equilibrium", initial_wealth=wealth
+        )
+
+
+def test_equilibrium_rejects_explicit_needs_and_nonconsecutive_tiers(
+    equilibrium_economy: Economy,
+):
+    with pytest.raises(ValueError, match="endogenous"):
+        equilibrium_economy.solve(
+            np.ones(1), method="equilibrium", pop_needs=np.zeros(1)
+        )
+    model = replace(
+        equilibrium_economy,
+        df_buy_packages=equilibrium_economy.df_buy_packages.iloc[[0, 2]],
+    )
+    with pytest.raises(ValueError, match="consecutive"):
+        model.solve(np.ones(1), method="equilibrium")
+    # Fixed-wealth evaluation still supports sparse labels.
+    initial = model.solve(np.ones(1))
+    model.evaluate_wealth(initial.context, initial.pop_wealth)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "identity",
+        "unprepared",
+        "income",
+        "expenses",
+        "wealth",
+        "prices",
+        "needs",
+        "empty_tiers",
+        "negative_levels",
+    ],
+)
+def test_iterate_rejects_invalid_components(equilibrium_economy: Economy, case: str):
+    initial = equilibrium_economy.solve(np.ones(1))
+    market, households = equilibrium_economy.evaluate_wealth(
+        initial.context, initial.pop_wealth
+    )
+    context = market.context
+    if case == "identity":
+        context = replace(context)
+    elif case == "unprepared":
+        context = initial.context
+        market = replace(market, context=context)
+    elif case in ("income", "expenses"):
+        households = replace(households, **{f"pop_{case}": None})
+    elif case == "wealth":
+        households = PopState(
+            np.zeros((2, 2), dtype=int), np.ones(1), np.zeros((2, 2)), np.zeros((2, 2))
+        )
+    elif case == "prices":
+        market = replace(market, market_prices=np.array([np.nan]))
+    elif case == "needs":
+        households = replace(households, pop_needs=np.ones(2))
+    elif case == "empty_tiers":
+        context = replace(
+            context,
+            buy_packages=np.empty((0, 1)),
+            buy_package_wealth=np.array([], dtype=int),
+        )
+        market = replace(market, context=context)
+    elif case == "negative_levels":
+        context = replace(context, building_levels=-np.ones(1))
+        market = replace(market, context=context)
+    with pytest.raises(ValueError):
+        equilibrium_economy.iterate(context, market, households)
+
+
+def test_equilibrium_verification_rejects_inconsistent_public_accounting(
+    equilibrium_economy: Economy,
+):
+    class InconsistentDemandEconomy(Economy):
+        """An extension whose reporting disagrees with the solver's demand."""
+
+        def calculate_pop_needs(
+            self,
+            state: EconomyState,
+            *,
+            buy_packages: pd.DataFrame | None = None,
+            consumption_scales: np.ndarray | None = None,
+        ) -> np.ndarray:
+            return (
+                super().calculate_pop_needs(
+                    state,
+                    buy_packages=buy_packages,
+                    consumption_scales=consumption_scales,
+                )
+                + 0.5
+            )
+
+    model = InconsistentDemandEconomy(
+        df_production=equilibrium_economy.df_production,
+        df_goods=equilibrium_economy.df_goods,
+        df_pop_types=equilibrium_economy.df_pop_types,
+        df_pop_needs=equilibrium_economy.df_pop_needs,
+        df_buy_packages=equilibrium_economy.df_buy_packages,
+    )
+    with pytest.raises(EquilibriumError, match="verification disagrees") as caught:
+        model.solve(np.ones(1), method="equilibrium")
+    assert caught.value.diagnostics.status == "verification_failed"
+    assert caught.value.diagnostics.iterations == 1
+    assert isinstance(caught.value.__cause__, ValueError)
+    # The retained state remains the last complete evaluation, not the inconsistent report.
+    _assert_evaluated_state(equilibrium_economy, caught.value.state)
+
+
+def test_equilibrium_verification_rechecks_transitions_within_tolerance(
+    equilibrium_economy: Economy,
+):
+    class RevisedIncomeEconomy(Economy):
+        """Small reporting difference accepted numerically but changing stationarity."""
+
+        def calculate_pop_income(self, state: EconomyState) -> np.ndarray:
+            return np.maximum(super().calculate_pop_income(state) - 0.015, 0)
+
+    production = equilibrium_economy.df_production.copy()
+    production["goods_food"] = [1.95]
+    model = RevisedIncomeEconomy(
+        df_production=production,
+        df_goods=equilibrium_economy.df_goods,
+        df_pop_types=equilibrium_economy.df_pop_types,
+        df_pop_needs=equilibrium_economy.df_pop_needs,
+        df_buy_packages=equilibrium_economy.df_buy_packages,
+    )
+    with pytest.raises(
+        EquilibriumError, match="requires further wealth transitions"
+    ) as caught:
+        model.solve(
+            np.ones(1),
+            method="equilibrium",
+            initial_wealth=np.array([[2, 999]]),
+            rtol=0,
+            atol=0.02,
+        )
+    assert caught.value.diagnostics.status == "verification_failed"
+    assert caught.value.diagnostics.iterations == 0
+    assert isinstance(caught.value.__cause__, ValueError)
+
+
+def test_equilibrium_runtime_overflow_preserves_last_state(cycling_economy: Economy):
+    packages = cycling_economy.df_buy_packages.copy()
+    packages["popneed_food"] = [1.0, 2.0, 1.05e308]
+    model = replace(cycling_economy, df_buy_packages=packages)
+    with pytest.raises(EquilibriumError, match="transition basket costs") as caught:
+        model.solve(
+            np.ones(1),
+            method="equilibrium",
+            imports=np.array([0.0, 1.0]),
+            exports=np.array([2.5, 0.0]),
+        )
+    assert caught.value.diagnostics.status == "evaluation_failed"
+    assert caught.value.diagnostics.iterations == 0
+    assert caught.value.diagnostics.increasing_cells == ((0, 0),)
+    np.testing.assert_array_equal(caught.value.state.pop_wealth, [[1, 999]])
+    assert isinstance(caught.value.__cause__, ValueError)
+    _assert_evaluated_state(model, caught.value.state)
+
+
+def test_iterate_top_tier_omits_unused_advancement_threshold(
+    equilibrium_economy: Economy,
+):
+    initial = equilibrium_economy.solve(np.ones(1))
+    context = replace(
+        equilibrium_economy.prepare_context(initial.context),
+        buy_packages=np.array([[1.0], [2.0], [1.78e308]]),
+    )
+    market = MarketState(context, np.ones(1))
+    households = PopState(
+        np.array([[3, 999]]),
+        np.array([1.78e308]),
+        np.array([[1.78e308, 0.0]]),
+        np.array([[1.78e308, 0.0]]),
+    )
+    next_market, next_households = equilibrium_economy.iterate(
+        context, market, households
+    )
+    assert next_market is market
+    assert next_households is households
+
+
+def test_equilibrium_initial_calculation_errors_remain_value_errors(
+    equilibrium_economy: Economy,
+):
+    professions = equilibrium_economy.df_pop_types.copy()
+    professions["wage_weight"] = [0.0, 0.0]
+    model = replace(equilibrium_economy, df_pop_types=professions)
+    with pytest.raises(ValueError, match="no positive recipient weight"):
+        model.solve(np.ones(1), method="equilibrium")
+    with pytest.raises(ValueError, match="requires state diagnostics"):
+        EquilibriumError("failure", equilibrium_economy.solve(np.ones(1)))
+
+
+def test_equilibrium_vanilla(economy: Economy):
+    try:
+        result = economy.solve(
+            _first_producing_levels(economy),
+            method="equilibrium",
+            workforce_ratio=0.25,
+            max_iterations=3,
+        )
+    except EquilibriumError as error:
+        result = error.state
+        assert error.diagnostics.status in {"cycle", "max_iterations"}
+    assert result.equilibrium_diagnostics is not None
+    assert result.pop_wealth.dtype == np.int64
+    assert result.pop_income is not None
+    assert result.pop_expenses is not None
+    _assert_evaluated_state(economy, result)
 
 
 def test_evaluate_wealth_vanilla(economy: Economy):

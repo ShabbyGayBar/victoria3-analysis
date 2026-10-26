@@ -12,6 +12,8 @@ from vic3_analysis.analysis.economy import (
     Economy,
     EconomyContext,
     EconomyState,
+    EquilibriumDiagnostics,
+    EquilibriumError,
     MarketState,
     PopState,
 )
@@ -50,6 +52,8 @@ __all__ = [
     "Economy",
     "EconomyContext",
     "EconomyState",
+    "EquilibriumDiagnostics",
+    "EquilibriumError",
     "LinearProblem",
     "MarketOptimizer",
     "MarketProblem",

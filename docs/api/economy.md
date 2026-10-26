@@ -43,6 +43,30 @@ identity; incomplete inputs produce a new context without modifying the original
 Compose the results with `EconomyState(market.context, market, households)`.
 See [evaluating fixed wealth](../guides/economy.md#evaluating-fixed-wealth).
 
+`Economy.iterate(context, market, households, *, rtol=1e-9, atol=1e-8)` returns
+matching `(MarketState, PopState)` after one simultaneous one-tier wealth
+transition. Initialize through `evaluate_wealth()` first: iteration trusts
+economic consistency, requires evaluated finances and prepared consecutive
+tiers, and shares the supplied context. An unchanged assignment returns the
+same components. See [iterating wealth](../guides/economy.md#iterating-wealth)
+for affordability thresholds and numerical comparisons.
+
+`Economy.solve(..., method="equilibrium", initial_wealth=None,
+max_iterations=1000, rtol=1e-9, atol=1e-8)` calculates endogenous household
+demand and returns a complete, verified state with `equilibrium_diagnostics`.
+Explicit `pop_needs` is rejected. The optional initial wealth is a full
+configuration/profession integer matrix. Nominal/market modes ignore these
+controls and leave diagnostics as `None`.
+
+`EquilibriumDiagnostics` and `EquilibriumError` are exported from `vic3_analysis`.
+The immutable diagnostics distinguish stationary wealth from financial
+sustainability: unaffordable floor households and unfunded building losses
+are flags on successful results. Errors retain `.state` and `.diagnostics`
+for cycles, exhausted iterations, evaluation failures, and final-verification
+failures. Setup/initial-evaluation errors remain `ValueError`. See
+[solving equilibrium](../guides/economy.md#solving-equilibrium) for exception
+handling and [diagnostic fields](../data-dictionary/economy.md#equilibrium-diagnostics).
+
 `Economy.calculate_pop_income(state)` returns a fresh writable float64 matrix
 of weekly cooperative income totals aligned to configurations × professions.
 It allocates each configuration's positive surplus using employee counts times
@@ -88,3 +112,7 @@ reuse conditions, and an explicit `income - expenses` example.
 ::: vic3_analysis.PopState
 
 ::: vic3_analysis.EconomyState
+
+::: vic3_analysis.EquilibriumDiagnostics
+
+::: vic3_analysis.EquilibriumError

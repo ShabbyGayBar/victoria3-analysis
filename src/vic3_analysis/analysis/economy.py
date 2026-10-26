@@ -6,13 +6,14 @@ General-equilibrium economy model for Victoria 3.
 
 Separates fixed `EconomyContext` inputs, `MarketState` prices and building
 finances, and `PopState` household results inside a complete `EconomyState`.
-`Economy` prepares consumption data and derives nominal or market snapshots.
+`Economy` prepares consumption data and derives nominal, market, or equilibrium snapshots.
 """
 
 import warnings
 from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -45,6 +46,78 @@ _METADATA_DEFAULTS: dict[str, str | bool] = {
     "discoverable_resource": False,
     "depletable_resource": False,
 }
+
+# common/defines/00_defines.txt: WEALTH_PROGRESS_ACCEPTABLE_DEFICIT / WANTED_BUFFER.
+_WEALTH_DECREASE_THRESHOLD = 0.98
+_WEALTH_INCREASE_THRESHOLD = 1.02
+
+
+@dataclass(frozen=True)
+class EquilibriumDiagnostics:
+    """Numerical outcome and financial flags for an equilibrium snapshot.
+
+    Attributes:
+        status: ``converged``, ``cycle``, ``max_iterations``, ``evaluation_failed``,
+            or ``verification_failed``. Convergence means wealth is stationary,
+            including at its boundaries; it does not promise financial sustainability.
+        iterations: Completed transition steps, excluding initialization and verification.
+        increasing_cells: Configuration/profession coordinates requiring advancement.
+        decreasing_cells: Configuration/profession coordinates requiring a lower tier.
+        unaffordable_floor_cells: Occupied minimum-tier cells below their affordability
+            threshold. These cannot move down and do not prevent convergence.
+        loss_buildings: Configuration indices with material unfunded weekly losses.
+        cycle_start: First iteration of a repeated assignment, or None.
+        cycle_length: Number of transitions in the detected cycle, or None.
+
+    Coordinates follow ``Economy.building_index`` and ``Economy.pop_index``.
+    Tuple fields contain immutable Python integer indices in row-major order.
+    """
+
+    status: Literal[
+        "converged",
+        "cycle",
+        "max_iterations",
+        "evaluation_failed",
+        "verification_failed",
+    ]
+    iterations: int
+    increasing_cells: tuple[tuple[int, int], ...] = ()
+    decreasing_cells: tuple[tuple[int, int], ...] = ()
+    unaffordable_floor_cells: tuple[tuple[int, int], ...] = ()
+    loss_buildings: tuple[int, ...] = ()
+    cycle_start: int | None = None
+    cycle_length: int | None = None
+
+
+@dataclass
+class _PopIncomeCoefficients:
+    """Fixed cooperative shares, recipient totals, and weekly dependent earnings."""
+
+    shares: np.ndarray
+    totals: np.ndarray
+    dependent_income: np.ndarray
+
+
+@dataclass
+class _WealthEvaluation:
+    """Mutable working arrays; public snapshots freeze copies only when needed."""
+
+    pop_wealth: np.ndarray
+    pop_needs: np.ndarray
+    market_prices: np.ndarray
+    pop_income: np.ndarray
+    pop_expenses: np.ndarray
+    pop_balance: np.ndarray
+
+
+@dataclass
+class _WealthTransition:
+    """Simultaneous permitted changes and unaffordable minimum-tier cells."""
+
+    wealth: np.ndarray
+    increasing: np.ndarray
+    decreasing: np.ndarray
+    unaffordable_floor: np.ndarray
 
 
 def _readonly_array(value: np.ndarray) -> np.ndarray:
@@ -408,11 +481,15 @@ class EconomyState:
         context: Fixed production, trade, population, and prepared consumption.
         market: Prices and building finances referencing this exact context.
         households: Household wealth, demand, and optional finances.
+        equilibrium_diagnostics: Optional solver outcome and financial flags.
     """
 
     context: EconomyContext
     market: MarketState
     households: PopState
+    equilibrium_diagnostics: EquilibriumDiagnostics | None = field(
+        default=None, kw_only=True
+    )
 
     def __post_init__(self) -> None:
         """Reject a market attached to a different context."""
@@ -682,6 +759,26 @@ class EconomyState:
         lorenz = np.concatenate(([0.0], cum_wv / cum_wv[-1]))
         area = float(np.sum((f[1:] - f[:-1]) * (lorenz[1:] + lorenz[:-1]) / 2.0))
         return float(1.0 - 2.0 * area)
+
+
+class EquilibriumError(RuntimeError):
+    """Failure after initialization, retaining the last evaluated snapshot.
+
+    Attributes:
+        state: Immutable last evaluated state with solver diagnostics attached.
+        diagnostics: The same diagnostics object as on ``state``.
+
+    Cycles and iteration exhaustion do not prove that no equilibrium exists.
+    Calculation failures retain the original exception through ``__cause__``.
+    """
+
+    def __init__(self, message: str, state: EconomyState) -> None:
+        """Attach a diagnostic-bearing snapshot to a solver failure message."""
+        super().__init__(message)
+        if state.equilibrium_diagnostics is None:
+            raise ValueError("EquilibriumError requires state diagnostics.")
+        self.state = state
+        self.diagnostics = state.equilibrium_diagnostics
 
 
 @dataclass(frozen=True, eq=False, init=False)
@@ -1167,29 +1264,235 @@ class Economy:
         self._validate_goods_vector(context.imports, "context.imports")
         self._validate_goods_vector(context.exports, "context.exports")
         context = self.prepare_context(context)
-        state = EconomyState(
-            context=context,
-            market=MarketState(context, self.base_prices),
-            households=PopState(pop_wealth, np.zeros(len(self.goods_index))),
+        wealth = self._validate_wealth_assignment(context, pop_wealth)
+        evaluation = self._evaluate_prepared_wealth(
+            context, wealth, self._prepare_pop_income(context)
         )
-        demand = self.calculate_pop_needs(state)
-        market = MarketState(
-            context,
-            self.market_prices(
-                context.non_pop_buy_orders + demand, context.sell_orders
+        return self._freeze_wealth(context, evaluation)
+
+    def _validate_wealth_assignment(
+        self, context: EconomyContext, pop_wealth: np.ndarray
+    ) -> np.ndarray:
+        """Validate full matrix alignment and occupied basket coverage."""
+        pops = self._pop_consumption_population(context)
+        wealth = _readonly_wealth(pop_wealth, "pop_wealth")
+        if wealth.shape != pops.shape:
+            raise ValueError(
+                "state.pop_wealth shape must match building_index and pop_index."
+            )
+        if context.buy_packages is None or context.buy_package_wealth is None:
+            raise ValueError(
+                "Prepared buy_packages and buy_package_wealth are required."
+            )
+        self._select_prepared_buy_packages(
+            context.buy_packages,
+            context.buy_package_wealth,
+            np.unique(wealth[pops > 0]),
+        )
+        return wealth
+
+    def _evaluate_prepared_wealth(
+        self,
+        context: EconomyContext,
+        wealth: np.ndarray,
+        income_coefficients: _PopIncomeCoefficients,
+    ) -> _WealthEvaluation:
+        """Evaluate working arrays without constructing immutable intermediate states."""
+        packages, tiers, scales = self._prepared_consumption(context)
+        occupied = context.pops > 0
+        used_wealth, inverse = np.unique(wealth[occupied], return_inverse=True)
+        selected = self._select_prepared_buy_packages(packages, tiers, used_wealth)
+        with np.errstate(over="ignore", invalid="ignore"):
+            counts = np.bincount(
+                inverse, weights=scales[occupied], minlength=len(used_wealth)
+            )
+            demand = _nonnegative_values(counts @ selected, "calculated pop_needs")
+            prices = self._validate_goods_vector(
+                self.market_prices(
+                    context.non_pop_buy_orders + demand, context.sell_orders
+                ),
+                "calculated market_prices",
+            )
+            income = self._pop_income_at_prices(context, prices, income_coefficients)
+            costs = _nonnegative_values(selected @ prices, "calculated basket costs")
+            expenses = np.zeros(context.pops.shape, dtype=np.float64)
+            expenses[occupied] = scales[occupied] * costs[inverse]
+            _nonnegative_values(expenses, "calculated pop_expenses")
+            balance = income - expenses
+        if not np.isfinite(balance).all():
+            raise ValueError("calculated pop_balance must contain finite values.")
+        return _WealthEvaluation(wealth, demand, prices, income, expenses, balance)
+
+    @staticmethod
+    def _prepared_consumption(
+        context: EconomyContext,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Require the prepared arrays needed by wealth iteration."""
+        if (
+            context.buy_packages is None
+            or context.buy_package_wealth is None
+            or context.consumption_scales is None
+        ):
+            raise ValueError(
+                "Prepared baskets and consumption_scales are required; use evaluate_wealth()."
+            )
+        return (
+            context.buy_packages,
+            context.buy_package_wealth,
+            context.consumption_scales,
+        )
+
+    @staticmethod
+    def _freeze_wealth(
+        context: EconomyContext, evaluation: _WealthEvaluation
+    ) -> tuple[MarketState, PopState]:
+        """Freeze matching components while sharing all fixed context arrays."""
+        return (
+            MarketState(context, evaluation.market_prices),
+            PopState(
+                evaluation.pop_wealth,
+                evaluation.pop_needs,
+                evaluation.pop_income,
+                evaluation.pop_expenses,
             ),
         )
-        state = replace(
-            state,
-            market=market,
-            households=replace(state.households, pop_needs=demand),
+
+    @staticmethod
+    def _validate_equilibrium_tolerances(rtol: float, atol: float) -> None:
+        """Reject negative, non-finite, boolean, or non-scalar tolerances."""
+        for name, value in (("rtol", rtol), ("atol", atol)):
+            if (
+                isinstance(value, (bool, np.bool_))
+                or not isinstance(value, (int, float, np.integer, np.floating))
+                or not np.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError(f"{name} must be a finite non-negative scalar.")
+
+    def _validate_iteration_context(self, context: EconomyContext) -> None:
+        """Check prepared axes and consecutive tiers without restricting evaluation."""
+        self._validate_building_goods_flow(context)
+        self._validate_goods_vector(context.imports, "context.imports")
+        self._validate_goods_vector(context.exports, "context.exports")
+        pops = self._pop_consumption_population(context)
+        _nonnegative_values(context.building_levels, "building_levels")
+        if context.building_levels.shape != (len(self.building_index),):
+            raise ValueError("building_levels shape must match building_index.")
+        packages, tiers, scales = self._prepared_consumption(context)
+        if packages.shape != (len(tiers), len(self.goods_index)):
+            raise ValueError("Prepared buy_packages columns must match goods_index.")
+        if scales.shape != pops.shape:
+            raise ValueError("consumption_scales shape must match state.pops.")
+        if (len(tiers) == 0 and (pops > 0).any()) or (np.diff(tiers) != 1).any():
+            raise ValueError(
+                "Wealth iteration requires nonempty consecutive wealth tiers for occupied cells."
+            )
+
+    def _wealth_transition(
+        self,
+        context: EconomyContext,
+        wealth: np.ndarray,
+        prices: np.ndarray,
+        income: np.ndarray,
+        rtol: float,
+        atol: float,
+    ) -> _WealthTransition:
+        """Select simultaneous one-tier changes, with decrease taking precedence."""
+        packages, tiers, scales = self._prepared_consumption(context)
+        occupied = context.pops > 0
+        increasing = np.zeros(wealth.shape, dtype=bool)
+        decreasing = np.zeros(wealth.shape, dtype=bool)
+        floor = np.zeros(wealth.shape, dtype=bool)
+        result = wealth.copy()
+        if occupied.any():
+            positions = np.searchsorted(tiers, wealth[occupied])
+            next_positions = np.minimum(positions + 1, len(tiers) - 1)
+            # Price only tiers needed now, avoiding a household-by-goods tensor.
+            used, inverse = np.unique(
+                np.concatenate((positions, next_positions)), return_inverse=True
+            )
+            with np.errstate(over="ignore", invalid="ignore"):
+                costs = _nonnegative_values(
+                    packages[used] @ prices, "calculated transition basket costs"
+                )
+                current_cost, next_cost = np.split(costs[inverse], 2)
+                next_cost = np.where(positions < len(tiers) - 1, next_cost, 0)
+                lower = _nonnegative_values(
+                    _WEALTH_DECREASE_THRESHOLD * (scales[occupied] * current_cost),
+                    "calculated decrease threshold",
+                )
+                upper = _nonnegative_values(
+                    _WEALTH_INCREASE_THRESHOLD * (scales[occupied] * next_cost),
+                    "calculated increase threshold",
+                )
+                earnings = income[occupied]
+                lower_tolerance = _nonnegative_values(
+                    atol + rtol * np.maximum(earnings, lower), "decrease tolerance"
+                )
+                upper_tolerance = _nonnegative_values(
+                    atol + rtol * np.maximum(earnings, upper), "increase tolerance"
+                )
+            below = earnings < lower - lower_tolerance
+            decreasing[occupied] = below & (positions > 0)
+            increasing[occupied] = (
+                ~below
+                & (positions < len(tiers) - 1)
+                & (earnings >= upper - upper_tolerance)
+            )
+            floor[occupied] = below & (positions == 0)
+            result[decreasing] -= 1
+            result[increasing] += 1
+        return _WealthTransition(result, increasing, decreasing, floor)
+
+    def iterate(
+        self,
+        context: EconomyContext,
+        market: MarketState,
+        households: PopState,
+        *,
+        rtol: float = 1e-9,
+        atol: float = 1e-8,
+    ) -> tuple[MarketState, PopState]:
+        """Apply one simultaneous wealth transition and evaluate matching results.
+
+        Initialize with ``evaluate_wealth()`` and pass its prepared market context.
+        Inputs must be consistent: this method validates alignment and finances,
+        but trusts their economic consistency without reevaluating the old wealth.
+        Decrease below 98% of current cost; otherwise increase at or above 102%
+        of next-tier cost, using previous prices and household scales. Each
+        threshold accepts equality within ``atol + rtol * max(income, threshold)``.
+        Decreases take precedence. Empty cells and bounded tiers are preserved.
+
+        Returns:
+            Matching read-only market and population components sharing ``context``.
+            If wealth is unchanged, the exact supplied components are returned.
+            A step is numerical rather than a simulated week and makes no
+            convergence or financial-sustainability claim.
+
+        Raises:
+            ValueError: If tolerances, context identity, prepared tiers, component
+                axes, prices, or finances are invalid, or calculations fail.
+        """
+        self._validate_equilibrium_tolerances(rtol, atol)
+        if market.context is not context:
+            raise ValueError("market.context must be the same object as context.")
+        self._validate_iteration_context(context)
+        wealth = self._validate_wealth_assignment(context, households.pop_wealth)
+        self._validate_goods_vector(market.market_prices, "market.market_prices")
+        self._validate_goods_vector(households.pop_needs, "households.pop_needs")
+        if households.pop_income is None or households.pop_expenses is None:
+            raise ValueError(
+                "Evaluated household income and expenses are required; use evaluate_wealth()."
+            )
+        transition = self._wealth_transition(
+            context, wealth, market.market_prices, households.pop_income, rtol, atol
         )
-        households = replace(
-            state.households,
-            pop_income=self.calculate_pop_income(state),
-            pop_expenses=self.calculate_pop_expenses(state),
+        if np.array_equal(transition.wealth, wealth):
+            return market, households
+        evaluation = self._evaluate_prepared_wealth(
+            context, transition.wealth, self._prepare_pop_income(context)
         )
-        return market, households
+        return self._freeze_wealth(context, evaluation)
 
     def calculate_buy_packages(
         self, state: EconomyState | EconomyContext
@@ -1612,34 +1915,27 @@ class Economy:
             expenses, and does not change wealth or ``pop_balance``. Dependent
             earnings do not reduce building surplus or increase production GDP.
         """
-        weights = self.pop_wage_weights
-        self._validate_building_goods_flow(state)
         self._validate_goods_vector(state.market_prices, "state.market_prices")
-        if state.pops.shape != (len(self.building_index), len(self.pop_index)):
-            raise ValueError(
-                "state.pops shape must match building_index and pop_index."
-            )
-        pops = _nonnegative_values(state.pops, "state.pops")
+        return self._pop_income_at_prices(
+            state.context, state.market_prices, self._prepare_pop_income(state.context)
+        )
+
+    def _prepare_pop_income(self, context: EconomyContext) -> _PopIncomeCoefficients:
+        """Compile price-independent cooperative shares and dependent earnings once."""
+        weights = self.pop_wage_weights
+        self._validate_building_goods_flow(context)
+        pops = self._pop_consumption_population(context)
         with np.errstate(over="ignore", invalid="ignore"):
             weighted = _nonnegative_values(pops * weights, "weighted population")
             totals = _nonnegative_values(weighted.sum(axis=1), "total wage weight")
-            surplus = state.building_surplus
-        if not np.isfinite(surplus).all():
-            raise ValueError("state.building_surplus must contain finite values.")
-        missing = (surplus > 0) & (totals == 0)
-        if missing.any():
-            keys = [self.building_index[i] for i in np.flatnonzero(missing)]
-            raise ValueError(
-                f"Positive surplus has no positive recipient weight for: {keys}"
-            )
         shares = np.divide(
             weighted,
             totals[:, None],
             out=np.zeros_like(weighted),
             where=totals[:, None] > 0,
         )
-        income = shares * np.maximum(surplus, 0)[:, None]
-        if state.dependents_per_worker > 0 and "dependent_wage" in self.df_pop_types:
+        dependent_income = np.zeros_like(pops)
+        if context.dependents_per_worker > 0 and "dependent_wage" in self.df_pop_types:
             used = (pops > 0).any(axis=0)
             wages = np.zeros(len(self.pop_index), dtype=np.float64)
             wages[used] = _nonnegative_values(
@@ -1647,11 +1943,35 @@ class Economy:
                 "dependent_wage",
             )
             with np.errstate(over="ignore", invalid="ignore"):
-                income = _nonnegative_values(
-                    income + pops * state.dependents_per_worker * (wages / 52),
+                dependent_income = _nonnegative_values(
+                    pops * context.dependents_per_worker * (wages / 52),
                     "calculated pop_income",
                 )
-        return income
+        return _PopIncomeCoefficients(shares, totals, dependent_income)
+
+    def _pop_income_at_prices(
+        self,
+        context: EconomyContext,
+        prices: np.ndarray,
+        coefficients: _PopIncomeCoefficients,
+    ) -> np.ndarray:
+        """Allocate changing surplus using fixed income coefficients."""
+        with np.errstate(over="ignore", invalid="ignore"):
+            surplus = context.building_goods_flow @ prices
+        if not np.isfinite(surplus).all():
+            raise ValueError("state.building_surplus must contain finite values.")
+        missing = (surplus > 0) & (coefficients.totals == 0)
+        if missing.any():
+            keys = [self.building_index[i] for i in np.flatnonzero(missing)]
+            raise ValueError(
+                f"Positive surplus has no positive recipient weight for: {keys}"
+            )
+        with np.errstate(over="ignore", invalid="ignore"):
+            return _nonnegative_values(
+                coefficients.shares * np.maximum(surplus, 0)[:, None]
+                + coefficients.dependent_income,
+                "calculated pop_income",
+            )
 
     @cached_property
     def employment_vector(self) -> np.ndarray:
@@ -1861,6 +2181,10 @@ class Economy:
         economy_of_scale_level_cap: float = 0.0,
         *,
         workforce_ratio: float = 1.0,
+        initial_wealth: np.ndarray | None = None,
+        max_iterations: int = 1000,
+        rtol: float = 1e-9,
+        atol: float = 1e-8,
     ) -> EconomyState:
         """Solve for an `EconomyState` from a building-level vector.
 
@@ -1869,7 +2193,8 @@ class Economy:
                 the level of each building configuration in the production
                 table.
             method: The solving method to use. ``"nominal"`` uses base prices;
-                ``"market"`` derives prices from buy and sell orders.
+                ``"market"`` derives prices from supplied orders; ``"equilibrium"``
+                iterates household wealth and endogenous consumption demand.
             imports: 1-D array of shape ``(n_goods,)`` specifying imported
                 goods. Defaults to zeros.
             exports: 1-D array of shape ``(n_goods,)`` specifying exported
@@ -1883,14 +2208,24 @@ class Economy:
                 economy of scale. The default ``0.0`` disables the effect; use
                 ``20.0`` to cap the throughput bonus at +20%.
             workforce_ratio: Economy-wide workers / total population in ``(0, 1]``.
-                Defaults to ``1.0`` for worker-only accounting. Needs and income
-                are still calculated explicitly through their respective methods.
+                Defaults to ``1.0`` for worker-only accounting.
+            initial_wealth: Equilibrium-only full configuration/profession matrix.
+                Defaults to profession starting tiers. Occupied tiers must have baskets.
+            max_iterations: Positive integer limit on equilibrium transition steps,
+                excluding initialization and verification. Defaults to 1000.
+            rtol: Non-negative relative tolerance for equilibrium thresholds and
+                final verification. Defaults to ``1e-9``.
+            atol: Non-negative absolute tolerance, in weekly household pounds for
+                affordability and building pounds for losses. Defaults to ``1e-8``.
+                Equilibrium controls are ignored by nominal and market modes.
 
         Returns:
-            An `EconomyState` describing the resulting state.
+            An `EconomyState` describing the resulting state. Equilibrium results
+            include diagnostics; floor unaffordability and unfunded losses are flags
+            and do not prevent numerical convergence.
 
         Raises:
-            ValueError: If *method* is not ``"nominal"`` or ``"market"``, if
+            ValueError: If *method* is unsupported, if
                 *building_levels* is not 1-D or its length does not match the
                 number of rows in the production table, if *imports* or
                 *exports* lengths do not match the number of goods, or if
@@ -1898,9 +2233,24 @@ class Economy:
                 table, if *pop_needs* is not a non-negative finite
                 goods-aligned vector, or if the economy-of-scale cap is
                 negative or non-finite, or if *workforce_ratio* is outside ``(0, 1]``
-                or non-finite.
+                or non-finite. Equilibrium rejects explicit ``pop_needs`` and
+                invalid controls, initial wealth, prepared tiers, or initial evaluation.
+            EquilibriumError: On cycles, exhausted iterations, subsequent calculation
+                failures, or failed final verification; retains the last evaluated state.
         """
 
+        if method == "equilibrium":
+            if pop_needs is not None:
+                raise ValueError(
+                    "pop_needs must be omitted for equilibrium; household demand is endogenous."
+                )
+            self._validate_equilibrium_tolerances(rtol, atol)
+            if (
+                isinstance(max_iterations, (bool, np.bool_))
+                or not isinstance(max_iterations, (int, np.integer))
+                or max_iterations <= 0
+            ):
+                raise ValueError("max_iterations must be a positive integer.")
         if building_levels.ndim != 1:
             raise ValueError("building_levels must be a 1-D array.")
         if building_levels.shape[0] != len(self.building_index):
@@ -1946,7 +2296,210 @@ class Economy:
                 pop_needs,
                 workforce_ratio=workforce_ratio,
             )
+        if method == "equilibrium":
+            initial = self._solve_nominal(
+                building_levels,
+                imports,
+                exports,
+                throughput_multipliers,
+                pop_needs,
+                workforce_ratio=workforce_ratio,
+            )
+            return self._solve_equilibrium(
+                initial.context,
+                initial.pop_wealth if initial_wealth is None else initial_wealth,
+                max_iterations=max_iterations,
+                rtol=rtol,
+                atol=atol,
+            )
         raise ValueError(f"Invalid method: {method!r}")
+
+    def _equilibrium_diagnostics(
+        self,
+        context: EconomyContext,
+        evaluation: _WealthEvaluation,
+        transition: _WealthTransition,
+        iterations: int,
+        rtol: float,
+        atol: float,
+    ) -> EquilibriumDiagnostics:
+        """Describe the current assignment and its material financial shortfalls."""
+
+        def coordinates(mask: np.ndarray) -> tuple[tuple[int, int], ...]:
+            return tuple((int(row), int(col)) for row, col in np.argwhere(mask))
+
+        with np.errstate(over="ignore", invalid="ignore"):
+            output_value = _nonnegative_values(
+                np.maximum(context.building_goods_flow, 0) @ evaluation.market_prices,
+                "building output value",
+            )
+            input_value = _nonnegative_values(
+                np.maximum(-context.building_goods_flow, 0) @ evaluation.market_prices,
+                "building input value",
+            )
+        # Only divide positive excess losses; both operands are then bounded by scale.
+        losses = input_value - output_value
+        scale = np.maximum(input_value, output_value)
+        material = losses > atol
+        material[material] = (losses[material] - atol) / scale[material] > rtol
+        return EquilibriumDiagnostics(
+            status="max_iterations",
+            iterations=iterations,
+            increasing_cells=coordinates(transition.increasing),
+            decreasing_cells=coordinates(transition.decreasing),
+            unaffordable_floor_cells=coordinates(transition.unaffordable_floor),
+            loss_buildings=tuple(int(i) for i in np.flatnonzero(material)),
+        )
+
+    def _equilibrium_snapshot(
+        self,
+        context: EconomyContext,
+        evaluation: _WealthEvaluation,
+        diagnostics: EquilibriumDiagnostics,
+    ) -> EconomyState:
+        """Freeze only public success/failure results, never the fixed context again."""
+        market, households = self._freeze_wealth(context, evaluation)
+        return EconomyState(
+            context, market, households, equilibrium_diagnostics=diagnostics
+        )
+
+    def _verify_equilibrium(
+        self,
+        context: EconomyContext,
+        evaluation: _WealthEvaluation,
+        rtol: float,
+        atol: float,
+    ) -> tuple[_WealthEvaluation, _WealthTransition]:
+        """Recompute through public accounting helpers and recheck stationarity."""
+        market, households = self._freeze_wealth(context, evaluation)
+        state = EconomyState(context, market, households)
+        needs = self.calculate_pop_needs(state)
+        prices = self.market_prices(
+            context.non_pop_buy_orders + needs, context.sell_orders
+        )
+        state = replace(state, market=MarketState(context, prices))
+        income = self.calculate_pop_income(state)
+        expenses = self.calculate_pop_expenses(state)
+        balance = income - expenses
+        verified = _WealthEvaluation(
+            evaluation.pop_wealth, needs, prices, income, expenses, balance
+        )
+        for name in (
+            "pop_needs",
+            "market_prices",
+            "pop_income",
+            "pop_expenses",
+            "pop_balance",
+        ):
+            actual = getattr(verified, name)
+            if not np.isfinite(actual).all() or not np.allclose(
+                actual, getattr(evaluation, name), rtol=rtol, atol=atol
+            ):
+                raise ValueError(f"Final verification disagrees on {name}.")
+        transition = self._wealth_transition(
+            context, verified.pop_wealth, prices, income, rtol, atol
+        )
+        if not np.array_equal(transition.wealth, verified.pop_wealth):
+            raise ValueError("Final verification requires further wealth transitions.")
+        return verified, transition
+
+    def _solve_equilibrium(
+        self,
+        context: EconomyContext,
+        initial_wealth: np.ndarray,
+        *,
+        max_iterations: int,
+        rtol: float,
+        atol: float,
+    ) -> EconomyState:
+        """Bounded discrete fixed-point iteration with exact cycle detection."""
+        context = self.prepare_context(context)
+        self._validate_iteration_context(context)
+        wealth = self._validate_wealth_assignment(context, initial_wealth)
+        coefficients = self._prepare_pop_income(context)
+        evaluation = self._evaluate_prepared_wealth(context, wealth, coefficients)
+        transition = self._wealth_transition(
+            context, wealth, evaluation.market_prices, evaluation.pop_income, rtol, atol
+        )
+        diagnostics = self._equilibrium_diagnostics(
+            context, evaluation, transition, 0, rtol, atol
+        )
+        occupied = context.pops > 0
+        seen: dict[bytes, int] = {}
+        while True:
+            if np.array_equal(transition.wealth, evaluation.pop_wealth):
+                try:
+                    verified, final_transition = self._verify_equilibrium(
+                        context, evaluation, rtol, atol
+                    )
+                    final_diagnostics = replace(
+                        self._equilibrium_diagnostics(
+                            context,
+                            verified,
+                            final_transition,
+                            diagnostics.iterations,
+                            rtol,
+                            atol,
+                        ),
+                        status="converged",
+                    )
+                except (ValueError, FloatingPointError, OverflowError) as exc:
+                    failure = replace(diagnostics, status="verification_failed")
+                    raise EquilibriumError(
+                        f"Equilibrium final verification failed: {exc}",
+                        self._equilibrium_snapshot(context, evaluation, failure),
+                    ) from exc
+                return self._equilibrium_snapshot(context, verified, final_diagnostics)
+            key = evaluation.pop_wealth[occupied].tobytes()
+            if key in seen:
+                start = seen[key]
+                failure = replace(
+                    diagnostics,
+                    status="cycle",
+                    cycle_start=start,
+                    cycle_length=diagnostics.iterations - start,
+                )
+                raise EquilibriumError(
+                    f"Equilibrium cycle of length {failure.cycle_length} detected after {diagnostics.iterations} iterations; this does not prove no equilibrium exists.",
+                    self._equilibrium_snapshot(context, evaluation, failure),
+                )
+            seen[key] = diagnostics.iterations
+            if diagnostics.iterations >= max_iterations:
+                raise EquilibriumError(
+                    f"Equilibrium exhausted max_iterations={max_iterations}.",
+                    self._equilibrium_snapshot(context, evaluation, diagnostics),
+                )
+            try:
+                candidate = self._evaluate_prepared_wealth(
+                    context, transition.wealth, coefficients
+                )
+                candidate_transition = self._wealth_transition(
+                    context,
+                    candidate.pop_wealth,
+                    candidate.market_prices,
+                    candidate.pop_income,
+                    rtol,
+                    atol,
+                )
+                candidate_diagnostics = self._equilibrium_diagnostics(
+                    context,
+                    candidate,
+                    candidate_transition,
+                    diagnostics.iterations + 1,
+                    rtol,
+                    atol,
+                )
+            except (ValueError, FloatingPointError, OverflowError) as exc:
+                failure = replace(diagnostics, status="evaluation_failed")
+                raise EquilibriumError(
+                    f"Equilibrium evaluation failed after {diagnostics.iterations} completed iterations: {exc}",
+                    self._equilibrium_snapshot(context, evaluation, failure),
+                ) from exc
+            evaluation, transition, diagnostics = (
+                candidate,
+                candidate_transition,
+                candidate_diagnostics,
+            )
 
     def _solve_nominal(
         self,

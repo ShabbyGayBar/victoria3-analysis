@@ -22,7 +22,7 @@ or household results shares the fixed arrays.
 | `EconomyContext` | Building levels, realized flows, imports/exports, worker counts, workforce ratio | Input/output totals, sell orders, industrial/export orders, population totals |
 | `MarketState` | Shared context and prices | Building surplus/deficit, GDP |
 | `PopState` | Wealth, demand, optional weekly income/expenses | Weekly balance (`income - expenses`), or `None` when either is absent |
-| `EconomyState` | Component references | Total buy orders, wealth summaries, per-capita reports |
+| `EconomyState` | Component references, optional equilibrium diagnostics | Total buy orders, wealth summaries, per-capita reports |
 
 Prepared context fields default to `None`: `buy_packages` is a read-only
 wealth-by-goods float64 array in `goods_index` column order;
@@ -109,6 +109,35 @@ same inputs. These helpers do not update the state; compute weekly balances as
 `calculate_pop_income(state) - calculate_pop_expenses(state)`. Expenses exclude
 taxes, rationing, affordability restrictions, and wealth transitions.
 
+## Equilibrium diagnostics
+
+`EconomyState.equilibrium_diagnostics` is `None` for nominal/market solves and
+manually composed snapshots unless explicitly supplied. Equilibrium successes
+and `EquilibriumError.state` carry immutable `EquilibriumDiagnostics`.
+`error.diagnostics` is the same object as on its retained state. All demand,
+prices, wealth, income, expenses, and balances in that state describe the same
+evaluation. Runtime calculation errors retain the preceding complete evaluation
+and chain the original error.
+
+| Field | Type / unit | Meaning |
+| --- | --- | --- |
+| `status` | String | `converged`, `cycle`, `max_iterations`, `evaluation_failed`, or `verification_failed`. |
+| `iterations` | Integer / transition steps | Completed transitions after initialization; excludes final verification. Initially stable wealth reports zero. |
+| `increasing_cells` | Tuple of integer pairs | Occupied configuration/profession coordinates requiring a permitted increase. |
+| `decreasing_cells` | Tuple of integer pairs | Occupied configuration/profession coordinates requiring a permitted decrease. |
+| `unaffordable_floor_cells` | Tuple of integer pairs | Occupied minimum-tier households below the lower affordability threshold; downward changes are blocked. |
+| `loss_buildings` | Tuple of integers | Configuration indices with losses exceeding `atol + rtol * max(output_value, input_value)`. |
+| `cycle_start` | Integer or `None` / iteration index | First appearance of the repeated wealth assignment, counting initialization as zero. |
+| `cycle_length` | Integer or `None` / transition steps | Detected cycle period; only populated with `cycle_start` for cycles. |
+
+Coordinates use `Economy.building_index` and `Economy.pop_index` in row-major
+order. Loss values follow the current signed-net production-flow convention
+and use weekly pounds; household affordability uses weekly group totals.
+`converged` means no permitted wealth changes remain, including at boundaries.
+It does not guarantee affordability or self-financing buildings: the two
+financial flags do not change success status. Setup and initial-evaluation
+errors raise `ValueError` without a partial result.
+
 ## Market report
 
 `Economy.df_market(state)` returns one row per good with positive sell **or**
@@ -127,7 +156,7 @@ and output totals are reconstructed from production-table net coefficients.
 | `building_goods_output` | Float / goods units per week | Sum of configuration levels times adjusted nonnegative output coefficients. | Positive production magnitude. |
 | `imports` | Float / goods units per week | Supplied import orders for the good. | Defaults to zero when omitted from solving. |
 | `exports` | Float / goods units per week | Supplied export orders for the good. | Defaults to zero when omitted from solving. |
-| `pop_needs` | Float / goods units per week | Exogenous population-demand orders supplied to solving. | Defaults to zero; not automatically generated from buy-package tables. |
+| `pop_needs` | Float / goods units per week | Population-demand orders. | Exogenous and zero by default in nominal/market modes; endogenous from wealth baskets in equilibrium mode. |
 
 ## Population report
 
@@ -145,7 +174,7 @@ Both direct contexts and `solve()` default to `r=1.0`.
 | `employment_share` | Float / fraction | Profession employment divided by all modeled employment. | State returns zeros for zero total employment; such a report has no positive-employment rows. |
 | `dependents` | Float / people | `sum_i(n_ij) * d`. | Derived using the same economy-wide ratio for every profession. |
 | `population` | Float / people | `sum_i(n_ij) / r`. | Workers plus dependents. |
-| `avg_wealth` | Float / wealth level | `sum_i(w_ij * n_ij) / sum_i(n_ij)`. | State returns zero for a profession without employment. Current solving uses `start_quality_of_life` from pop types. |
+| `avg_wealth` | Float / wealth level | `sum_i(w_ij * n_ij) / sum_i(n_ij)`. | State returns zero for a profession without employment. Nominal/market modes use starting tiers; equilibrium mode iterates them. |
 | `total_wealth` | Float / population-weighted wealth levels | `sum_i(w_ij * n_ij) / r`. | Dependents share household wealth; not a stock of money or GDP. |
 | `pop_balance` | Float / £ per week | Sum of derived household income minus expenses over configurations for this profession. | `NaN` until both income and expenses are supplied on `PopState`; nominal and market solves leave them as `None`. |
 

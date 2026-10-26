@@ -405,7 +405,7 @@ Replacing just the market or household component shares `state.context` and
 its production arrays. The caller must refresh dependent results when changing
 wealth or prices; constructing a snapshot does not recalculate demand or finances.
 Expenses price target consumption without affordability limits, rationing,
-taxes, or wealth transitions. Existing solve modes do not automatically calculate
+taxes, or wealth transitions. Nominal and market modes do not automatically calculate
 expenses or balances.
 
 ### Evaluating fixed wealth
@@ -436,6 +436,98 @@ within floating-point precision. Existing preparation, input validation, and
 income-allocation errors propagate. This evaluates target consumption without
 affordability limits or wealth transitions; nominal and market solve modes
 continue to leave household finances unevaluated.
+
+### Iterating wealth
+
+Initialize matching components, then take one simultaneous step:
+
+```python
+market, households = economy.evaluate_wealth(initial.context, initial.pop_wealth)
+context = market.context
+market, households = economy.iterate(context, market, households)
+state = EconomyState(context, market, households)
+```
+
+`iterate()` trusts the supplied components' economic consistency. It requires
+evaluated income and expenses, a market referencing the exact same context,
+and prepared baskets/scales. Reevaluate after externally changing wealth,
+production, or trade. Prepared wealth labels must be consecutive; occupied
+wealth must be covered. Empty cells retain their original wealth labels.
+
+Using previous prices and income, each occupied household decreases one tier
+when income is below **98% of its current-tier cost**. Otherwise, it increases
+one tier when income reaches **102% of its next-tier cost**. Other households
+retain their tier. Decreases take precedence even if basket costs are
+nonmonotonic. These constants follow `WEALTH_PROGRESS_ACCEPTABLE_DEFICIT` and
+`WEALTH_PROGRESS_WANTED_BUFFER` in the local game's `common/defines/00_defines.txt`.
+The steps are numerical; weekly wealth-progress timing is not simulated.
+
+For a threshold `B`, comparisons use `t = atol + rtol * max(abs(income), abs(B))`:
+decrease when `income < B - t`, advance when `income >= B - t`. Defaults are
+`rtol=1e-9`, `atol=1e-8`; zero tolerances recover exact comparisons. Costs and
+income are weekly totals for each configuration/profession household group.
+At the minimum tier, downward movement is suppressed; at the maximum tier,
+advancement is omitted. If nothing changes, `iterate()` returns the supplied
+objects. Otherwise, it evaluates the new assignment once and returns matching
+read-only components sharing the fixed context.
+
+### Solving equilibrium
+
+```python
+from vic3_analysis import EquilibriumError
+
+try:
+    state = economy.solve(
+        building_levels,
+        method="equilibrium",
+        workforce_ratio=0.25,
+        max_iterations=1000,
+        # initial_wealth=previous_state.pop_wealth,  # Optional full-matrix warm start.
+    )
+except EquilibriumError as error:
+    last_state = error.state
+    print(error.diagnostics.status, error.diagnostics.iterations)
+    print(error.diagnostics.increasing_cells, error.diagnostics.decreasing_cells)
+else:
+    diagnostics = state.equilibrium_diagnostics
+    print(diagnostics)
+```
+
+Equilibrium prepares fixed production, trade, baskets, consumption scales,
+cooperative allocation shares, and dependent earnings once. The solver then
+iterates wealth, demand, prices, income, and expenses. `initial_wealth` defaults
+to profession starting tiers, or accepts a nonnegative integer matrix matching
+configurations × professions. Unsupported occupied tiers are rejected rather
+than clipped. Explicit `pop_needs`, including a zero vector, is rejected:
+household demand is calculated endogenously.
+
+Success requires no permitted wealth changes and a fresh final verification
+through the accounting calculators. An initially stable assignment reports
+zero iterations. `max_iterations` is a positive integer counting completed
+transition steps; initialization and final verification do not count. Convergence
+and cycles are checked at the final allowed step before exhaustion is reported.
+
+`state.equilibrium_diagnostics.status == "converged"` describes stationary wealth.
+It can coexist with `unaffordable_floor_cells` or `loss_buildings`. The former
+identifies households below their lower affordability threshold at the minimum
+tier. The latter identifies unfunded losses larger than
+`atol + rtol * max(output_value, input_value)`, using the existing signed-flow
+accounting. These are financial flags on a successful solve. No subsidies,
+reserves, wage changes, or financing are introduced; dependent earnings remain
+exogenous, and trade remains fixed orders.
+
+`EquilibriumError` distinguishes `cycle`, `max_iterations`, `evaluation_failed`,
+and `verification_failed`. Its immutable `.state` retains the last complete
+evaluation and references the same `.diagnostics`. Diagnostics identify cells
+requiring changes and financial flags; cycles additionally report `cycle_start`
+and `cycle_length`. Household coordinates are `(configuration_index,
+profession_index)` in economy index order; building flags are configuration
+indices. Calculation failures chain their original exception as `__cause__`.
+Invalid setup or initial evaluations raise `ValueError` directly. A detected
+cycle or exhausted budget does not prove that no equilibrium exists.
+
+Nominal and market modes retain their existing behavior and leave equilibrium
+diagnostics as `None`; equilibrium controls are ignored in those modes.
 
 ### Exporting standard packages
 

@@ -62,7 +62,7 @@
 - [x] Implement the solver method for nominal price
 - [x] Implement the solver method with market price mechanics
 - [x] Implement `MarketOptimizer` for bounded endogenous-price GDP and GDP-per-capita scenarios
-- [ ] Implement the solver method with population composition and wealth levels
+- [x] Implement the solver method with population composition and wealth levels
 
 ## Supply chain analysis (nominal)
 
@@ -96,7 +96,7 @@ per solve.
 
 ## Pop consumption & wealth loop
 
-- [ ] Integrate `buy_packages` (per-wealth pop-need baskets), `pop_needs`
+- [x] Integrate `buy_packages` (per-wealth pop-need baskets), `pop_needs`
   (per-need goods baskets), and `pop_types` (per-profession wealth) into the
   economy model so demand reflects population composition and wealth levels
   rather than exogenous inputs.
