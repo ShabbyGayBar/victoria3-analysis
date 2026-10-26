@@ -758,9 +758,13 @@ class Economy:
         self,
         vector: np.ndarray,
         name: str,
+        *,
+        nonnegative: bool = True,
     ) -> np.ndarray:
-        """Validate a goods-aligned vector and return it as float64."""
-        return _validation._validate_goods_vector(self, vector, name)
+        """Validate a finite goods vector, optionally allowing signed quantities."""
+        return _validation._validate_goods_vector(
+            self, vector, name, nonnegative=nonnegative
+        )
 
     def market_prices_variance(self, state: EconomyState) -> np.ndarray:
         """Calculate the market prices variance from base prices.
@@ -865,8 +869,7 @@ class Economy:
         self,
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
         method: str = "nominal",
-        imports: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
-        exports: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
+        goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
         throughput_multipliers: (
             np.ndarray[tuple[int], np.dtype[np.float64]] | None
         ) = None,
@@ -888,10 +891,9 @@ class Economy:
             method: The solving method to use. ``"nominal"`` uses base prices;
                 ``"market"`` derives prices from supplied orders; ``"equilibrium"``
                 iterates household wealth and endogenous consumption demand.
-            imports: 1-D array of shape ``(n_goods,)`` specifying imported
-                goods. Defaults to zeros.
-            exports: 1-D array of shape ``(n_goods,)`` specifying exported
-                goods. Defaults to zeros.
+            goods_trade_flow: Signed 1-D array of shape ``(n_goods,)``;
+                positive values import goods, negative values export goods.
+                Defaults to zeros. Each good trades in one direction.
             throughput_multipliers: Optional 1-D array of shape
                 ``(n_buildings,)`` scaling each configuration's gross goods
                 inputs and outputs. Defaults to no scaling.
@@ -920,8 +922,8 @@ class Economy:
         Raises:
             ValueError: If *method* is unsupported, if
                 *building_levels* is not 1-D or its length does not match the
-                number of rows in the production table, if *imports* or
-                *exports* lengths do not match the number of goods, or if
+                number of rows in the production table, if *goods_trade_flow*
+                is not a finite goods-aligned vector, or if
                 *throughput_multipliers* is not aligned to the production
                 table, if *pop_needs* is not a non-negative finite
                 goods-aligned vector, or if the economy-of-scale cap is
@@ -951,14 +953,12 @@ class Economy:
                 "building_levels length must match the number of rows in the "
                 "production table."
             )
-        if imports is None:
-            imports = np.zeros(len(self.goods_index), dtype=np.float64)
-        elif imports.shape[0] != len(self.goods_index):
-            raise ValueError("imports length must match the number of goods.")
-        if exports is None:
-            exports = np.zeros(len(self.goods_index), dtype=np.float64)
-        elif exports.shape[0] != len(self.goods_index):
-            raise ValueError("exports length must match the number of goods.")
+        if goods_trade_flow is None:
+            goods_trade_flow = np.zeros(len(self.goods_index), dtype=np.float64)
+        else:
+            goods_trade_flow = self._validate_goods_vector(
+                goods_trade_flow, "goods_trade_flow", nonnegative=False
+            )
         if pop_needs is None:
             pop_needs = np.zeros(len(self.goods_index), dtype=np.float64)
         else:
@@ -974,8 +974,7 @@ class Economy:
         if method == "nominal":
             return self._solve_nominal(
                 building_levels,
-                imports,
-                exports,
+                goods_trade_flow,
                 throughput_multipliers,
                 pop_needs,
                 workforce_ratio=workforce_ratio,
@@ -983,8 +982,7 @@ class Economy:
         if method == "market":
             return self._solve_market(
                 building_levels,
-                imports,
-                exports,
+                goods_trade_flow,
                 throughput_multipliers,
                 pop_needs,
                 workforce_ratio=workforce_ratio,
@@ -992,8 +990,7 @@ class Economy:
         if method == "equilibrium":
             initial = self._solve_nominal(
                 building_levels,
-                imports,
-                exports,
+                goods_trade_flow,
                 throughput_multipliers,
                 pop_needs,
                 workforce_ratio=workforce_ratio,
@@ -1064,8 +1061,7 @@ class Economy:
     def _solve_nominal(
         self,
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-        imports: np.ndarray[tuple[int], np.dtype[np.float64]],
-        exports: np.ndarray[tuple[int], np.dtype[np.float64]],
+        goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
         throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
         pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
         *,
@@ -1080,10 +1076,8 @@ class Economy:
 
         Args:
             building_levels: 1-D array of shape ``(n_buildings,)``.
-            imports: 1-D array of shape ``(n_goods,)`` specifying imported
-                goods.
-            exports: 1-D array of shape ``(n_goods,)`` specifying exported
-                goods.
+            goods_trade_flow: Signed 1-D array of shape ``(n_goods,)``;
+                positive values import goods, negative values export goods.
             throughput_multipliers: Optional per-configuration multipliers for
                 gross goods inputs and outputs.
             pop_needs: 1-D array of goods-aligned population needs demand.
@@ -1096,8 +1090,7 @@ class Economy:
         return _market._solve_nominal(
             self,
             building_levels,
-            imports,
-            exports,
+            goods_trade_flow,
             throughput_multipliers,
             pop_needs,
             workforce_ratio=workforce_ratio,
@@ -1106,8 +1099,7 @@ class Economy:
     def _solve_market(
         self,
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-        imports: np.ndarray[tuple[int], np.dtype[np.float64]],
-        exports: np.ndarray[tuple[int], np.dtype[np.float64]],
+        goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
         throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
         pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
         *,
@@ -1117,8 +1109,7 @@ class Economy:
         return _market._solve_market(
             self,
             building_levels,
-            imports,
-            exports,
+            goods_trade_flow,
             throughput_multipliers,
             pop_needs,
             workforce_ratio=workforce_ratio,

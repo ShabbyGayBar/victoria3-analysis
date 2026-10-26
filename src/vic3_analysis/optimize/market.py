@@ -57,8 +57,7 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
                 data.input_matrix,
                 data.output_matrix,
                 data.net_matrix,
-                data.imports,
-                data.exports,
+                data.goods_trade_flow,
                 data.pop_needs,
                 economy.base_prices,
             )
@@ -88,8 +87,7 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
             output_matrix=data.output_matrix,
             net_matrix=data.net_matrix,
             gdp_vector=data.gdp_vector,
-            imports=data.imports,
-            exports=data.exports,
+            goods_trade_flow=data.goods_trade_flow,
             pop_needs=data.pop_needs,
             A_ub=warm_start.A_ub,
             b_ub=warm_start.b_ub,
@@ -290,16 +288,15 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
         input_matrix: np.ndarray,
         output_matrix: np.ndarray,
         net_matrix: np.ndarray,
-        imports: np.ndarray,
-        exports: np.ndarray,
+        goods_trade_flow: np.ndarray,
         pop_needs: np.ndarray,
         base_prices: np.ndarray,
     ) -> tuple[float, np.ndarray]:
         """Return market GDP and its building-level gradient."""
         building_inputs = levels @ input_matrix
         building_outputs = levels @ output_matrix
-        buy_orders = building_inputs + exports + pop_needs
-        sell_orders = building_outputs + imports
+        buy_orders = building_inputs + np.maximum(-goods_trade_flow, 0) + pop_needs
+        sell_orders = building_outputs + np.maximum(goods_trade_flow, 0)
         prices = economy.market_prices(buy_orders, sell_orders)
         dp_buy, dp_sell = MarketOptimizer._price_derivatives(
             base_prices, buy_orders, sell_orders

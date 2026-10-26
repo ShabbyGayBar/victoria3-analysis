@@ -56,13 +56,14 @@ The `objective` attribute defaults to `"automation"`. Its supported values are:
 | --- | --- | --- |
 | `min_goods_output` | `()` | `(good, amount)` pairs setting minimum weekly **net domestic output** after production inputs are deducted. For example, `(("steel", 100.0),)` requires at least 100 steel per week. Explicit entries override `default_min_goods_output` for those goods; negative amounts allow deficits. Imports, exports, and pop consumption are excluded from this net output. |
 | `default_min_goods_output` | `0.0` | Minimum weekly net domestic output for each good without an explicit `min_goods_output` entry. The default, `0.0`, requires nonnegative net output; `-10.0` permits net output down to −10 per unspecified good. `None` leaves unspecified goods unconstrained and is required by `MarketOptimizer`. This field does not set fixed import orders. |
-| `imports` | `()` | Fixed `(good, amount)` weekly import orders, added to market sell orders. With `MarketOptimizer`, they affect prices. They are separate from `default_min_goods_output` and are not optimized. |
-| `exports` | `()` | Fixed `(good, amount)` weekly export orders, added to market buy orders. With `MarketOptimizer`, they affect prices. Add a `min_goods_output` target separately when domestic production must cover an export quantity. |
+| `goods_trade_flow` | `()` | Fixed weekly `(good, amount)` pairs: positive imports add sell orders, negative exports add buy orders. These affect market prices and are not optimized. Add a `min_goods_output` target separately when domestic production must cover exports. |
 | `pop_needs` | `()` | Fixed `(good, amount)` weekly population-consumption orders, added to market buy orders. Supply quantities by good, such as `(("grain", 200.0),)`, rather than pop-need category keys. These orders do not enforce a domestic production requirement. |
 | `workforce_ratio` | `1.0` | Uniform workers / total population in `(0, 1]`, retained in returned states. GDP per capita and its gradient scale by this ratio; employment caps and fixed population orders are unchanged. |
 
-`imports`, `exports`, and `pop_needs` require known good keys and finite,
-non-negative amounts; repeated entries for the same good are summed. They do
+`goods_trade_flow` and `pop_needs` require known good keys and finite amounts.
+Trade quantities are signed; population orders must be non-negative. Repeated
+entries for the same good are summed, but trade entries with opposing signs
+are rejected: each good can only be imported or exported in this model. They do
 not alter the nominal optimizer's objective or constraints, but are passed to
 the returned economy state. The market optimizer uses them to calculate
 prices, without requiring buy and sell orders to balance.
@@ -117,7 +118,7 @@ compiled problem. Shared context and constraints are compiled by
 `BaseOptimizer`; `Scenario` remains configuration-only.
 
 For endogenous national prices, use `MarketOptimizer`. It supports `gdp` and
-`gdp_per_capita`, requires `default_min_goods_output=None`, and treats `imports`, `exports`,
+`gdp_per_capita`, requires `default_min_goods_output=None`, and treats `goods_trade_flow`
 and `pop_needs` as fixed market orders that affect prices rather than goods
 balance constraints. Its SLSQP solve is local and requires a bounded scenario.
 The model excludes shortages, MAPI and local prices, wealth feedback,
@@ -130,7 +131,7 @@ scenario = Scenario(
     min_goods_output=(("automobiles", 100.0),),
     objective="gdp_per_capita",
     default_min_goods_output=None,
-    exports=(("automobiles", 100.0),),
+    goods_trade_flow=(("automobiles", -100.0),),
     employment_cap=1_000_000.0,
 )
 state = MarketOptimizer(economy).solve(scenario)

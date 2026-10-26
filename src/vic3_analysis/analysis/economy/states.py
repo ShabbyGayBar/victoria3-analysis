@@ -107,8 +107,10 @@ class EconomyContext:
         building_levels: Levels per production configuration.
         building_goods_flow: Realized weekly signed quantities by configuration
             and good, including throughput and economy-of-scale bonuses.
-        imports: Weekly import quantities by good.
-        exports: Weekly export quantities by good.
+        goods_trade_flow: Weekly signed trade quantities by good: positive for
+            imports, negative for exports. Each good trades in one direction.
+        imports: Derived non-negative weekly import quantities by good.
+        exports: Derived non-negative weekly export quantities by good.
         pops: Employed-worker counts by configuration and profession.
         workforce_ratio: Workers / total population, in ``(0, 1]``.
         buy_packages: Optional weekly goods quantities per 10,000 standard
@@ -120,8 +122,7 @@ class EconomyContext:
 
     building_levels: np.ndarray
     building_goods_flow: np.ndarray
-    imports: np.ndarray
-    exports: np.ndarray
+    goods_trade_flow: np.ndarray
     pops: np.ndarray
     workforce_ratio: float = field(default=1.0, kw_only=True)
     buy_packages: np.ndarray | None = field(default=None, kw_only=True)
@@ -135,8 +136,7 @@ class EconomyContext:
         for name in (
             "building_levels",
             "building_goods_flow",
-            "imports",
-            "exports",
+            "goods_trade_flow",
             "pops",
         ):
             object.__setattr__(self, name, _readonly_array(getattr(self, name)))
@@ -155,9 +155,9 @@ class EconomyContext:
                     "buy_package_wealth must contain unique positive wealth tiers."
                 )
             values = _nonnegative_values(self.buy_packages, "buy_packages")
-            if self.imports.ndim != 1 or values.shape != (
+            if self.goods_trade_flow.ndim != 1 or values.shape != (
                 len(tiers),
-                len(self.imports),
+                len(self.goods_trade_flow),
             ):
                 raise ValueError(
                     "buy_packages shape must match wealth tiers and goods."
@@ -177,6 +177,16 @@ class EconomyContext:
             if (scales[pops == 0] != 0).any():
                 raise ValueError("consumption_scales must be zero for empty cells.")
             object.__setattr__(self, "consumption_scales", _readonly_array(scales))
+
+    @cached_property
+    def imports(self) -> np.ndarray:
+        """Return positive trade flows as read-only weekly import quantities."""
+        return _readonly_array(np.maximum(self.goods_trade_flow, 0))
+
+    @cached_property
+    def exports(self) -> np.ndarray:
+        """Return negative trade flows as read-only weekly export quantities."""
+        return _readonly_array(np.maximum(-self.goods_trade_flow, 0))
 
     @cached_property
     def building_goods_input(self) -> np.ndarray:
@@ -383,6 +393,11 @@ class EconomyState:
     def building_goods_flow(self) -> np.ndarray:
         """Return ``context.building_goods_flow``."""
         return self.context.building_goods_flow
+
+    @property
+    def goods_trade_flow(self) -> np.ndarray:
+        """Return ``context.goods_trade_flow`` (positive imports, negative exports)."""
+        return self.context.goods_trade_flow
 
     @property
     def imports(self) -> np.ndarray:

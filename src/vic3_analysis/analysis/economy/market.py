@@ -74,8 +74,7 @@ def market_prices(
 def _solve_nominal(
     economy: Economy,
     building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-    imports: np.ndarray[tuple[int], np.dtype[np.float64]],
-    exports: np.ndarray[tuple[int], np.dtype[np.float64]],
+    goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
     throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
     pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
     *,
@@ -90,10 +89,8 @@ def _solve_nominal(
 
     Args:
         building_levels: 1-D array of shape ``(n_buildings,)``.
-        imports: 1-D array of shape ``(n_goods,)`` specifying imported
-            goods.
-        exports: 1-D array of shape ``(n_goods,)`` specifying exported
-            goods.
+        goods_trade_flow: Signed 1-D array of shape ``(n_goods,)``;
+            positive values import goods, negative values export goods.
         throughput_multipliers: Optional per-configuration multipliers for
             gross goods inputs and outputs.
         pop_needs: 1-D array of goods-aligned population needs demand.
@@ -113,8 +110,7 @@ def _solve_nominal(
     context = EconomyContext(
         building_levels=building_levels,
         building_goods_flow=building_goods_flow,
-        imports=imports,
-        exports=exports,
+        goods_trade_flow=goods_trade_flow,
         pops=pops,
         workforce_ratio=workforce_ratio,
     )
@@ -131,8 +127,7 @@ def _solve_nominal(
 def _solve_market(
     economy: Economy,
     building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-    imports: np.ndarray[tuple[int], np.dtype[np.float64]],
-    exports: np.ndarray[tuple[int], np.dtype[np.float64]],
+    goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
     throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
     pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
     *,
@@ -141,8 +136,7 @@ def _solve_market(
     """Derive a market-price `EconomyState` from a building vector."""
     state = economy._solve_nominal(
         building_levels,
-        imports,
-        exports,
+        goods_trade_flow,
         throughput_multipliers,
         pop_needs,
         workforce_ratio=workforce_ratio,

@@ -18,10 +18,8 @@ def economy() -> Economy:
 
 
 def _context_scenario(field: str, value: tuple[tuple[str, float], ...]) -> Scenario:
-    if field == "imports":
-        return Scenario(imports=value)
-    if field == "exports":
-        return Scenario(exports=value)
+    if field == "goods_trade_flow":
+        return Scenario(goods_trade_flow=value)
     if field == "pop_needs":
         return Scenario(pop_needs=value)
     raise ValueError(f"Unknown context field: {field}")
@@ -43,6 +41,8 @@ def test_compiled_problem_is_immutable(economy: Economy):
         setattr(problem, "scenario", Scenario(name="replacement"))  # noqa: B010
     with pytest.raises(ValueError, match="read-only"):
         problem.gdp_vector[0] = 0.0
+    with pytest.raises(ValueError, match="read-only"):
+        problem.goods_trade_flow[0] = 1.0
     with pytest.raises(TypeError):
         cast(Any, problem.inequality_slices)["extra"] = slice(0, 1)
 
@@ -68,8 +68,11 @@ def test_common_context_and_cumulative_bonuses(economy: Economy):
             objective="construction_cost",
             default_min_goods_output=None,
             throughput_multipliers=((building, 2.0), (building, 1.5)),
-            imports=(("tools", 2.0), ("tools", 3.0)),
-            exports=(("coal", 4.0),),
+            goods_trade_flow=(
+                ("tools", 2.0),
+                ("tools", 3.0),
+                ("coal", -4.0),
+            ),
             pop_needs=(("grain", 5.0),),
         )
     )
@@ -87,8 +90,8 @@ def test_common_context_and_cumulative_bonuses(economy: Economy):
         problem.gdp_vector, problem.net_matrix @ economy.base_prices
     )
     goods = economy.goods_index
-    assert problem.imports[goods.index("tools")] == pytest.approx(5.0)
-    assert problem.exports[goods.index("coal")] == pytest.approx(4.0)
+    assert problem.goods_trade_flow[goods.index("tools")] == pytest.approx(5.0)
+    assert problem.goods_trade_flow[goods.index("coal")] == pytest.approx(-4.0)
     assert problem.pop_needs[goods.index("grain")] == pytest.approx(5.0)
     assert optimizer.goods_input_matrix is problem.input_matrix
     assert optimizer.goods_output_matrix is problem.output_matrix
@@ -97,7 +100,7 @@ def test_common_context_and_cumulative_bonuses(economy: Economy):
     assert optimizer.throughput_multipliers is problem.throughput_multipliers
 
 
-@pytest.mark.parametrize("field", ("imports", "exports", "pop_needs"))
+@pytest.mark.parametrize("field", ("goods_trade_flow", "pop_needs"))
 def test_context_rejects_unknown_goods(economy: Economy, field: str):
     with pytest.raises(ValueError, match="not found in goods index"):
         NominalOptimizer(economy).compile(
@@ -108,21 +111,23 @@ def test_context_rejects_unknown_goods(economy: Economy, field: str):
 @pytest.mark.parametrize(
     ("field", "value"),
     (
-        ("imports", (("tools", -1.0),)),
-        ("exports", (("tools", np.nan),)),
+        ("pop_needs", (("tools", -1.0),)),
+        ("goods_trade_flow", (("tools", np.nan),)),
         ("pop_needs", (("tools", np.inf),)),
     ),
 )
 def test_context_rejects_invalid_amounts(
     economy: Economy, field: str, value: tuple[tuple[str, float], ...]
 ):
-    with pytest.raises(ValueError, match="finite non-negative"):
+    with pytest.raises(ValueError, match="finite"):
         NominalOptimizer(economy).compile(_context_scenario(field, value))
 
 
 def test_context_rejects_non_string_good_key(economy: Economy):
     with pytest.raises(TypeError, match="good keys must be strings"):
-        NominalOptimizer(economy).compile(Scenario(imports=cast(Any, ((1, 1.0),))))
+        NominalOptimizer(economy).compile(
+            Scenario(goods_trade_flow=cast(Any, ((1, 1.0),)))
+        )
 
 
 @pytest.mark.parametrize(
@@ -134,14 +139,30 @@ def test_context_rejects_non_string_good_key(economy: Economy):
 )
 def test_context_rejects_malformed_entries(economy: Economy, entries: Any):
     with pytest.raises(ValueError):
-        NominalOptimizer(economy).compile(Scenario(imports=entries))
+        NominalOptimizer(economy).compile(Scenario(goods_trade_flow=entries))
 
 
-def test_context_rejects_overflowing_duplicate_total(economy: Economy):
-    maximum = np.finfo(np.float64).max
+@pytest.mark.parametrize("direction", [1.0, -1.0])
+def test_context_rejects_overflowing_duplicate_total(
+    economy: Economy, direction: float
+):
+    maximum = direction * np.finfo(np.float64).max
     with pytest.raises(ValueError, match="totals must remain finite"):
         NominalOptimizer(economy).compile(
-            Scenario(imports=(("tools", maximum), ("tools", maximum)))
+            Scenario(
+                goods_trade_flow=(
+                    ("tools", maximum),
+                    ("tools", maximum),
+                )
+            )
+        )
+
+
+@pytest.mark.parametrize("amounts", [(1.0, -1.0), (-1.0, 1.0), (1.0, 0.0, -2.0)])
+def test_context_rejects_opposing_trade_directions(economy: Economy, amounts):
+    with pytest.raises(ValueError, match="cannot import and export the same good"):
+        NominalOptimizer(economy).compile(
+            Scenario(goods_trade_flow=tuple(("tools", amount) for amount in amounts))
         )
 
 

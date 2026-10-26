@@ -149,10 +149,11 @@ def _pop_need_purchase_shares(
     for name in (
         "building_goods_input",
         "building_goods_output",
-        "imports",
-        "exports",
     ):
         economy._validate_goods_vector(getattr(state, name), f"state.{name}")
+    economy._validate_goods_vector(
+        state.goods_trade_flow, "state.goods_trade_flow", nonnegative=False
+    )
     supply = economy._validate_goods_vector(state.sell_orders, "state.sell_orders")
     prices = _nonnegative_values(economy.base_prices, "base_prices")
     if (prices == 0).any():

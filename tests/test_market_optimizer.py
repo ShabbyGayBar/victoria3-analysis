@@ -184,51 +184,59 @@ def test_market_optimizer_preserves_scenario_constraints(
     assert state.building_levels[0] == pytest.approx(7.0 / 6.0, abs=2e-5)
 
 
+@pytest.mark.parametrize("trade", [2.0, -3.0, 0.0])
 def test_market_context_is_propagated_by_nominal_optimizer(
     toy_economy: Economy,
+    trade: float,
 ):
     scenario = Scenario(
         objective="construction_cost",
         default_min_goods_output=None,
-        imports=(("test_good", 2.0),),
-        exports=(("test_good", 3.0),),
+        goods_trade_flow=(("test_good", trade),),
         pop_needs=(("test_good", 4.0),),
     )
 
     state = NominalOptimizer(toy_economy).solve(scenario)
 
-    np.testing.assert_array_equal(state.imports, [2.0])
-    np.testing.assert_array_equal(state.exports, [3.0])
+    np.testing.assert_array_equal(state.goods_trade_flow, [trade])
+    np.testing.assert_array_equal(state.imports, [max(trade, 0)])
+    np.testing.assert_array_equal(state.exports, [max(-trade, 0)])
     np.testing.assert_array_equal(state.pop_needs, [4.0])
-    np.testing.assert_array_equal(state.sell_orders, state.building_goods_output + 2.0)
-    np.testing.assert_array_equal(state.buy_orders, state.building_goods_input + 7.0)
+    np.testing.assert_array_equal(
+        state.sell_orders, state.building_goods_output + max(trade, 0)
+    )
+    np.testing.assert_array_equal(
+        state.buy_orders, state.building_goods_input + max(-trade, 0) + 4.0
+    )
 
 
-def test_market_context_duplicate_goods_are_summed(toy_economy: Economy):
+@pytest.mark.parametrize("direction", [1.0, -1.0])
+def test_market_context_duplicate_goods_are_summed(
+    toy_economy: Economy, direction: float
+):
     scenario = Scenario(
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        imports=(("test_good", 1.0), ("test_good", 2.0)),
-        exports=(("test_good", 3.0), ("test_good", 4.0)),
+        goods_trade_flow=(("test_good", direction), ("test_good", 2 * direction)),
         pop_needs=(("test_good", 1.0), ("test_good", 2.0)),
     )
 
     state = MarketOptimizer(toy_economy).solve(scenario)
 
-    np.testing.assert_array_equal(state.imports, [3.0])
-    np.testing.assert_array_equal(state.exports, [7.0])
+    np.testing.assert_array_equal(state.goods_trade_flow, [3 * direction])
+    np.testing.assert_array_equal(state.imports, [max(3 * direction, 0)])
+    np.testing.assert_array_equal(state.exports, [max(-3 * direction, 0)])
     np.testing.assert_array_equal(state.pop_needs, [3.0])
 
 
 @pytest.mark.parametrize(
     ("field", "value"),
     (
-        ("imports", (("not_a_good", 1.0),)),
-        ("exports", (("not_a_good", 1.0),)),
+        ("goods_trade_flow", (("not_a_good", 1.0),)),
         ("pop_needs", (("not_a_good", 1.0),)),
-        ("imports", (("test_good", -1.0),)),
-        ("exports", (("test_good", np.nan),)),
+        ("pop_needs", (("test_good", -1.0),)),
+        ("goods_trade_flow", (("test_good", np.nan),)),
         ("pop_needs", (("test_good", np.inf),)),
     ),
 )
@@ -276,8 +284,10 @@ def test_market_optimizer_rejects_infeasible_and_unbounded_regions(
         )
 
 
+@pytest.mark.parametrize("trade", [0.2, -0.3])
 def test_market_objective_gradient_matches_finite_difference(
     toy_economy: Economy,
+    trade: float,
 ):
     optimizer = MarketOptimizer(toy_economy)
     base = np.array([1.0])
@@ -290,8 +300,7 @@ def test_market_objective_gradient_matches_finite_difference(
         inputs,
         outputs,
         outputs - inputs,
-        np.array([0.2]),
-        np.array([0.3]),
+        np.array([trade]),
         np.array([1.0]),
         base,
     )
@@ -304,8 +313,7 @@ def test_market_objective_gradient_matches_finite_difference(
         inputs,
         outputs,
         outputs - inputs,
-        np.array([0.2]),
-        np.array([0.3]),
+        np.array([trade]),
         np.array([1.0]),
         base,
     )[0]
@@ -315,8 +323,7 @@ def test_market_objective_gradient_matches_finite_difference(
         inputs,
         outputs,
         outputs - inputs,
-        np.array([0.2]),
-        np.array([0.3]),
+        np.array([trade]),
         np.array([1.0]),
         base,
     )[0]
@@ -329,8 +336,7 @@ def test_gdp_per_capita_gradient_matches_finite_difference(
     optimizer = MarketOptimizer(toy_economy)
     inputs = np.array([[0.25]])
     outputs = np.array([[1.0]])
-    imports = np.array([0.2])
-    exports = np.array([0.3])
+    trade = np.array([-0.3])
     pop_needs = np.array([1.0])
     base_prices = np.array([1.0])
     employment = np.array([2.0])
@@ -342,8 +348,7 @@ def test_gdp_per_capita_gradient_matches_finite_difference(
             inputs,
             outputs,
             outputs - inputs,
-            imports,
-            exports,
+            trade,
             pop_needs,
             base_prices,
         )

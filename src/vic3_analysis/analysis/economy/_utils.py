@@ -101,14 +101,16 @@ def _validate_goods_vector(
     economy: Economy,
     vector: np.ndarray,
     name: str,
+    *,
+    nonnegative: bool = True,
 ) -> np.ndarray:
-    """Validate a goods-aligned vector and return it as float64."""
+    """Validate a finite goods vector, optionally allowing signed quantities."""
     if vector.ndim != 1:
         raise ValueError(f"{name} must be a 1-D array.")
     if vector.shape[0] != len(economy.goods_index):
         raise ValueError(f"{name} length must match the number of goods.")
     if not np.isfinite(vector).all():
         raise ValueError(f"{name} must contain only finite values.")
-    if (vector < 0).any():
+    if nonnegative and (vector < 0).any():
         raise ValueError(f"{name} must contain only non-negative values.")
     return vector.astype(np.float64, copy=False)

@@ -19,7 +19,7 @@ or household results shares the fixed arrays.
 
 | Owner | Stored quantities | Derived quantities |
 | --- | --- | --- |
-| `EconomyContext` | Building levels, realized flows, imports/exports, worker counts, workforce ratio | Input/output totals, sell orders, industrial/export orders, population totals |
+| `EconomyContext` | Building levels, realized flows, signed trade flows, worker counts, workforce ratio | Imports/exports, input/output totals, sell orders, industrial/export orders, population totals |
 | `MarketState` | Shared context and prices | Building surplus/deficit, GDP |
 | `PopState` | Wealth, demand, optional weekly income/expenses | Weekly balance (`income - expenses`), or `None` when either is absent |
 | `EconomyState` | Component references, optional equilibrium diagnostics | Total buy orders, wealth summaries, per-capita reports |
@@ -45,6 +45,12 @@ different configurations of the same building type.
 | `construction_cost` | Float / construction points | Per-level construction coefficient times `level`. | Zero-cost configurations can have positive levels. |
 
 ## State flows and cooperative income
+
+`EconomyContext.goods_trade_flow` is a read-only float64 vector aligned to
+`goods_index`, with positive imports and negative exports. Each good trades
+in one direction. `EconomyState.goods_trade_flow` forwards to the same array;
+`imports = maximum(goods_trade_flow, 0)` and
+`exports = maximum(-goods_trade_flow, 0)` are cached, read-only context properties.
 
 `EconomyState.building_goods_flow` is a read-only float64 matrix with rows
 aligned to `building_index` and columns to `goods_index`. Values are realized
@@ -154,8 +160,8 @@ and output totals are reconstructed from production-table net coefficients.
 | `buy_orders` | Float / goods units per week | `building_goods_input + exports + pop_needs`. | Zero is valid when only sell orders are positive. |
 | `building_goods_input` | Float / goods units per week | Sum of configuration levels times adjusted nonnegative input coefficients. | Positive consumption magnitude, unlike signed production-table goods columns. |
 | `building_goods_output` | Float / goods units per week | Sum of configuration levels times adjusted nonnegative output coefficients. | Positive production magnitude. |
-| `imports` | Float / goods units per week | Supplied import orders for the good. | Defaults to zero when omitted from solving. |
-| `exports` | Float / goods units per week | Supplied export orders for the good. | Defaults to zero when omitted from solving. |
+| `imports` | Float / goods units per week | Derived `maximum(goods_trade_flow, 0)` for the good. | Non-negative; zero unless the signed flow is positive. |
+| `exports` | Float / goods units per week | Derived `maximum(-goods_trade_flow, 0)` for the good. | Non-negative; zero unless the signed flow is negative. |
 | `pop_needs` | Float / goods units per week | Population-demand orders. | Exogenous and zero by default in nominal/market modes; endogenous from wealth baskets in equilibrium mode. |
 
 ## Population report

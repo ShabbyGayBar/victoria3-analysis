@@ -88,10 +88,12 @@ flowchart TD
     F --> GO["[C] building_goods_output *"]:::context
 
     GO --> SELL["[C] sell_orders *"]:::context
-    IM["[C] imports"]:::context --> SELL
+    TF["[C] goods_trade_flow"]:::context --> IM["[C] imports *"]:::context
+    IM --> SELL
 
     GI --> NP["[C] non_pop_buy_orders *"]:::context
-    EX["[C] exports"]:::context --> NP
+    TF --> EX["[C] exports *"]:::context
+    EX --> NP
 
     L --> N["[C] pops"]:::context
     EM --> N

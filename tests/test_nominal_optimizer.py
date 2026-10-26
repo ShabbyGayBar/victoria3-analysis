@@ -188,8 +188,7 @@ def test_solve_propagates_fixed_market_context(economy: Economy):
     scenario = Scenario(
         objective="construction_cost",
         default_min_goods_output=None,
-        imports=(("tools", 2.0),),
-        exports=(("coal", 3.0),),
+        goods_trade_flow=(("tools", 2.0), ("coal", -3.0)),
         pop_needs=(("grain", 4.0),),
     )
     state = NominalOptimizer(economy).solve(scenario)

@@ -86,6 +86,26 @@ print("Workers and dependents: ", state.total_population)
 
 You can also use `market` mode, which derives national prices from buy and sell orders, just like the game does (still no local prices though).
 
+Pass fixed weekly trade quantities with `goods_trade_flow`, a finite 1-D
+array aligned to `economy.goods_index`. Positive values import goods and add
+sell orders; negative values export goods and add buy orders. Omission means
+zero trade. The aggregate model assumes each good trades in one direction.
+
+```python
+trade = np.zeros(len(economy.goods_index), dtype=np.float64)
+trade[economy.goods_index.index("tools")] = 5.0  # Import 5 tools per week.
+trade[economy.goods_index.index("coal")] = -3.0  # Export 3 coal per week.
+state = economy.solve(levels, method="market", goods_trade_flow=trade)
+```
+
+`EconomyContext` stores this vector, and `state.goods_trade_flow` forwards to
+it. Both context and state expose read-only derived `imports` and `exports`
+quantities. When migrating existing callers, replace the old `imports=` and
+`exports=` inputs with `goods_trade_flow=`; for inputs with disjoint trade
+directions, this is `imports - exports`. Inputs with both directions for the
+same good cannot be represented without changing the model's buy/sell orders.
+Optimization scenarios use the same sign convention with named pairs.
+
 `Economy.solve()` also supports throughput bonuses via economy of scale and parameterized `throughput_multipliers`. The two are applied additively to the raw throughput of each building, which is then used to compute goods flows.
 
 Set `economy_of_scale_level_cap=20.0` to apply up to +20% economy of scale throughput; leave it at `0.0` to disable the effect.
