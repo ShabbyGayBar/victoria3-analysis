@@ -9,7 +9,6 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 
 from vic3_analysis.analysis.economy._utils import (
     _nonnegative_values,
@@ -19,6 +18,7 @@ from vic3_analysis.analysis.economy._utils import (
     _validate_index_keys,
 )
 from vic3_analysis.analysis.economy.states import (
+    BuyPackages,
     EconomyContext,
     EconomyState,
 )
@@ -181,21 +181,18 @@ def prepare_context(economy: Economy, context: EconomyContext) -> EconomyContext
     """
     if context.buy_packages is not None and context.consumption_scales is not None:
         return context
-    changes: dict[str, np.ndarray] = {}
-    if context.buy_packages is None:
+    packages = context.buy_packages
+    if packages is None:
         packages = economy.calculate_buy_packages(context)
-        changes["buy_packages"] = packages.to_numpy()
-        changes["buy_package_wealth"] = packages.index.to_numpy()
-    if context.consumption_scales is None:
-        changes["consumption_scales"] = economy.calculate_pop_consumption_scales(
-            context
-        )
-    return replace(context, **changes)
+    scales = context.consumption_scales
+    if scales is None:
+        scales = economy.calculate_pop_consumption_scales(context)
+    return replace(context, buy_packages=packages, consumption_scales=scales)
 
 
 def calculate_buy_packages(
     economy: Economy, state: EconomyState | EconomyContext
-) -> pd.DataFrame:
+) -> BuyPackages:
     """Calculate weekly goods packages per 10,000 standard workers by wealth.
 
     Convert the model's wealth-by-category values to goods quantities using
@@ -206,17 +203,17 @@ def calculate_buy_packages(
 
     Args:
         state: Snapshot or context aligned to this economy. Prepared
-            context baskets are copied when present; otherwise only
+            context baskets are reused when present; otherwise only
             building inputs/outputs, imports, and exports are used.
 
     Returns:
-        An independent, mutable DataFrame with an ascending int64 index
-        named ``wealth``. Prepared context tiers are authoritative;
-        otherwise it contains every tier in ``df_buy_packages``.
-        Columns are all good keys in `goods_index` order, with float64
-        values in goods units per week per 10,000 standard workers.
-        Unconsumed goods have zero values. Neither the state nor model
-        tables are modified.
+        Immutable `BuyPackages` with ascending int64 ``wealth`` labels and
+        read-only float64 ``quantities`` in `goods_index` column order.
+        Prepared context baskets are returned unchanged after validating
+        goods alignment; otherwise all tiers in ``df_buy_packages`` are
+        calculated. Quantities are goods units per week per 10,000 standard
+        workers, with zero for unconsumed goods. Inputs are unchanged.
+        Use `Economy.df_goods_buy_packages` for a mutable DataFrame export.
 
     Raises:
         ValueError: If goods flows are misaligned, negative, or non-finite,
@@ -244,24 +241,16 @@ def calculate_buy_packages(
           wealth-dependent needs and valuation at goods' base prices.
     """
     context = state.context if isinstance(state, EconomyState) else state
-    if context.buy_packages is not None and context.buy_package_wealth is not None:
-        tiers = context.buy_package_wealth
-        values = economy._select_prepared_buy_packages(
-            context.buy_packages, tiers, tiers
-        )
-    else:
-        purchases, prices = economy._pop_need_purchase_shares(context)
-        data = economy._pop_needs_coefficients
-        tiers = data.wealth_levels
+    if context.buy_packages is not None:
+        economy._validate_buy_packages(context.buy_packages)
+        return context.buy_packages
+    purchases, prices = economy._pop_need_purchase_shares(context)
+    data = economy._pop_needs_coefficients
+    with np.errstate(over="ignore", invalid="ignore"):
         values = _nonnegative_values(
             data.packages @ purchases / prices, "calculated buy_packages"
         )
-    return pd.DataFrame(
-        values,
-        index=pd.Index(tiers, name="wealth", copy=True),
-        columns=list(economy.goods_index),
-        copy=True,
-    )
+    return BuyPackages(wealth=data.wealth_levels, quantities=values)
 
 
 def calculate_pop_consumption_scales(
@@ -341,50 +330,34 @@ def _wealth_positions(
     return np.searchsorted(tiers, wealth)
 
 
-def _select_pop_buy_packages(
-    economy: Economy, buy_packages: pd.DataFrame, wealth: np.ndarray
-) -> np.ndarray:
-    """Validate supplied baskets and select rows for occupied wealth tiers."""
-    _require_columns(buy_packages, set(economy.goods_index), "buy_packages")
-    if len(buy_packages.columns) != len(economy.goods_index):
-        raise ValueError("buy_packages columns must match goods_index exactly.")
-    tiers = _readonly_wealth(buy_packages.index.to_numpy(), "buy_packages index")
-    if (tiers == 0).any() or len(np.unique(tiers)) != len(tiers):
-        raise ValueError(
-            "buy_packages index must contain unique positive wealth tiers."
-        )
-    values = _nonnegative_values(
-        buy_packages.loc[:, list(economy.goods_index)].to_numpy(),
-        "buy_packages quantities",
-    )
-    order = np.argsort(tiers)
-    return values[order[_wealth_positions(tiers[order], wealth)]]
+def _validate_buy_packages(economy: Economy, packages: BuyPackages) -> None:
+    """Require immutable baskets with columns aligned to this economy's goods."""
+    if not isinstance(packages, BuyPackages):
+        raise TypeError("buy_packages must be a BuyPackages instance.")
+    if packages.quantities.shape[1] != len(economy.goods_index):
+        raise ValueError("buy_packages columns must match goods_index.")
 
 
-def _select_prepared_buy_packages(
-    economy: Economy, values: np.ndarray, tiers: np.ndarray, wealth: np.ndarray
+def _select_buy_packages(
+    economy: Economy, packages: BuyPackages, wealth: np.ndarray
 ) -> np.ndarray:
-    """Select prepared baskets without materializing a DataFrame."""
-    if values.shape[1] != len(economy.goods_index):
-        raise ValueError("Prepared buy_packages columns must match goods_index.")
-    return values[_wealth_positions(tiers, wealth)]
+    """Check goods alignment and select baskets for occupied wealth tiers."""
+    economy._validate_buy_packages(packages)
+    return packages.quantities[_wealth_positions(packages.wealth, wealth)]
 
 
 def _select_consumption_baskets(
     economy: Economy,
     state: EconomyState,
     wealth: np.ndarray,
-    buy_packages: pd.DataFrame | None,
-) -> np.ndarray | None:
-    """Select explicit or prepared baskets, leaving raw calculation to callers."""
-    if buy_packages is not None:
-        return economy._select_pop_buy_packages(buy_packages, wealth)
-    context = state.context
-    if context.buy_packages is not None and context.buy_package_wealth is not None:
-        return economy._select_prepared_buy_packages(
-            context.buy_packages, context.buy_package_wealth, wealth
-        )
-    return None
+    buy_packages: BuyPackages | None,
+) -> np.ndarray:
+    """Select explicit, prepared, or newly calculated baskets, in that order."""
+    if buy_packages is None:
+        buy_packages = state.context.buy_packages
+    if buy_packages is None:
+        buy_packages = economy.calculate_buy_packages(state)
+    return economy._select_buy_packages(buy_packages, wealth)
 
 
 def _pop_demand_from_baskets(
@@ -415,7 +388,7 @@ def calculate_pop_needs(
     economy: Economy,
     state: EconomyState,
     *,
-    buy_packages: pd.DataFrame | None = None,
+    buy_packages: BuyPackages | None = None,
     consumption_scales: np.ndarray | None = None,
 ) -> np.ndarray:
     """Calculate target weekly goods demand for the represented workers.
@@ -437,25 +410,25 @@ def calculate_pop_needs(
     workers. Multiply worker counts by ``1 + 0.5 * dependents_per_worker``,
     scale by ``consumption_mult / 10_000``, distribute by
     normalized purchase weights, and divide by goods' base prices to
-    obtain units per week. Category budgets are aggregated before goods
-    allocation, without a building-by-profession-by-goods tensor.
+    obtain units per week. Household scales are aggregated by wealth before
+    allocating goods baskets, without a building-by-profession-by-goods tensor.
 
     Args:
         state: Snapshot aligned to this economy's building, profession,
             and goods indexes. Workers and their dependents consume at the
             same wealth tier; dependents consume half as much per person.
             Empty cells need no wealth package.
-        buy_packages: Optional weekly goods quantities per 10,000 standard
-            workers, as returned by `calculate_buy_packages`. The index must
-            contain unique positive integer wealth tiers, including every
-            occupied tier; its name is ignored. Columns must contain exactly
-            `goods_index`, in any order. Values must be finite and
-            non-negative. Supplied baskets are scaled directly by worker-
+        buy_packages: Optional immutable `BuyPackages`, as returned by
+            `calculate_buy_packages`. Wealth labels must cover every occupied
+            tier. Quantity columns must follow `goods_index` order; column
+            count is checked against the economy. Construction validates and
+            sorts wealth labels and quantities together. Supplied baskets
+            are scaled directly by worker-
             equivalent population and profession consumption multipliers,
             without substitution or base-price conversion, and remain fixed
             when supply changes.
             Unused state goods flows and raw need/package tables are not
-            validated in this mode. The table is unchanged.
+            validated in this mode. The baskets are unchanged.
         consumption_scales: Optional precomputed matrix returned by
             `calculate_pop_consumption_scales`. Supplied values are
             authoritative, finite, non-negative, and shaped like ``pops``;
@@ -470,6 +443,7 @@ def calculate_pop_needs(
         ``pop_needs`` argument to `solve`. The state is unchanged.
 
     Raises:
+        TypeError: If supplied baskets are not a `BuyPackages` instance.
         ValueError: If relevant state arrays are misaligned, quantities
             are negative or non-finite, base prices are not positive,
             occupied wealth tiers are undefined, or model tables have
@@ -505,20 +479,7 @@ def calculate_pop_needs(
         state, consumption_scales
     )
     selected = _select_consumption_baskets(economy, state, wealth, buy_packages)
-    with np.errstate(over="ignore", invalid="ignore"):
-        if selected is not None:
-            demand = _pop_demand_from_baskets(selected, inverse, scales)
-        else:
-            counts = np.bincount(inverse, weights=scales, minlength=len(wealth))
-            purchases, prices = economy._pop_need_purchase_shares(state)
-            data = economy._pop_needs_coefficients
-            budgets = (
-                counts
-                @ data.packages[
-                    _wealth_positions(data.wealth_levels, wealth, "df_buy_packages")
-                ]
-            )
-            demand = budgets @ purchases / prices
+    demand = _pop_demand_from_baskets(selected, inverse, scales)
     return economy._validate_goods_vector(demand, "calculated pop_needs")
 
 
@@ -526,7 +487,7 @@ def calculate_pop_expenses(
     economy: Economy,
     state: EconomyState,
     *,
-    buy_packages: pd.DataFrame | None = None,
+    buy_packages: BuyPackages | None = None,
     consumption_scales: np.ndarray | None = None,
 ) -> np.ndarray:
     """Return weekly household expenses for target goods consumption.
@@ -555,6 +516,7 @@ def calculate_pop_expenses(
         zero expenses. Inputs, model tables, and ``pop_balance`` are unchanged.
 
     Raises:
+        TypeError: If supplied baskets are not a `BuyPackages` instance.
         ValueError: If relevant state inputs, baskets, or scales are invalid,
             occupied tiers are undefined, or calculated costs are non-finite.
 
@@ -568,27 +530,18 @@ def calculate_pop_expenses(
     )
     prices = economy._validate_goods_vector(state.market_prices, "state.market_prices")
     selected = _select_consumption_baskets(economy, state, wealth, buy_packages)
-    if selected is None:
-        selected = economy._select_pop_buy_packages(
-            economy.calculate_buy_packages(state), wealth
-        )
     return _pop_expenses_at_prices(occupied, inverse, scales, selected, prices)
 
 
 def _prepared_consumption(
     context: EconomyContext,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[BuyPackages, np.ndarray]:
     """Require the prepared arrays needed by wealth iteration."""
-    if (
-        context.buy_packages is None
-        or context.buy_package_wealth is None
-        or context.consumption_scales is None
-    ):
+    if context.buy_packages is None or context.consumption_scales is None:
         raise ValueError(
             "Prepared baskets and consumption_scales are required; use evaluate_wealth()."
         )
     return (
         context.buy_packages,
-        context.buy_package_wealth,
         context.consumption_scales,
     )

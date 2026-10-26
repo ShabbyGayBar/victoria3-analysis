@@ -94,11 +94,47 @@ def _weighted_std(values: np.ndarray, weights: np.ndarray) -> float:
 
 
 @dataclass(frozen=True)
+class BuyPackages:
+    """Owned, read-only goods baskets and their ascending wealth labels.
+
+    Attributes:
+        wealth: Unique positive int64 wealth tiers, sorted on construction.
+        quantities: Weekly goods quantities per 10,000 standard workers,
+            shaped as wealth tiers × goods in the owning economy's
+            ``goods_index`` order. Rows are sorted with ``wealth``.
+
+    Empty tiers are allowed with a quantities matrix of shape ``(0, n_goods)``.
+    """
+
+    wealth: np.ndarray
+    quantities: np.ndarray
+
+    def __post_init__(self) -> None:
+        """Validate aligned baskets and own sorted, read-only array copies."""
+        tiers = _readonly_wealth(self.wealth, "buy_packages.wealth")
+        if tiers.ndim != 1 or (tiers == 0).any() or len(np.unique(tiers)) != len(tiers):
+            raise ValueError(
+                "buy_packages.wealth must contain unique positive wealth tiers."
+            )
+        values = _nonnegative_values(self.quantities, "buy_packages.quantities")
+        if values.ndim != 2 or values.shape[0] != len(tiers):
+            raise ValueError(
+                "buy_packages.quantities shape must match wealth tiers × goods."
+            )
+        order = np.argsort(tiers)
+        object.__setattr__(
+            self, "wealth", _readonly_wealth(tiers[order], "buy_packages.wealth")
+        )
+        object.__setattr__(self, "quantities", _readonly_array(values[order]))
+
+
+@dataclass(frozen=True)
 class EconomyContext:
     """Fixed production, trade, and population inputs shared by snapshots.
 
-    Arrays are owned, read-only copies. Goods columns follow the owning
-    economy's ``goods_index``; population columns follow its ``pop_index``.
+    Direct array inputs are owned, read-only copies; immutable ``BuyPackages``
+    objects are shared. Goods columns follow the owning economy's
+    ``goods_index``; population columns follow its ``pop_index``.
     Prepared consumption data is optional and remains fixed as wealth and
     prices change. Clear affected prepared fields when changing their inputs,
     then call ``Economy.prepare_context`` to refresh them.
@@ -113,9 +149,8 @@ class EconomyContext:
         exports: Derived non-negative weekly export quantities by good.
         pops: Employed-worker counts by configuration and profession.
         workforce_ratio: Workers / total population, in ``(0, 1]``.
-        buy_packages: Optional weekly goods quantities per 10,000 standard
-            workers, indexed by wealth tier and good.
-        buy_package_wealth: Positive integer labels for the basket rows.
+        buy_packages: Optional immutable goods baskets with their wealth labels,
+            shared across contexts and snapshots.
         consumption_scales: Optional dimensionless basket multiples, shaped
             like ``pops`` and zero in empty cells.
     """
@@ -125,8 +160,7 @@ class EconomyContext:
     goods_trade_flow: np.ndarray
     pops: np.ndarray
     workforce_ratio: float = field(default=1.0, kw_only=True)
-    buy_packages: np.ndarray | None = field(default=None, kw_only=True)
-    buy_package_wealth: np.ndarray | None = field(default=None, kw_only=True)
+    buy_packages: BuyPackages | None = field(default=None, kw_only=True)
     consumption_scales: np.ndarray | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
@@ -140,35 +174,16 @@ class EconomyContext:
             "pops",
         ):
             object.__setattr__(self, name, _readonly_array(getattr(self, name)))
-        if (self.buy_packages is None) != (self.buy_package_wealth is None):
-            raise ValueError(
-                "buy_packages and buy_package_wealth must be supplied together."
-            )
-        if self.buy_packages is not None and self.buy_package_wealth is not None:
-            tiers = _readonly_wealth(self.buy_package_wealth, "buy_package_wealth")
-            if (
-                tiers.ndim != 1
-                or (tiers == 0).any()
-                or len(np.unique(tiers)) != len(tiers)
+        if self.buy_packages is not None:
+            if not isinstance(self.buy_packages, BuyPackages):
+                raise TypeError("buy_packages must be a BuyPackages instance or None.")
+            quantities = self.buy_packages.quantities
+            if self.goods_trade_flow.ndim != 1 or quantities.shape[1] != len(
+                self.goods_trade_flow
             ):
                 raise ValueError(
-                    "buy_package_wealth must contain unique positive wealth tiers."
+                    "buy_packages.quantities shape must match context goods."
                 )
-            values = _nonnegative_values(self.buy_packages, "buy_packages")
-            if self.goods_trade_flow.ndim != 1 or values.shape != (
-                len(tiers),
-                len(self.goods_trade_flow),
-            ):
-                raise ValueError(
-                    "buy_packages shape must match wealth tiers and goods."
-                )
-            order = np.argsort(tiers)
-            object.__setattr__(self, "buy_packages", _readonly_array(values[order]))
-            object.__setattr__(
-                self,
-                "buy_package_wealth",
-                _readonly_wealth(tiers[order], "buy_package_wealth"),
-            )
         if self.consumption_scales is not None:
             scales = _nonnegative_values(self.consumption_scales, "consumption_scales")
             pops = _nonnegative_values(self.pops, "pops")
@@ -420,14 +435,9 @@ class EconomyState:
         return self.context.workforce_ratio
 
     @property
-    def buy_packages(self) -> np.ndarray | None:
+    def buy_packages(self) -> BuyPackages | None:
         """Return ``context.buy_packages``."""
         return self.context.buy_packages
-
-    @property
-    def buy_package_wealth(self) -> np.ndarray | None:
-        """Return ``context.buy_package_wealth``."""
-        return self.context.buy_package_wealth
 
     @property
     def consumption_scales(self) -> np.ndarray | None:

@@ -116,11 +116,10 @@ def _validate_wealth_assignment(
         raise ValueError(
             "state.pop_wealth shape must match building_index and pop_index."
         )
-    if context.buy_packages is None or context.buy_package_wealth is None:
-        raise ValueError("Prepared buy_packages and buy_package_wealth are required.")
-    economy._select_prepared_buy_packages(
+    if context.buy_packages is None:
+        raise ValueError("Prepared buy_packages are required.")
+    economy._select_buy_packages(
         context.buy_packages,
-        context.buy_package_wealth,
         np.unique(wealth[pops > 0]),
     )
     return wealth
@@ -133,11 +132,11 @@ def _evaluate_prepared_wealth(
     income_coefficients: _PopIncomeCoefficients,
 ) -> _WealthEvaluation:
     """Evaluate working arrays without constructing immutable intermediate states."""
-    packages, tiers, scales = economy._prepared_consumption(context)
+    packages, scales = economy._prepared_consumption(context)
     occupied, used_wealth, inverse, cell_scales = _group_pop_consumption(
         context.pops, wealth, scales
     )
-    selected = economy._select_prepared_buy_packages(packages, tiers, used_wealth)
+    selected = economy._select_buy_packages(packages, used_wealth)
     with np.errstate(over="ignore", invalid="ignore"):
         demand = _nonnegative_values(
             _pop_demand_from_baskets(selected, inverse, cell_scales),
@@ -196,9 +195,9 @@ def _validate_iteration_context(economy: Economy, context: EconomyContext) -> No
     _nonnegative_values(context.building_levels, "building_levels")
     if context.building_levels.shape != (len(economy.building_index),):
         raise ValueError("building_levels shape must match building_index.")
-    packages, tiers, scales = economy._prepared_consumption(context)
-    if packages.shape != (len(tiers), len(economy.goods_index)):
-        raise ValueError("Prepared buy_packages columns must match goods_index.")
+    packages, scales = economy._prepared_consumption(context)
+    tiers = packages.wealth
+    economy._validate_buy_packages(packages)
     if scales.shape != pops.shape:
         raise ValueError("consumption_scales shape must match state.pops.")
     if (len(tiers) == 0 and (pops > 0).any()) or (np.diff(tiers) != 1).any():
@@ -217,7 +216,8 @@ def _wealth_transition(
     atol: float,
 ) -> _WealthTransition:
     """Select simultaneous one-tier changes, with decrease taking precedence."""
-    packages, tiers, scales = economy._prepared_consumption(context)
+    packages, scales = economy._prepared_consumption(context)
+    tiers = packages.wealth
     occupied = context.pops > 0
     increasing = np.zeros(wealth.shape, dtype=bool)
     decreasing = np.zeros(wealth.shape, dtype=bool)
@@ -232,7 +232,7 @@ def _wealth_transition(
         )
         with np.errstate(over="ignore", invalid="ignore"):
             costs = _nonnegative_values(
-                packages[used] @ prices, "calculated transition basket costs"
+                packages.quantities[used] @ prices, "calculated transition basket costs"
             )
             current_cost, next_cost = np.split(costs[inverse], 2)
             next_cost = np.where(positions < len(tiers) - 1, next_cost, 0)

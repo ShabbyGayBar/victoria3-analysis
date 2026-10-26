@@ -107,8 +107,9 @@ between different configurations. No separate gross-flow parsing is implied.
 ## Consumption and market prices
 
 `Economy.df_buy_packages` contains raw need-category budgets at base prices.
-Prepared `EconomyContext.buy_packages` contains goods quantities by wealth
-tier; `buy_package_wealth` labels its rows. These are different representations.
+Prepared `EconomyContext.buy_packages` is a `BuyPackages` object containing goods
+`quantities` by wealth tier and `wealth` row labels. These are different
+representations.
 
 ```mermaid
 ---
@@ -142,9 +143,10 @@ flowchart TD
     ES --> SH["[V] Substitution shares"]:::variable
     PN["[E] df_pop_needs"]:::model --> SH
 
-    SH --> Q["[C] buy_packages<br/>+ buy_package_wealth"]:::context
+    SH --> Q["[C] buy_packages<br/>wealth + quantities"]:::context
     RAW["[E] df_buy_packages<br/>Raw category budgets"]:::model --> Q
     BASE["[E] base_prices *"]:::model --> Q
+    Q --> QR["[V] df_goods_buy_packages()<br/>DataFrame export"]:::variable
 
     Q --> NEEDS["[P] pop_needs"]:::household
     SC --> NEEDS
@@ -166,7 +168,10 @@ stay fixed while worker counts, workforce ratio, and profession multipliers
 are fixed. Changing wealth selects different basket rows; changing prices
 changes their monetary cost rather than their quantities.
 
-`calculate_buy_packages()` returns an independent DataFrame for inspection.
+`calculate_buy_packages()` returns immutable `BuyPackages`, reusing prepared
+baskets when present. Explicit, prepared, and freshly calculated baskets share
+one selection path in consumption calculations. `df_goods_buy_packages()`
+exports an independent DataFrame from a state, context, or basket object.
 `calculate_pop_consumption_scales()`, `calculate_pop_needs()`, and
 `calculate_pop_expenses()` return arrays without updating a snapshot.
 Preparation and wealth evaluation attach the appropriate results to their
@@ -218,7 +223,7 @@ flowchart TD
     CI --> INC["[P] pop_income"]:::household
     DI --> INC
 
-    Q["[C] buy_packages<br/>+ buy_package_wealth"]:::context --> BC["[V] Basket costs by wealth"]:::variable
+    Q["[C] buy_packages<br/>wealth + quantities"]:::context --> BC["[V] Basket costs by wealth"]:::variable
     PRICE --> BC
 
     BC --> EXP["[P] pop_expenses"]:::household

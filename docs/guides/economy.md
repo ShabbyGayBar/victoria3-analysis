@@ -142,7 +142,7 @@ their owning components. Direct construction now uses
 `EconomyState(context=context, market=market, households=households)`.
 The market must reference the exact same context object.
 
-Nominal and market solves leave `buy_packages`, `buy_package_wealth`,
+Nominal and market solves leave `buy_packages`,
 `consumption_scales`, `pop_income`, and `pop_expenses` as `None`. They continue
 to accept externally supplied population demand without evaluating household
 finances. `pop_balance` is `None` until both finances exist; `df_pop()` reports
@@ -164,12 +164,35 @@ needs = economy.calculate_pop_needs(state)
 expenses = economy.calculate_pop_expenses(state)
 ```
 
-The context stores `buy_packages` as a read-only wealth-by-goods array, with
-ascending integer row labels in `buy_package_wealth`. Goods columns follow
+The context stores `buy_packages` as an immutable `BuyPackages` object containing
+read-only arrays: `wealth` holds ascending positive integer row labels, and
+`quantities` holds the wealth-by-goods matrix. Goods columns follow
 the owning economy's `goods_index`; worker columns follow `pop_index`.
-`calculate_buy_packages(context)` returns an independent DataFrame, while
+`calculate_buy_packages(context)` returns `BuyPackages`, reusing the prepared
+object when present. `df_goods_buy_packages(source)` exports an independent
+DataFrame from a state, context, or basket object, while
 `calculate_pop_consumption_scales(context)` returns an independent writable
 array. Both calculators also accept complete states.
+
+To supply custom prepared baskets, construct one object with both arrays:
+
+```python
+import numpy as np
+
+from vic3_analysis import BuyPackages
+
+packages = BuyPackages(
+    wealth=np.array([1, 5]),
+    quantities=np.zeros((2, len(economy.goods_index))),
+)
+context = replace(state.context, buy_packages=packages)
+```
+
+`BuyPackages` owns copies of its inputs, validates their alignment, and sorts
+labels and quantities together. Contexts share the immutable object.
+Use `context.buy_packages.wealth` and `context.buy_packages.quantities` after
+checking that baskets are prepared. This replaces the former separate
+`buy_packages` array and `buy_package_wealth` attributes.
 
 `prepare_context()` computes only missing fields, returning the original context
 when fully prepared. Needs and expenses resolve baskets and scales independently:
@@ -187,8 +210,8 @@ context = economy.prepare_context(
 state = replace(state, context=context, market=replace(state.market, context=context))
 ```
 
-Clear both `buy_packages` and `buy_package_wealth` together when refreshing
-baskets. Wealth and prices may change while sharing the same context.
+Set `buy_packages=None` when refreshing baskets. Wealth and prices may change
+while sharing the same context.
 Context preparation does not evaluate wealth or implement iteration.
 
 ### Workers and dependents
@@ -236,7 +259,6 @@ context = replace(
     state.context,
     building_goods_flow=state.building_goods_flow * 2,
     buy_packages=None,
-    buy_package_wealth=None,
 )
 changed_state = replace(state, context=context, market=replace(state.market, context=context))
 ```
@@ -319,27 +341,32 @@ not modeled here.
 
 ### Standard packages by wealth
 
-`calculate_buy_packages(state)` returns a DataFrame of weekly goods quantities
-per **10,000 standard workers**. Its integer index, named `wealth`, includes
-every level defined in `df_buy_packages`, sorted ascending. Columns include all
-goods in `goods_index` order, with `float64` values and zeros for unconsumed
-goods.
+`calculate_buy_packages(state)` returns immutable `BuyPackages` of weekly goods
+quantities per **10,000 standard workers**. Its read-only `wealth` array contains
+ascending positive int64 labels, and `quantities` is a read-only float64 matrix
+with columns in `goods_index` order and zeros for unconsumed goods. Prepared
+context baskets are authoritative and reused; otherwise every level defined in
+the raw `df_buy_packages` table is calculated.
 
 ```python
 packages = economy.calculate_buy_packages(state)
-wealth = int(packages.index[0])
-goods_at_wealth = packages.loc[wealth]
+wealth = int(packages.wealth[0])
+goods_at_wealth = packages.quantities[0]
+# Convert only when a table or export is needed:
+report = economy.df_goods_buy_packages(packages)
 ```
 
 The packages use the state's building inputs/outputs, imports, and exports for
 goods substitution. They do not depend on population counts, occupied wealth
 levels, profession consumption multipliers, market prices, or existing
-population demand. Even an empty population has a complete package table.
+population demand. Even an empty population has a complete set of calculated baskets.
 Each row's value at base prices equals its wealth tier's total category budget.
-The returned DataFrame is independently mutable; modifying it does not change
-the state, model tables, or later results.
+The returned object owns read-only arrays. `df_goods_buy_packages(state)`,
+`df_goods_buy_packages(context)`, or `df_goods_buy_packages(packages)` returns
+an independently mutable report with int64 index named `wealth` and goods
+columns in model order. Editing that report changes no baskets or model tables.
 
-Pass this table to `calculate_pop_needs` to reuse its goods baskets:
+Pass the basket object to `calculate_pop_needs` to reuse its goods quantities:
 
 ```python
 packages = economy.calculate_buy_packages(state)
@@ -355,12 +382,14 @@ consumption multipliers per 10,000 workers. Substitution,
 base-price conversion, and validation of unused state goods flows and raw
 need/package tables are skipped.
 
-The table must have unique positive integer-valued wealth labels and exactly
-the model's goods columns, with finite nonnegative quantities. Rows and columns
-can be in any order, and the index name is ignored. Only occupied wealth tiers
-need rows; empty population cells need no matching package. The supplied table
-and state remain unchanged. Omitting `buy_packages` uses prepared context baskets
-when present, otherwise calculating them from the current state's supply.
+`BuyPackages` construction validates unique positive integer wealth labels and
+finite nonnegative quantities, and sorts rows with their labels. Quantity
+columns must already follow the model's `goods_index` order; consumption
+calculations check the column count and coverage of occupied tiers. Only
+occupied wealth tiers need rows; empty population cells need no matching
+package. Explicit baskets, prepared context baskets, and freshly calculated
+baskets use the same selection path. DataFrames are not accepted as basket
+arguments. The basket object and state remain unchanged.
 
 ### Reusable household consumption scales
 
@@ -578,6 +607,7 @@ represented employment. Standard packages remain defined for all wealth tiers:
 with zero supply, minimum shares apply, and categories with zero purchase
 weights fall back to their default goods.
 
+The example calls `economy.df_goods_buy_packages(state)` for the DataFrame export.
 The UTF-8 output is `artifacts/analyses/buy_packages/default.csv`, with `wealth`
 as the first column followed by goods in model order. Re-running the example
 replaces this CSV, and the script prints its output path.

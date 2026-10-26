@@ -21,7 +21,7 @@ def main() -> None:
 
     # Standard packages remain defined without workers or market supply.
     # Minimum shares apply first; categories with zero weights use default goods.
-    packages = economy.calculate_buy_packages(state)
+    packages = economy.df_goods_buy_packages(state)
     output_dir = ANALYSES_DIR / "buy_packages"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "default.csv"

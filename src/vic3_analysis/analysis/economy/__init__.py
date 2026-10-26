@@ -11,6 +11,7 @@ finances, and `PopState` household results inside a complete `EconomyState`.
 
 from vic3_analysis.analysis.economy.model import Economy
 from vic3_analysis.analysis.economy.states import (
+    BuyPackages,
     EconomyContext,
     EconomyState,
     EquilibriumDiagnostics,
@@ -20,6 +21,7 @@ from vic3_analysis.analysis.economy.states import (
 )
 
 __all__ = [
+    "BuyPackages",
     "Economy",
     "EconomyContext",
     "EconomyState",

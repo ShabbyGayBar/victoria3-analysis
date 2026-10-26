@@ -11,11 +11,49 @@ import numpy as np
 import pandas as pd
 
 from vic3_analysis.analysis.economy.states import (
+    BuyPackages,
+    EconomyContext,
     EconomyState,
 )
 
 if TYPE_CHECKING:
     from vic3_analysis.analysis.economy.model import Economy
+
+
+def df_goods_buy_packages(
+    economy: Economy, source: EconomyState | EconomyContext | BuyPackages
+) -> pd.DataFrame:
+    """Export standard goods baskets as an independent, mutable DataFrame.
+
+    Args:
+        source: A snapshot or context from which to calculate or reuse baskets,
+            or immutable `BuyPackages` with columns in `goods_index` order.
+
+    Returns:
+        A fresh DataFrame with ascending int64 index named ``wealth`` and
+        float64 goods quantities in `goods_index` column order. Quantities
+        are weekly units per 10,000 standard workers. Both data and labels
+        are copied; editing the report does not modify its source.
+
+    Raises:
+        TypeError: If source is not a state, context, or `BuyPackages`.
+        ValueError: If goods alignment or basket calculation is invalid.
+    """
+    if isinstance(source, BuyPackages):
+        packages = source
+        economy._validate_buy_packages(packages)
+    elif isinstance(source, (EconomyState, EconomyContext)):
+        packages = economy.calculate_buy_packages(source)
+    else:
+        raise TypeError(
+            "source must be an EconomyState, EconomyContext, or BuyPackages."
+        )
+    return pd.DataFrame(
+        packages.quantities,
+        index=pd.Index(packages.wealth, name="wealth", copy=True),
+        columns=list(economy.goods_index),
+        copy=True,
+    )
 
 
 def df_buildings(economy: Economy, state: EconomyState) -> pd.DataFrame:
