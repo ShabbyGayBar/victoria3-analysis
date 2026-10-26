@@ -11,11 +11,28 @@ and all optimization showcases.
 For returned columns, see the [production dictionary](../data-dictionary/production.md)
 and [economy-report dictionary](../data-dictionary/economy.md).
 
-`EconomyState` accepts realized signed `building_goods_flow` quantities shaped
-as configurations × goods. Aggregate inputs/outputs and per-configuration
-`building_surplus`/`building_deficit` are read-only cached properties. Direct
-constructors and replacements must supply the flow matrix instead of aggregate
-input/output fields.
+`EconomyState(context, market, households)` composes `EconomyContext`,
+`MarketState`, and `PopState`. All four are exported from `vic3_analysis`.
+Flat attribute reads are preserved; constructors and replacements use the
+component fields. `market.context` must be the exact same object as `context`.
+Components own read-only copies of their arrays; constructing a complete state
+does not copy its context or evaluate dependent results.
+
+`EconomyContext` stores realized signed `building_goods_flow` quantities shaped
+as configurations × goods, trade, workers, and workforce ratio. It derives goods
+input/output totals and fixed orders. `MarketState` stores prices and derives
+building surplus/deficit and GDP from those prices and the shared context.
+`PopState` stores wealth, demand, and optional `pop_income` and `pop_expenses`.
+Its derived `pop_balance` is `None` unless both finances exist. Nominal/market
+solves leave these finances unevaluated; `df_pop()` reports balances as `NaN`.
+
+`Economy.prepare_context(context)` returns a context with prepared baskets and
+scales, computing only missing fields and returning a fully prepared context
+unchanged. `buy_packages` is an optional read-only wealth-by-goods array with
+ascending integer labels in `buy_package_wealth`; both default to `None` and
+must be supplied or cleared together. `consumption_scales` is an optional
+read-only configuration-by-profession array. Goods and profession axes follow
+the owning economy's indexes. Existing solves leave these fields unprepared.
 
 `Economy.calculate_pop_income(state)` returns a fresh writable float64 matrix
 of weekly cooperative income totals aligned to configurations × professions.
@@ -26,18 +43,21 @@ from annual to weekly amounts.
 See the [cooperative income guide](../guides/economy.md#building-flows-and-cooperative-income)
 for accounting assumptions and failure behavior.
 
-`EconomyState` and `Economy.solve()` accept keyword-only `workforce_ratio=1.0`.
+`EconomyContext` and `Economy.solve()` accept keyword-only `workforce_ratio=1.0`.
 This uniform worker share must be in `(0, 1]`; `dependents_per_worker` is cached
 as `(1 - workforce_ratio) / workforce_ratio`. `pops` and `total_employment`
 count workers; `total_population` includes dependents. `Scenario.workforce_ratio`
 passes the same assumption to optimizer-created states.
 
-`Economy.calculate_pop_consumption_scales(state)` returns a fresh writable
+`Economy.calculate_buy_packages(state_or_context)` returns a fresh mutable
+DataFrame, copying prepared baskets when available.
+`Economy.calculate_pop_consumption_scales(state_or_context)` returns a fresh writable
 float64 matrix of dimensionless household scales:
 `pops / 10_000 * consumption_mult * (1 + 0.5 * dependents_per_worker)`.
 `calculate_pop_needs()` and `calculate_pop_expenses()` accept keyword-only
 `buy_packages=None` and `consumption_scales=None` to reuse baskets and scales
-independently. Supplied scales are authoritative, finite, nonnegative,
+independently. Each omitted argument uses its prepared context value before
+falling back to calculation. Supplied scales are authoritative, finite, nonnegative,
 population-shaped, and zero for empty cells; profession multipliers are not
 recomputed. Refresh them when the population assumptions change.
 
@@ -52,4 +72,10 @@ reuse conditions, and an explicit `income - expenses` example.
 
 ::: vic3_analysis.Economy
 
-::: vic3_analysis.analysis.economy.EconomyState
+::: vic3_analysis.EconomyContext
+
+::: vic3_analysis.MarketState
+
+::: vic3_analysis.PopState
+
+::: vic3_analysis.EconomyState

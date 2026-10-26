@@ -39,7 +39,8 @@ production_table, ...` directly.
   `BuildingsParser`, `BuildingGroupParser`, `goods`, `PopNeedsParser`,
   `PopTypesParser`, `production_method_groups`, `ProductionMethodParser`,
   `StateRegionsParser`, `technology`), the analysis helpers
-  (`production_table`, `Economy`), and the optimization API (`Scenario`,
+  (`production_table`, `Economy`, `EconomyContext`, `EconomyState`, `MarketState`,
+  `PopState`), and the optimization API (`Scenario`,
   `BaseOptimizer`, `LinearProblem`, `NominalOptimizer`, `MarketProblem`, and
   `MarketOptimizer`).
 - `utils.py` — Shared helpers:
@@ -110,11 +111,15 @@ or expose a `pyradox.Tree` subclass with helper methods.
     profit, employment, per-profession employment, and `goods_<good>` columns.
     Optional technology and pop-type tables add era/localization and
     private-wage-normalized metrics, respectively.
-- `economy.py` — General-equilibrium economy model. Defines `EconomyState`
-  (frozen dataclass with building levels, prices, supply, demand, employment,
-  and wealth) and `Economy` which derives a nominal `EconomyState` from a
-  building-level vector using base goods prices and per-profession wealth from
-  the pop-types table.
+- `economy.py` — Economy model and frozen snapshot components.
+  `EconomyContext` owns fixed production, trade, worker counts, workforce ratio,
+  and optional prepared baskets/scales. `MarketState` references that context
+  and owns prices, deriving building finances and GDP. `PopState` owns wealth,
+  demand, and optional income/expenses, deriving balance when evaluated.
+  `EconomyState` composes them, preserves flat attribute reads, and derives
+  combined reports. `Economy` provides nominal/market solving, explicit
+  `prepare_context()`, and consumption and income calculations; wealth
+  iteration remains deferred.
 - `supply_chain/` — Single-terminal nominal supply-chain analysis. The package
   separates analyzer/result orchestration, cyclic bipartite NetworkX graph
   construction, metrics, Matplotlib/Mermaid visualization, and sequential

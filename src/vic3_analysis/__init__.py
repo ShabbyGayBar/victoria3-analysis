@@ -8,7 +8,13 @@ Provides utilities and parsers for analysing Victoria 3 game data, including
 buildings, goods, production methods, technologies, and economic optimisation.
 """
 
-from vic3_analysis.analysis.economy import Economy
+from vic3_analysis.analysis.economy import (
+    Economy,
+    EconomyContext,
+    EconomyState,
+    MarketState,
+    PopState,
+)
 from vic3_analysis.analysis.production import production_table
 from vic3_analysis.analysis.supply_chain.analyzer import SupplyChainAnalyzer
 from vic3_analysis.analysis.supply_chain.result import (
@@ -42,11 +48,15 @@ __all__ = [
     "BuildingGroupParser",
     "BuildingsParser",
     "Economy",
+    "EconomyContext",
+    "EconomyState",
     "LinearProblem",
     "MarketOptimizer",
     "MarketProblem",
+    "MarketState",
     "NominalOptimizer",
     "PopNeedsParser",
+    "PopState",
     "PopTypesParser",
     "ProductionMethodParser",
     "Scenario",

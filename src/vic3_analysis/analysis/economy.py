@@ -4,10 +4,9 @@
 """
 General-equilibrium economy model for Victoria 3.
 
-Defines `EconomyState` as the solver state (building levels, prices,
-supply, demand, employment, and wealth) and `Economy` which derives a
-nominal `EconomyState` from a building-level vector using base goods
-prices and per-profession wealth from the pop-types table.
+Separates fixed `EconomyContext` inputs, `MarketState` prices and building
+finances, and `PopState` household results inside a complete `EconomyState`.
+`Economy` prepares consumption data and derives nominal or market snapshots.
 """
 
 import warnings
@@ -144,57 +143,42 @@ def _weighted_std(values: np.ndarray, weights: np.ndarray) -> float:
 
 
 @dataclass(frozen=True)
-class EconomyState:
-    """Snapshot state of a Victoria 3 economy.
+class EconomyContext:
+    """Fixed production, trade, and population inputs shared by snapshots.
 
-    Every array is defensively copied to owned, read-only storage during
-    construction: integer wealth uses int64, and all other arrays use float64.
-    The snapshot therefore cannot be changed through either the caller's input
-    arrays or its public array attributes.
+    Arrays are owned, read-only copies. Goods columns follow the owning
+    economy's ``goods_index``; population columns follow its ``pop_index``.
+    Prepared consumption data is optional and remains fixed as wealth and
+    prices change. Clear affected prepared fields when changing their inputs,
+    then call ``Economy.prepare_context`` to refresh them.
 
     Attributes:
-        building_levels: 1-D array of building-configuration levels (one per
-            row of the production table).
-        market_prices: 1-D array of good prices (one per tradeable good).
-        imports: 1-D array of imported goods (one per tradeable good).
-        exports: 1-D array of exported goods (one per tradeable good).
-        buy_orders: 1-D array of buy orders (one per tradeable good).
-        sell_orders: 1-D array of sell orders (one per tradeable good).
-        building_goods_flow: 2-D array of realized weekly signed goods flows,
-            indexed by production configuration and good. Positive values are
-            outputs and negative values are inputs. Levels, throughput, and
-            economy-of-scale bonuses are already applied.
-        building_goods_input: Cached 1-D array of total weekly input goods.
-        building_goods_output: Cached 1-D array of total weekly output goods.
-        building_surplus: Cached weekly value added per configuration, before
-            wages, valued at market_prices. May be negative.
-        building_deficit: Cached non-negative weekly input-cost deficit per
-            configuration, without an implicit source of funding.
-        pops: 2-D array of employment (rows are buildings, columns are
-            professions); cell ``[i, j]`` is the employment of profession ``j``
-            at building ``i``.
-        pop_balance: 2-D array of pop balance (rows are buildings, columns are pop types); cell ``[i, j]`` is the total balance of pop type ``j`` at building ``i``.
-        pop_needs: 1-D array of pop needs (one per tradeable good).
-        pop_wealth: 2-D int64 array of non-negative wealth levels (rows are buildings, columns are
-            professions); cell ``[i, j]`` is the wealth of profession ``j`` at
-            building ``i``.
-        workforce_ratio: Economy-wide workers / total population, in ``(0, 1]``.
-            Defaults to ``1.0`` for worker-only accounting.
+        building_levels: Levels per production configuration.
+        building_goods_flow: Realized weekly signed quantities by configuration
+            and good, including throughput and economy-of-scale bonuses.
+        imports: Weekly import quantities by good.
+        exports: Weekly export quantities by good.
+        pops: Employed-worker counts by configuration and profession.
+        workforce_ratio: Workers / total population, in ``(0, 1]``.
+        buy_packages: Optional weekly goods quantities per 10,000 standard
+            workers, indexed by wealth tier and good.
+        buy_package_wealth: Positive integer labels for the basket rows.
+        consumption_scales: Optional dimensionless basket multiples, shaped
+            like ``pops`` and zero in empty cells.
     """
 
     building_levels: np.ndarray
     building_goods_flow: np.ndarray
     imports: np.ndarray
     exports: np.ndarray
-    market_prices: np.ndarray
     pops: np.ndarray
-    pop_wealth: np.ndarray
-    pop_balance: np.ndarray
-    pop_needs: np.ndarray
     workforce_ratio: float = field(default=1.0, kw_only=True)
+    buy_packages: np.ndarray | None = field(default=None, kw_only=True)
+    buy_package_wealth: np.ndarray | None = field(default=None, kw_only=True)
+    consumption_scales: np.ndarray | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
-        """Take ownership of every state array and make it read-only."""
+        """Own fixed arrays and validate optional prepared consumption data."""
         if not np.isfinite(self.workforce_ratio) or not 0 < self.workforce_ratio <= 1:
             raise ValueError("workforce_ratio must be finite and in (0, 1].")
         for name in (
@@ -202,15 +186,46 @@ class EconomyState:
             "building_goods_flow",
             "imports",
             "exports",
-            "market_prices",
             "pops",
-            "pop_balance",
-            "pop_needs",
         ):
             object.__setattr__(self, name, _readonly_array(getattr(self, name)))
-        object.__setattr__(
-            self, "pop_wealth", _readonly_wealth(self.pop_wealth, "pop_wealth")
-        )
+        if (self.buy_packages is None) != (self.buy_package_wealth is None):
+            raise ValueError(
+                "buy_packages and buy_package_wealth must be supplied together."
+            )
+        if self.buy_packages is not None and self.buy_package_wealth is not None:
+            tiers = _readonly_wealth(self.buy_package_wealth, "buy_package_wealth")
+            if (
+                tiers.ndim != 1
+                or (tiers == 0).any()
+                or len(np.unique(tiers)) != len(tiers)
+            ):
+                raise ValueError(
+                    "buy_package_wealth must contain unique positive wealth tiers."
+                )
+            values = _nonnegative_values(self.buy_packages, "buy_packages")
+            if self.imports.ndim != 1 or values.shape != (
+                len(tiers),
+                len(self.imports),
+            ):
+                raise ValueError(
+                    "buy_packages shape must match wealth tiers and goods."
+                )
+            order = np.argsort(tiers)
+            object.__setattr__(self, "buy_packages", _readonly_array(values[order]))
+            object.__setattr__(
+                self,
+                "buy_package_wealth",
+                _readonly_wealth(tiers[order], "buy_package_wealth"),
+            )
+        if self.consumption_scales is not None:
+            scales = _nonnegative_values(self.consumption_scales, "consumption_scales")
+            pops = _nonnegative_values(self.pops, "pops")
+            if scales.shape != pops.shape:
+                raise ValueError("consumption_scales shape must match pops.")
+            if (scales[pops == 0] != 0).any():
+                raise ValueError("consumption_scales must be zero for empty cells.")
+            object.__setattr__(self, "consumption_scales", _readonly_array(scales))
 
     @cached_property
     def building_goods_input(self) -> np.ndarray:
@@ -221,16 +236,6 @@ class EconomyState:
     def building_goods_output(self) -> np.ndarray:
         """Return total weekly output quantities, splitting signs before summing."""
         return _readonly_array(np.maximum(self.building_goods_flow, 0).sum(axis=0))
-
-    @cached_property
-    def building_surplus(self) -> np.ndarray:
-        """Return weekly goods value added per configuration before wages (£)."""
-        return _readonly_array(self.building_goods_flow @ self.market_prices)
-
-    @cached_property
-    def building_deficit(self) -> np.ndarray:
-        """Return unfunded weekly input costs per configuration (£)."""
-        return _readonly_array(np.maximum(-self.building_surplus, 0))
 
     @cached_property
     def sell_orders(self) -> np.ndarray:
@@ -244,15 +249,78 @@ class EconomyState:
         return result
 
     @cached_property
-    def buy_orders(self) -> np.ndarray:
-        """Calculate the buy orders for each good.
+    def dependents_per_worker(self) -> float:
+        """Return the number of dependents per employed worker."""
+        return (1.0 - self.workforce_ratio) / self.workforce_ratio
+
+    @cached_property
+    def total_employment(self) -> float:
+        """Return the employed-worker headcount, excluding dependents."""
+        return float(np.sum(self.pops))
+
+    @cached_property
+    def total_population(self) -> float:
+        """Return workers plus their dependents, using the uniform workforce ratio."""
+        return self.total_employment / self.workforce_ratio
+
+    @cached_property
+    def employment_by_profession(self) -> np.ndarray:
+        """Calculate total employment per profession.
 
         Returns:
-            The buy orders vector, computed as the sum of building_goods_input, exports and pop needs.
+            A 1-D array of shape ``(n_professions,)`` giving the column sums of
+            ``pops``.
         """
-        result = self.building_goods_input + self.exports + self.pop_needs
+        result = self.pops.sum(axis=0)
         result.setflags(write=False)
         return result
+
+    @cached_property
+    def profession_shares(self) -> np.ndarray:
+        """Calculate each profession's share of total employment.
+
+        Returns:
+            A 1-D array of shape ``(n_professions,)`` summing to ``1.0``, or
+            all zeros when total employment is zero.
+        """
+        if self.total_employment == 0:
+            result = np.zeros(self.pops.shape[1], dtype=np.float64)
+        else:
+            result = self.employment_by_profession / self.total_employment
+        result.setflags(write=False)
+        return result
+
+    @cached_property
+    def non_pop_buy_orders(self) -> np.ndarray:
+        """Return weekly industrial input and export orders by good."""
+        return _readonly_array(self.building_goods_input + self.exports)
+
+
+@dataclass(frozen=True)
+class MarketState:
+    """Prices and building finances for a shared fixed economy context.
+
+    Attributes:
+        context: Fixed inputs shared with the enclosing ``EconomyState``.
+        market_prices: Goods-aligned prices in pounds per unit.
+    """
+
+    context: EconomyContext
+    market_prices: np.ndarray
+
+    def __post_init__(self) -> None:
+        """Own prices without copying the shared context."""
+        object.__setattr__(self, "market_prices", _readonly_array(self.market_prices))
+
+    @cached_property
+    def building_surplus(self) -> np.ndarray:
+        """Return weekly goods value added per configuration before wages (£)."""
+        return _readonly_array(self.context.building_goods_flow @ self.market_prices)
+
+    @cached_property
+    def building_deficit(self) -> np.ndarray:
+        """Return unfunded weekly input costs per configuration (£)."""
+        return _readonly_array(np.maximum(-self.building_surplus, 0))
 
     @cached_property
     def gdp_weekly(self) -> float:
@@ -264,7 +332,7 @@ class EconomyState:
         """
         return float(
             np.sum(
-                (self.building_goods_output - self.building_goods_input)
+                (self.context.building_goods_output - self.context.building_goods_input)
                 * self.market_prices
             )
         )
@@ -284,20 +352,222 @@ class EconomyState:
             return self.gdp_weekly * 52
         return self.gdp_weekly
 
+
+@dataclass(frozen=True)
+class PopState:
+    """Changing household wealth, demand, and optional weekly finances.
+
+    Wealth, income, and expenses use configuration-by-profession matrices;
+    demand is goods-aligned. ``None`` finances mean unevaluated, including for
+    nominal and market solves. Balance is derived only when both are supplied.
+
+    Attributes:
+        pop_wealth: Non-negative integer wealth tiers.
+        pop_needs: Weekly household goods demand.
+        pop_income: Optional total household income in pounds per week.
+        pop_expenses: Optional total consumption expenses in pounds per week.
+    """
+
+    pop_wealth: np.ndarray
+    pop_needs: np.ndarray
+    pop_income: np.ndarray | None = None
+    pop_expenses: np.ndarray | None = None
+
+    def __post_init__(self) -> None:
+        """Own population arrays and validate supplied finances."""
+        object.__setattr__(
+            self, "pop_wealth", _readonly_wealth(self.pop_wealth, "pop_wealth")
+        )
+        object.__setattr__(self, "pop_needs", _readonly_array(self.pop_needs))
+        for name in ("pop_income", "pop_expenses"):
+            value = getattr(self, name)
+            if value is not None:
+                values = _nonnegative_values(value, name)
+                if values.ndim != 2 or values.shape != self.pop_wealth.shape:
+                    raise ValueError(f"{name} shape must match the pop_wealth matrix.")
+                object.__setattr__(self, name, _readonly_array(values))
+
     @cached_property
+    def pop_balance(self) -> np.ndarray | None:
+        """Return weekly income minus expenses, or None when unevaluated."""
+        if self.pop_income is None or self.pop_expenses is None:
+            return None
+        return _readonly_array(self.pop_income - self.pop_expenses)
+
+
+@dataclass(frozen=True)
+class EconomyState:
+    """Complete snapshot composed from fixed context, market, and population.
+
+    Components share immutable data without copying production arrays. Familiar
+    flat attribute reads forward to their owners; constructors and replacements
+    use the component fields. Composition does not evaluate household finances
+    or establish consistency between supplied wealth, demand, and prices.
+
+    Attributes:
+        context: Fixed production, trade, population, and prepared consumption.
+        market: Prices and building finances referencing this exact context.
+        households: Household wealth, demand, and optional finances.
+    """
+
+    context: EconomyContext
+    market: MarketState
+    households: PopState
+
+    def __post_init__(self) -> None:
+        """Reject a market attached to a different context."""
+        if self.market.context is not self.context:
+            raise ValueError("market.context must be the same object as context.")
+
+    @property
+    def building_levels(self) -> np.ndarray:
+        """Return ``context.building_levels``."""
+        return self.context.building_levels
+
+    @property
+    def building_goods_flow(self) -> np.ndarray:
+        """Return ``context.building_goods_flow``."""
+        return self.context.building_goods_flow
+
+    @property
+    def imports(self) -> np.ndarray:
+        """Return ``context.imports``."""
+        return self.context.imports
+
+    @property
+    def exports(self) -> np.ndarray:
+        """Return ``context.exports``."""
+        return self.context.exports
+
+    @property
+    def pops(self) -> np.ndarray:
+        """Return ``context.pops``."""
+        return self.context.pops
+
+    @property
+    def workforce_ratio(self) -> float:
+        """Return ``context.workforce_ratio``."""
+        return self.context.workforce_ratio
+
+    @property
+    def buy_packages(self) -> np.ndarray | None:
+        """Return ``context.buy_packages``."""
+        return self.context.buy_packages
+
+    @property
+    def buy_package_wealth(self) -> np.ndarray | None:
+        """Return ``context.buy_package_wealth``."""
+        return self.context.buy_package_wealth
+
+    @property
+    def consumption_scales(self) -> np.ndarray | None:
+        """Return ``context.consumption_scales``."""
+        return self.context.consumption_scales
+
+    @property
+    def building_goods_input(self) -> np.ndarray:
+        """Return ``context.building_goods_input``."""
+        return self.context.building_goods_input
+
+    @property
+    def building_goods_output(self) -> np.ndarray:
+        """Return ``context.building_goods_output``."""
+        return self.context.building_goods_output
+
+    @property
+    def sell_orders(self) -> np.ndarray:
+        """Return ``context.sell_orders``."""
+        return self.context.sell_orders
+
+    @property
     def dependents_per_worker(self) -> float:
-        """Return the number of dependents per employed worker."""
-        return (1.0 - self.workforce_ratio) / self.workforce_ratio
+        """Return ``context.dependents_per_worker``."""
+        return self.context.dependents_per_worker
 
-    @cached_property
+    @property
     def total_employment(self) -> float:
-        """Return the employed-worker headcount, excluding dependents."""
-        return float(np.sum(self.pops))
+        """Return ``context.total_employment``."""
+        return self.context.total_employment
+
+    @property
+    def total_population(self) -> float:
+        """Return ``context.total_population``."""
+        return self.context.total_population
+
+    @property
+    def employment_by_profession(self) -> np.ndarray:
+        """Return ``context.employment_by_profession``."""
+        return self.context.employment_by_profession
+
+    @property
+    def profession_shares(self) -> np.ndarray:
+        """Return ``context.profession_shares``."""
+        return self.context.profession_shares
+
+    @property
+    def non_pop_buy_orders(self) -> np.ndarray:
+        """Return ``context.non_pop_buy_orders``."""
+        return self.context.non_pop_buy_orders
+
+    @property
+    def market_prices(self) -> np.ndarray:
+        """Return ``market.market_prices``."""
+        return self.market.market_prices
+
+    @property
+    def building_surplus(self) -> np.ndarray:
+        """Return ``market.building_surplus``."""
+        return self.market.building_surplus
+
+    @property
+    def building_deficit(self) -> np.ndarray:
+        """Return ``market.building_deficit``."""
+        return self.market.building_deficit
+
+    @property
+    def gdp_weekly(self) -> float:
+        """Return ``market.gdp_weekly``."""
+        return self.market.gdp_weekly
+
+    @property
+    def pop_wealth(self) -> np.ndarray:
+        """Return ``households.pop_wealth``."""
+        return self.households.pop_wealth
+
+    @property
+    def pop_needs(self) -> np.ndarray:
+        """Return ``households.pop_needs``."""
+        return self.households.pop_needs
+
+    @property
+    def pop_income(self) -> np.ndarray | None:
+        """Return ``households.pop_income``."""
+        return self.households.pop_income
+
+    @property
+    def pop_expenses(self) -> np.ndarray | None:
+        """Return ``households.pop_expenses``."""
+        return self.households.pop_expenses
+
+    @property
+    def pop_balance(self) -> np.ndarray | None:
+        """Return ``households.pop_balance``."""
+        return self.households.pop_balance
 
     @cached_property
-    def total_population(self) -> float:
-        """Return workers plus their dependents, using the uniform workforce ratio."""
-        return self.total_employment / self.workforce_ratio
+    def buy_orders(self) -> np.ndarray:
+        """Calculate the buy orders for each good.
+
+        Returns:
+            The buy orders vector, computed as the sum of building_goods_input, exports and pop needs.
+        """
+        result = self.context.non_pop_buy_orders + self.pop_needs
+        result.setflags(write=False)
+        return result
+
+    def gdp(self, annual: bool = False) -> float:
+        """Return weekly GDP, or annual GDP when requested."""
+        return self.market.gdp(annual)
 
     def gdp_per_capita(self, annual: bool = False) -> float:
         """Calculate the weekly or annual GDP per capita.
@@ -324,18 +594,6 @@ class EconomyState:
         if self.total_employment == 0:
             return 0.0
         return float(np.sum(self.pop_wealth * self.pops) / self.total_employment)
-
-    @cached_property
-    def employment_by_profession(self) -> np.ndarray:
-        """Calculate total employment per profession.
-
-        Returns:
-            A 1-D array of shape ``(n_professions,)`` giving the column sums of
-            ``pops``.
-        """
-        result = self.pops.sum(axis=0)
-        result.setflags(write=False)
-        return result
 
     @cached_property
     def total_wealth(self) -> float:
@@ -370,21 +628,6 @@ class EconomyState:
         weighted = (self.pop_wealth * self.pops).sum(axis=0)
         with np.errstate(divide="ignore", invalid="ignore"):
             result = np.where(emp > 0, weighted / emp, 0.0)
-        result.setflags(write=False)
-        return result
-
-    @cached_property
-    def profession_shares(self) -> np.ndarray:
-        """Calculate each profession's share of total employment.
-
-        Returns:
-            A 1-D array of shape ``(n_professions,)`` summing to ``1.0``, or
-            all zeros when total employment is zero.
-        """
-        if self.total_employment == 0:
-            result = np.zeros(self.pops.shape[1], dtype=np.float64)
-        else:
-            result = self.employment_by_profession / self.total_employment
         result.setflags(write=False)
         return result
 
@@ -838,7 +1081,7 @@ class Economy:
         return _readonly_array(_nonnegative_values(consumption, "consumption_mult"))
 
     def _pop_need_purchase_shares(
-        self, state: EconomyState
+        self, state: EconomyState | EconomyContext
     ) -> tuple[np.ndarray, np.ndarray]:
         """Return category-by-goods purchase shares and validated base prices."""
         self._validate_building_goods_flow(state)
@@ -865,7 +1108,30 @@ class Economy:
         np.divide(purchases, totals, out=purchases, where=totals > 0)
         return np.where(totals > 0, purchases, data.defaults), prices
 
-    def calculate_buy_packages(self, state: EconomyState) -> pd.DataFrame:
+    def prepare_context(self, context: EconomyContext) -> EconomyContext:
+        """Return a context with reusable baskets and consumption scales.
+
+        Compute only missing prepared fields. Existing fields are authoritative;
+        a fully prepared context is returned unchanged. No household wealth,
+        demand, prices, or finances are evaluated. Clear affected fields before
+        refreshing changed production, trade, or population assumptions.
+        """
+        if context.buy_packages is not None and context.consumption_scales is not None:
+            return context
+        changes: dict[str, np.ndarray] = {}
+        if context.buy_packages is None:
+            packages = self.calculate_buy_packages(context)
+            changes["buy_packages"] = packages.to_numpy()
+            changes["buy_package_wealth"] = packages.index.to_numpy()
+        if context.consumption_scales is None:
+            changes["consumption_scales"] = self.calculate_pop_consumption_scales(
+                context
+            )
+        return replace(context, **changes)
+
+    def calculate_buy_packages(
+        self, state: EconomyState | EconomyContext
+    ) -> pd.DataFrame:
         """Calculate weekly goods packages per 10,000 standard workers by wealth.
 
         Convert the model's wealth-by-category values to goods quantities using
@@ -875,12 +1141,14 @@ class Economy:
         supply shares, and default goods as described by `calculate_pop_needs`.
 
         Args:
-            state: Snapshot whose goods flows align to `goods_index`. Only
+            state: Snapshot or context aligned to this economy. Prepared
+                context baskets are copied when present; otherwise only
                 building inputs/outputs, imports, and exports are used.
 
         Returns:
             An independent, mutable DataFrame with an ascending int64 index
-            named ``wealth`` containing every tier in ``df_buy_packages``.
+            named ``wealth``. Prepared context tiers are authoritative;
+            otherwise it contains every tier in ``df_buy_packages``.
             Columns are all good keys in `goods_index` order, with float64
             values in goods units per week per 10,000 standard workers.
             Unconsumed goods have zero values. Neither the state nor model
@@ -911,29 +1179,42 @@ class Economy:
             - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
               wealth-dependent needs and valuation at goods' base prices.
         """
-        purchases, prices = self._pop_need_purchase_shares(state)
-        data = self._pop_needs_coefficients
-        values = _nonnegative_values(
-            data.packages @ purchases / prices, "calculated buy_packages"
-        )
+        context = state.context if isinstance(state, EconomyState) else state
+        if context.buy_packages is not None and context.buy_package_wealth is not None:
+            tiers = context.buy_package_wealth
+            values = self._select_prepared_buy_packages(
+                context.buy_packages, tiers, tiers
+            )
+        else:
+            purchases, prices = self._pop_need_purchase_shares(context)
+            data = self._pop_needs_coefficients
+            tiers = data.wealth_levels
+            values = _nonnegative_values(
+                data.packages @ purchases / prices, "calculated buy_packages"
+            )
         return pd.DataFrame(
             values,
-            index=pd.Index(data.wealth_levels, name="wealth", copy=True),
+            index=pd.Index(tiers, name="wealth", copy=True),
             columns=list(self.goods_index),
             copy=True,
         )
 
-    def _pop_consumption_population(self, state: EconomyState) -> np.ndarray:
+    def _pop_consumption_population(
+        self, state: EconomyState | EconomyContext
+    ) -> np.ndarray:
         """Validate household alignment and return non-negative worker counts."""
         expected_shape = (len(self.building_index), len(self.pop_index))
-        for name in ("pops", "pop_wealth"):
+        names = ("pops", "pop_wealth") if isinstance(state, EconomyState) else ("pops",)
+        for name in names:
             if getattr(state, name).shape != expected_shape:
                 raise ValueError(
                     f"state.{name} shape must match building_index and pop_index."
                 )
         return _nonnegative_values(state.pops, "state.pops")
 
-    def calculate_pop_consumption_scales(self, state: EconomyState) -> np.ndarray:
+    def calculate_pop_consumption_scales(
+        self, state: EconomyState | EconomyContext
+    ) -> np.ndarray:
         """Return household consumption as multiples of a standard buy package.
 
         Calculate ``pops / 10_000 * consumption_mult * (1 + 0.5 *
@@ -942,8 +1223,9 @@ class Economy:
         much per person. Wealth values, prices, and goods flows are not used.
 
         Args:
-            state: Snapshot with aligned population and wealth matrices and
-                finite non-negative employed-worker counts.
+            state: Snapshot or context with aligned worker counts. Prepared
+                context scales are copied when present. Snapshot wealth must
+                also have the population shape.
 
         Returns:
             A fresh, owned, writable float64 matrix aligned to configurations
@@ -957,6 +1239,9 @@ class Economy:
                 or consumption multipliers are invalid, or scales overflow.
         """
         pops = self._pop_consumption_population(state)
+        context = state.context if isinstance(state, EconomyState) else state
+        if context.consumption_scales is not None:
+            return context.consumption_scales.copy()
         with np.errstate(over="ignore", invalid="ignore"):
             scales = (
                 pops
@@ -972,6 +1257,8 @@ class Economy:
         """Return occupied cells, unique wealth, inverse labels, and cell scales."""
         pops = self._pop_consumption_population(state)
         occupied = pops > 0
+        if consumption_scales is None:
+            consumption_scales = state.context.consumption_scales
         if consumption_scales is None:
             scales = self.calculate_pop_consumption_scales(state)
         else:
@@ -1006,6 +1293,18 @@ class Economy:
         order = np.argsort(tiers)
         return values[order[np.searchsorted(tiers[order], wealth)]]
 
+    def _select_prepared_buy_packages(
+        self, values: np.ndarray, tiers: np.ndarray, wealth: np.ndarray
+    ) -> np.ndarray:
+        """Select prepared baskets without materializing a DataFrame."""
+        if values.shape[1] != len(self.goods_index):
+            raise ValueError("Prepared buy_packages columns must match goods_index.")
+        if not np.isin(wealth, tiers).all():
+            raise ValueError(
+                "Occupied pop_wealth tiers must be defined in buy_packages."
+            )
+        return values[np.searchsorted(tiers, wealth)]
+
     def calculate_pop_needs(
         self,
         state: EconomyState,
@@ -1015,7 +1314,9 @@ class Economy:
     ) -> np.ndarray:
         """Calculate target weekly goods demand for the represented workers.
 
-        When ``buy_packages`` is omitted, for each need category effective supply is
+        Prepared context baskets and scales are reused when their explicit
+        arguments are omitted. Without prepared baskets, each need category's
+        effective supply is
         ``max(sell_orders - 0.5 * (building_goods_input + exports), 0)``.
         Divide each eligible good's effective supply by the category total,
         clip that share to its configured minimum and maximum, multiply by
@@ -1102,6 +1403,13 @@ class Economy:
             if buy_packages is not None:
                 selected = self._select_pop_buy_packages(buy_packages, wealth)
                 demand = counts @ selected
+            elif (
+                state.context.buy_packages is not None
+                and state.context.buy_package_wealth is not None
+            ):
+                demand = counts @ self._select_prepared_buy_packages(
+                    state.context.buy_packages, state.context.buy_package_wealth, wealth
+                )
             else:
                 purchases, prices = self._pop_need_purchase_shares(state)
                 data = self._pop_needs_coefficients
@@ -1134,12 +1442,13 @@ class Economy:
                 worker counts, and finite non-negative goods-aligned market
                 prices. Zero prices are valid. Empty cells need no wealth basket.
             buy_packages: Optional goods baskets with the same contract as in
-                `calculate_pop_needs`. When omitted, call
-                `calculate_buy_packages(state)`. Supplied baskets bypass unused
-                goods flows, base prices, and raw needs/package definitions.
+                `calculate_pop_needs`. When omitted, reuse prepared context
+                baskets or call `calculate_buy_packages(state)`. Supplied baskets
+                bypass unused goods flows, base prices, and raw needs/package
+                definitions.
             consumption_scales: Optional authoritative precomputed household
                 scales, with the same contract as in `calculate_pop_needs`.
-                When omitted, call `calculate_pop_consumption_scales(state)`.
+                When omitted, reuse context scales or calculate them.
 
         Returns:
             A fresh, owned, writable float64 matrix shaped like ``state.pops``
@@ -1159,9 +1468,19 @@ class Economy:
             state, consumption_scales
         )
         prices = self._validate_goods_vector(state.market_prices, "state.market_prices")
-        if buy_packages is None:
-            buy_packages = self.calculate_buy_packages(state)
-        selected = self._select_pop_buy_packages(buy_packages, wealth)
+        if buy_packages is not None:
+            selected = self._select_pop_buy_packages(buy_packages, wealth)
+        elif (
+            state.context.buy_packages is not None
+            and state.context.buy_package_wealth is not None
+        ):
+            selected = self._select_prepared_buy_packages(
+                state.context.buy_packages, state.context.buy_package_wealth, wealth
+            )
+        else:
+            selected = self._select_pop_buy_packages(
+                self.calculate_buy_packages(state), wealth
+            )
         expenses = np.zeros(state.pops.shape, dtype=np.float64)
         with np.errstate(over="ignore", invalid="ignore"):
             costs = _nonnegative_values(selected @ prices, "calculated basket costs")
@@ -1182,7 +1501,9 @@ class Economy:
             )
         )
 
-    def _validate_building_goods_flow(self, state: EconomyState) -> None:
+    def _validate_building_goods_flow(
+        self, state: EconomyState | EconomyContext
+    ) -> None:
         """Require finite signed flows aligned to this economy's configurations/goods."""
         if state.building_goods_flow.shape != (
             len(self.building_index),
@@ -1604,17 +1925,21 @@ class Economy:
         )
         pops = building_levels[:, None] * self.employment_matrix
 
-        return EconomyState(
+        context = EconomyContext(
             building_levels=building_levels,
             building_goods_flow=building_goods_flow,
             imports=imports,
             exports=exports,
-            market_prices=self.base_prices,
             pops=pops,
-            pop_wealth=np.broadcast_to(self.pop_wealth_init, pops.shape).copy(),
-            pop_balance=np.zeros((len(self.building_index), len(self.pop_index))),
-            pop_needs=pop_needs,
             workforce_ratio=workforce_ratio,
+        )
+        return EconomyState(
+            context=context,
+            market=MarketState(context=context, market_prices=self.base_prices),
+            households=PopState(
+                pop_wealth=np.broadcast_to(self.pop_wealth_init, pops.shape),
+                pop_needs=pop_needs,
+            ),
         )
 
     def _solve_market(
@@ -1638,7 +1963,10 @@ class Economy:
         )
         return replace(
             state,
-            market_prices=self.market_prices(state.buy_orders, state.sell_orders),
+            market=MarketState(
+                context=state.context,
+                market_prices=self.market_prices(state.buy_orders, state.sell_orders),
+            ),
         )
 
     def df_buildings(self, eco: EconomyState) -> pd.DataFrame:
@@ -1725,7 +2053,11 @@ class Economy:
                 "avg_wealth": eco.wealth_by_profession,
                 "total_wealth": (eco.pop_wealth * eco.pops).sum(axis=0)
                 / eco.workforce_ratio,
-                "pop_balance": eco.pop_balance.sum(axis=0),
+                "pop_balance": (
+                    eco.pop_balance.sum(axis=0)
+                    if eco.pop_balance is not None
+                    else np.full(len(self.pop_index), np.nan)
+                ),
             }
         )
         df = df[df["employment"] > 0].copy()

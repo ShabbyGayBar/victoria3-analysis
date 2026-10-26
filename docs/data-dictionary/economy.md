@@ -10,6 +10,28 @@ scenario. Totals include the entire modeled economy. Monetary values use its
 state prices, which are base prices in nominal mode and national market prices
 in market mode. See [shared conventions](index.md).
 
+## Snapshot ownership
+
+`EconomyState` composes `context: EconomyContext`, `market: MarketState`, and
+`households: PopState`. Flat reads forward to these components. Market and
+complete state reference the exact same context object; replacing only market
+or household results shares the fixed arrays.
+
+| Owner | Stored quantities | Derived quantities |
+| --- | --- | --- |
+| `EconomyContext` | Building levels, realized flows, imports/exports, worker counts, workforce ratio | Input/output totals, sell orders, industrial/export orders, population totals |
+| `MarketState` | Shared context and prices | Building surplus/deficit, GDP |
+| `PopState` | Wealth, demand, optional weekly income/expenses | Weekly balance (`income - expenses`), or `None` when either is absent |
+| `EconomyState` | Component references | Total buy orders, wealth summaries, per-capita reports |
+
+Prepared context fields default to `None`: `buy_packages` is a read-only
+wealth-by-goods float64 array in `goods_index` column order;
+`buy_package_wealth` contains its ascending positive int64 wealth labels;
+`consumption_scales` is read-only float64, shaped like worker counts.
+`prepare_context()` fills missing fields explicitly. Nominal/market solving
+leaves these and household finances unevaluated. `Economy.df_buy_packages`
+continues to hold raw category budgets, distinct from prepared goods quantities.
+
 ## Building registry
 
 `Economy.df_buildings(state)` returns one row per configuration with level
@@ -29,7 +51,9 @@ aligned to `building_index` and columns to `goods_index`. Values are realized
 weekly signed quantities after building levels, throughput, and economy of
 scale: positive for outputs and negative for inputs. It replaces the former
 aggregate constructor fields. Existing aggregate input/output attribute access
-is preserved through cached properties.
+is preserved through forwarding properties. The flow matrix is owned by
+`EconomyContext`; aggregate inputs/outputs are cached there, while financial
+aggregates are cached on `MarketState`.
 
 | Attribute / result | Shape / unit | Meaning / calculation |
 | --- | --- | --- |
@@ -64,7 +88,9 @@ and `Q_wg` be standard goods baskets from `calculate_buy_packages(state)`.
 | `calculate_pop_expenses(state, ...)` | Configurations × professions / £ per week | `s_ij * sum_g(Q[pop_wealth_ij, g] * market_prices_g)`, household totals. |
 
 All three return independent writable float64 arrays. Needs and expenses accept
-optional `buy_packages` and `consumption_scales`, independently. Supplied scales
+optional `buy_packages` and `consumption_scales`, independently. Each resolves
+explicit arguments first, then prepared context values, then calculation.
+Supplied scales
 are authoritative and already include all population factors; they must match
 the population shape, be finite and nonnegative, and be zero for empty cells.
 Unused profession multipliers are not validated when scales are supplied.
@@ -110,7 +136,7 @@ sorted by employment descending and with its index reset. Let `n_ij` be workers
 of profession `j` in configuration `i`, and `w_ij` their stored wealth level.
 Let `r = state.workforce_ratio` and `d = state.dependents_per_worker = (1-r)/r`.
 `total_employment` sums workers; `total_population` divides that sum by `r`.
-Both direct states and `solve()` default to `r=1.0`.
+Both direct contexts and `solve()` default to `r=1.0`.
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
@@ -121,7 +147,7 @@ Both direct states and `solve()` default to `r=1.0`.
 | `population` | Float / people | `sum_i(n_ij) / r`. | Workers plus dependents. |
 | `avg_wealth` | Float / wealth level | `sum_i(w_ij * n_ij) / sum_i(n_ij)`. | State returns zero for a profession without employment. Current solving uses `start_quality_of_life` from pop types. |
 | `total_wealth` | Float / population-weighted wealth levels | `sum_i(w_ij * n_ij) / r`. | Dependents share household wealth; not a stock of money or GDP. |
-| `pop_balance` | Float / stored balance total | Sum of the state's `pop_balance` over configurations for this profession. | Current nominal and market solvers initialize this array to zero; it is not a computed wage or household budget. |
+| `pop_balance` | Float / £ per week | Sum of derived household income minus expenses over configurations for this profession. | `NaN` until both income and expenses are supplied on `PopState`; nominal and market solves leave them as `None`. |
 
 ## Japan optimization comparison
 

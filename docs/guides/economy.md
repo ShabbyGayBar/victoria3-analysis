@@ -30,7 +30,7 @@ economy = Economy()
     cached tuples. Fixed coefficients such as `base_prices`, `employment_matrix`,
     `employment_vector`, `construction_cost_vector`, `arable_land_vector`,
     `infrastructure_vector`, and `pop_wealth_init` are cached, read-only arrays.
-    `EconomyState` also owns read-only copies of its input arrays. Its realized
+    The components of `EconomyState` own read-only copies of input arrays. Its realized
     `building_goods_flow` matrix has one row per configuration and one column per
     good, in model index order. Entries are weekly quantities after levels,
     throughput, and economy-of-scale bonuses: outputs are positive and inputs
@@ -96,6 +96,71 @@ To choose building levels from objectives and constraints, continue with the
 [optimization guide](optimization.md). See the [economy API](../api/economy.md)
 for model parameters and state reports.
 
+### Snapshot components and preparation
+
+All four state classes are available from `vic3_analysis`:
+
+| Component | Stored inputs | Derived values |
+| --- | --- | --- |
+| `EconomyContext` (`state.context`) | Building levels, realized goods flows, trade, workers, workforce ratio, optional baskets and scales | Goods input/output totals, sell orders, non-household buy orders, population totals |
+| `MarketState` (`state.market`) | Shared context reference and prices | Building surplus, deficit, and GDP |
+| `PopState` (`state.households`) | Wealth, household demand, optional income and expenses | Balance, when both finances are supplied |
+| `EconomyState` | References to these three components | Total buy orders, wealth statistics, per-capita reports |
+
+Existing flat reads such as `state.pops` and `state.market_prices` forward to
+their owning components. Direct construction now uses
+`EconomyState(context=context, market=market, households=households)`.
+The market must reference the exact same context object.
+
+Nominal and market solves leave `buy_packages`, `buy_package_wealth`,
+`consumption_scales`, `pop_income`, and `pop_expenses` as `None`. They continue
+to accept externally supplied population demand without evaluating household
+finances. `pop_balance` is `None` until both finances exist; `df_pop()` reports
+unavailable balances as `NaN`.
+
+Prepare the fixed consumption inputs explicitly, then share them across snapshots:
+
+```python
+from dataclasses import replace
+from vic3_analysis import MarketState
+
+context = economy.prepare_context(state.context)
+state = replace(
+    state,
+    context=context,
+    market=MarketState(context=context, market_prices=state.market_prices),
+)
+needs = economy.calculate_pop_needs(state)
+expenses = economy.calculate_pop_expenses(state)
+```
+
+The context stores `buy_packages` as a read-only wealth-by-goods array, with
+ascending integer row labels in `buy_package_wealth`. Goods columns follow
+the owning economy's `goods_index`; worker columns follow `pop_index`.
+`calculate_buy_packages(context)` returns an independent DataFrame, while
+`calculate_pop_consumption_scales(context)` returns an independent writable
+array. Both calculators also accept complete states.
+
+`prepare_context()` computes only missing fields, returning the original context
+when fully prepared. Needs and expenses resolve baskets and scales independently:
+explicit arguments take precedence, then prepared context values, then calculation.
+No household-by-goods tensor is retained.
+
+Refresh baskets when production, trade, or substitution assumptions change.
+Refresh scales when workers, workforce ratio, or profession multipliers change.
+For example, changing the workforce ratio requires clearing the old scales:
+
+```python
+context = economy.prepare_context(
+    replace(state.context, workforce_ratio=0.25, consumption_scales=None)
+)
+state = replace(state, context=context, market=replace(state.market, context=context))
+```
+
+Clear both `buy_packages` and `buy_package_wealth` together when refreshing
+baskets. Wealth and prices may change while sharing the same context.
+Context preparation does not evaluate wealth or implement iteration.
+
 ### Workers and dependents
 
 `EconomyState.pops` always stores employed workers. Set the economy-wide
@@ -130,14 +195,20 @@ consumed by another contributes to both sell and buy orders. The matrix retains
 the production table's signed net coefficients within each configuration; it
 does not recover gross inputs offset by outputs of the same good within a row.
 
-Direct `EconomyState` construction now requires `building_goods_flow` instead
-of the former aggregate input/output arguments. When changing an existing state,
-replace its flow matrix rather than the derived properties:
+Realized flows belong to `EconomyContext`. When changing an existing state,
+replace its context and rebind the market to the new context. Clear prepared
+baskets because the changed flows affect substitution:
 
 ```python
 from dataclasses import replace
 
-changed_state = replace(state, building_goods_flow=state.building_goods_flow * 2)
+context = replace(
+    state.context,
+    building_goods_flow=state.building_goods_flow * 2,
+    buy_packages=None,
+    buy_package_wealth=None,
+)
+changed_state = replace(state, context=context, market=replace(state.market, context=context))
 ```
 
 `state.building_surplus` is each configuration's weekly goods value added at
@@ -188,7 +259,7 @@ from dataclasses import replace
 
 state = economy.solve(levels)
 needs = economy.calculate_pop_needs(state)
-state_with_needs = replace(state, pop_needs=needs)
+state_with_needs = replace(state, households=replace(state.households, pop_needs=needs))
 # Or explicitly include these orders in a new market-price evaluation:
 market_state = economy.solve(levels, method="market", pop_needs=needs)
 ```
@@ -258,8 +329,8 @@ The table must have unique positive integer-valued wealth labels and exactly
 the model's goods columns, with finite nonnegative quantities. Rows and columns
 can be in any order, and the index name is ignored. Only occupied wealth tiers
 need rows; empty population cells need no matching package. The supplied table
-and state remain unchanged. Omitting `buy_packages` retains the calculation
-using the current state's supply.
+and state remain unchanged. Omitting `buy_packages` uses prepared context baskets
+when present, otherwise calculating them from the current state's supply.
 
 ### Reusable household consumption scales
 
@@ -296,8 +367,9 @@ Supplied scales are authoritative: they must match `state.pops.shape`, contain
 finite nonnegative values, and be zero wherever worker counts are zero. They
 already include all population factors, which are not reapplied or checked
 against the current profession multipliers or workforce ratio. The caller is
-responsible for refreshing stale scales. Omitted scales are calculated using
-`calculate_pop_consumption_scales(state)`. Every occupied wealth tier needs a
+responsible for refreshing stale scales. Omitted scales reuse prepared context
+scales when present, otherwise calling `calculate_pop_consumption_scales(state)`.
+Every occupied wealth tier needs a
 basket even if its scale is zero; empty cells need no defined wealth tier.
 
 ### Household expenses
@@ -319,6 +391,19 @@ With matching baskets and scales, total expenses equal
 and do not allocate a configuration-by-profession-by-goods tensor. They leave
 the state, supplied arrays/tables, and model tables unchanged. In particular,
 `balance` above is calculated explicitly; `state.pop_balance` is unchanged.
+Store finances explicitly to obtain a derived balance on a new snapshot:
+
+```python
+state = replace(
+    state,
+    households=replace(state.households, pop_income=income, pop_expenses=expenses),
+)
+balance = state.pop_balance  # Read-only income minus expenses.
+```
+
+Replacing just the market or household component shares `state.context` and
+its production arrays. The caller must refresh dependent results when changing
+wealth or prices; constructing a snapshot does not recalculate demand or finances.
 Expenses price target consumption without affordability limits, rationing,
 taxes, or wealth transitions. Existing solve modes do not automatically calculate
 expenses or balances.
