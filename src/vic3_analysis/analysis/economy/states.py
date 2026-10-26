@@ -10,9 +10,9 @@ from typing import Literal
 import numpy as np
 
 from vic3_analysis.analysis.economy._utils import (
-    _nonnegative_values,
     _readonly_array,
     _readonly_wealth,
+    _validate_nonnegative_values,
 )
 
 
@@ -116,7 +116,9 @@ class BuyPackages:
             raise ValueError(
                 "buy_packages.wealth must contain unique positive wealth tiers."
             )
-        values = _nonnegative_values(self.quantities, "buy_packages.quantities")
+        values = _validate_nonnegative_values(
+            self.quantities, "buy_packages.quantities"
+        )
         if values.ndim != 2 or values.shape[0] != len(tiers):
             raise ValueError(
                 "buy_packages.quantities shape must match wealth tiers × goods."
@@ -185,8 +187,10 @@ class EconomyContext:
                     "buy_packages.quantities shape must match context goods."
                 )
         if self.consumption_scales is not None:
-            scales = _nonnegative_values(self.consumption_scales, "consumption_scales")
-            pops = _nonnegative_values(self.pops, "pops")
+            scales = _validate_nonnegative_values(
+                self.consumption_scales, "consumption_scales"
+            )
+            pops = _validate_nonnegative_values(self.pops, "pops")
             if scales.shape != pops.shape:
                 raise ValueError("consumption_scales shape must match pops.")
             if (scales[pops == 0] != 0).any():
@@ -358,7 +362,7 @@ class PopState:
         for name in ("pop_income", "pop_expenses"):
             value = getattr(self, name)
             if value is not None:
-                values = _nonnegative_values(value, name)
+                values = _validate_nonnegative_values(value, name)
                 if values.ndim != 2 or values.shape != self.pop_wealth.shape:
                     raise ValueError(f"{name} shape must match the pop_wealth matrix.")
                 object.__setattr__(self, name, _readonly_array(values))

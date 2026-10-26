@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from vic3_analysis.analysis.economy._utils import (
-    _nonnegative_values,
     _readonly_array,
     _readonly_wealth,
-    _require_columns,
+    _validate_columns,
     _validate_index_keys,
+    _validate_nonnegative_values,
 )
 from vic3_analysis.analysis.economy.states import (
     BuyPackages,
@@ -44,8 +44,8 @@ def _pop_needs_coefficients(economy: Economy) -> _PopNeedsCoefficients:
     """Validate and compile model tables once for repeated demand updates."""
     packages = economy.df_buy_packages
     needs = economy.df_pop_needs
-    _require_columns(packages, {"wealth"}, "df_buy_packages")
-    _require_columns(
+    _validate_columns(packages, {"wealth"}, "df_buy_packages")
+    _validate_columns(
         needs,
         {
             "key",
@@ -71,7 +71,7 @@ def _pop_needs_coefficients(economy: Economy) -> _PopNeedsCoefficients:
             "df_buy_packages must define unique positive wealth tiers and popneed_ columns."
         )
     order = np.argsort(wealth)
-    values = _nonnegative_values(
+    values = _validate_nonnegative_values(
         packages[categories].to_numpy(), "df_buy_packages need values"
     )[order]
     _validate_index_keys(economy.goods_index, "goods_index")
@@ -104,7 +104,7 @@ def _pop_needs_coefficients(economy: Economy) -> _PopNeedsCoefficients:
             raise ValueError(
                 f"df_pop_needs {category} must define exactly one default good."
             )
-        coefficients = _nonnegative_values(
+        coefficients = _validate_nonnegative_values(
             entries[["weight", "min_supply_share", "max_supply_share"]].to_numpy(),
             f"df_pop_needs {category}",
         )
@@ -138,7 +138,9 @@ def _pop_consumption_multipliers(economy: Economy) -> np.ndarray:
         consumption = economy.df_pop_types["consumption_mult"].fillna(1).to_numpy()
     else:
         consumption = np.ones(len(economy.pop_index), dtype=np.float64)
-    return _readonly_array(_nonnegative_values(consumption, "consumption_mult"))
+    return _readonly_array(
+        _validate_nonnegative_values(consumption, "consumption_mult")
+    )
 
 
 def _pop_need_purchase_shares(
@@ -155,7 +157,7 @@ def _pop_need_purchase_shares(
         state.goods_trade_flow, "state.goods_trade_flow", nonnegative=False
     )
     supply = economy._validate_goods_vector(state.sell_orders, "state.sell_orders")
-    prices = _nonnegative_values(economy.base_prices, "base_prices")
+    prices = _validate_nonnegative_values(economy.base_prices, "base_prices")
     if (prices == 0).any():
         raise ValueError("base_prices must be strictly positive.")
     data = economy._pop_needs_coefficients
@@ -247,7 +249,7 @@ def calculate_buy_packages(
     purchases, prices = economy._pop_need_purchase_shares(context)
     data = economy._pop_needs_coefficients
     with np.errstate(over="ignore", invalid="ignore"):
-        values = _nonnegative_values(
+        values = _validate_nonnegative_values(
             data.packages @ purchases / prices, "calculated buy_packages"
         )
     return BuyPackages(wealth=data.wealth_levels, quantities=values)
@@ -290,7 +292,7 @@ def calculate_pop_consumption_scales(
             * economy._pop_consumption_multipliers
             * (1.0 + 0.5 * state.dependents_per_worker)
         )
-    return _nonnegative_values(scales, "calculated consumption_scales")
+    return _validate_nonnegative_values(scales, "calculated consumption_scales")
 
 
 def _prepare_pop_consumption(
@@ -304,7 +306,7 @@ def _prepare_pop_consumption(
     if consumption_scales is None:
         scales = economy.calculate_pop_consumption_scales(state)
     else:
-        scales = _nonnegative_values(consumption_scales, "consumption_scales")
+        scales = _validate_nonnegative_values(consumption_scales, "consumption_scales")
         if scales.shape != pops.shape:
             raise ValueError("consumption_scales shape must match state.pops.")
         if (scales[~occupied] != 0).any():
@@ -379,9 +381,11 @@ def _pop_expenses_at_prices(
     """Price selected baskets and allocate costs to validated occupied cells."""
     expenses = np.zeros(occupied.shape, dtype=np.float64)
     with np.errstate(over="ignore", invalid="ignore"):
-        costs = _nonnegative_values(selected @ prices, "calculated basket costs")
+        costs = _validate_nonnegative_values(
+            selected @ prices, "calculated basket costs"
+        )
         expenses[occupied] = scales * costs[inverse]
-    return _nonnegative_values(expenses, "calculated pop_expenses")
+    return _validate_nonnegative_values(expenses, "calculated pop_expenses")
 
 
 def calculate_pop_needs(

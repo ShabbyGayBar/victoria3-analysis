@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from vic3_analysis.analysis.economy._utils import (
-    _nonnegative_values,
     _readonly_array,
     _readonly_wealth,
-    _require_columns,
+    _validate_columns,
     _validate_index_keys,
+    _validate_nonnegative_values,
 )
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
@@ -44,10 +44,10 @@ def pop_wealth_init(economy: Economy) -> np.ndarray:
 
 def pop_wage_weights(economy: Economy) -> np.ndarray:
     """Return all professions' cooperative wage weights in pop_index order."""
-    _require_columns(economy.df_pop_types, {"key", "wage_weight"}, "df_pop_types")
+    _validate_columns(economy.df_pop_types, {"key", "wage_weight"}, "df_pop_types")
     _validate_index_keys(economy.pop_index, "pop_index")
     return _readonly_array(
-        _nonnegative_values(
+        _validate_nonnegative_values(
             economy.df_pop_types["wage_weight"].to_numpy(), "wage_weight"
         )
     )
@@ -102,8 +102,8 @@ def _prepare_pop_income(
     economy._validate_building_goods_flow(context)
     pops = economy._validate_worker_counts(context)
     with np.errstate(over="ignore", invalid="ignore"):
-        weighted = _nonnegative_values(pops * weights, "weighted population")
-        totals = _nonnegative_values(weighted.sum(axis=1), "total wage weight")
+        weighted = _validate_nonnegative_values(pops * weights, "weighted population")
+        totals = _validate_nonnegative_values(weighted.sum(axis=1), "total wage weight")
     shares = np.divide(
         weighted,
         totals[:, None],
@@ -114,12 +114,12 @@ def _prepare_pop_income(
     if context.dependents_per_worker > 0 and "dependent_wage" in economy.df_pop_types:
         used = (pops > 0).any(axis=0)
         wages = np.zeros(len(economy.pop_index), dtype=np.float64)
-        wages[used] = _nonnegative_values(
+        wages[used] = _validate_nonnegative_values(
             economy.df_pop_types["dependent_wage"].fillna(0).to_numpy()[used],
             "dependent_wage",
         )
         with np.errstate(over="ignore", invalid="ignore"):
-            dependent_income = _nonnegative_values(
+            dependent_income = _validate_nonnegative_values(
                 pops * context.dependents_per_worker * (wages / 52),
                 "calculated pop_income",
             )
@@ -144,7 +144,7 @@ def _pop_income_at_prices(
             f"Positive surplus has no positive recipient weight for: {keys}"
         )
     with np.errstate(over="ignore", invalid="ignore"):
-        return _nonnegative_values(
+        return _validate_nonnegative_values(
             coefficients.shares * np.maximum(surplus, 0)[:, None]
             + coefficients.dependent_income,
             "calculated pop_income",

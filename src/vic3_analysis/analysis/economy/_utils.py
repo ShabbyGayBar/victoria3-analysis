@@ -38,8 +38,8 @@ def _readonly_wealth(value: np.ndarray, name: str) -> np.ndarray:
     return result
 
 
-def _nonnegative_values(value: np.ndarray, name: str) -> np.ndarray:
-    """Convert numeric coefficients to finite, non-negative float64 values."""
+def _validate_nonnegative_values(value: np.ndarray, name: str) -> np.ndarray:
+    """Validate finite, non-negative numeric values and return a float64 array."""
     try:
         result = np.asarray(value, dtype=np.float64)
     except (TypeError, ValueError) as exc:
@@ -49,7 +49,7 @@ def _nonnegative_values(value: np.ndarray, name: str) -> np.ndarray:
     return result
 
 
-def _require_columns(frame: pd.DataFrame, columns: set[str], name: str) -> None:
+def _validate_columns(frame: pd.DataFrame, columns: set[str], name: str) -> None:
     """Require unambiguous columns before compiling population coefficients."""
     if not frame.columns.is_unique or not columns.issubset(frame.columns):
         raise ValueError(
@@ -79,7 +79,7 @@ def _validate_worker_counts(
             raise ValueError(
                 f"state.{name} shape must match building_index and pop_index."
             )
-    return _nonnegative_values(state.pops, "state.pops")
+    return _validate_nonnegative_values(state.pops, "state.pops")
 
 
 def _validate_building_goods_flow(

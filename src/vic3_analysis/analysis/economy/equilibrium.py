@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from vic3_analysis.analysis.economy._utils import (
-    _nonnegative_values,
     _readonly_wealth,
+    _validate_nonnegative_values,
 )
 from vic3_analysis.analysis.economy.consumption import (
     _group_pop_consumption,
@@ -138,7 +138,7 @@ def _evaluate_prepared_wealth(
     )
     selected = economy._select_buy_packages(packages, used_wealth)
     with np.errstate(over="ignore", invalid="ignore"):
-        demand = _nonnegative_values(
+        demand = _validate_nonnegative_values(
             _pop_demand_from_baskets(selected, inverse, cell_scales),
             "calculated pop_needs",
         )
@@ -192,7 +192,7 @@ def _validate_iteration_context(economy: Economy, context: EconomyContext) -> No
         context.goods_trade_flow, "context.goods_trade_flow", nonnegative=False
     )
     pops = economy._validate_worker_counts(context)
-    _nonnegative_values(context.building_levels, "building_levels")
+    _validate_nonnegative_values(context.building_levels, "building_levels")
     if context.building_levels.shape != (len(economy.building_index),):
         raise ValueError("building_levels shape must match building_index.")
     packages, scales = economy._prepared_consumption(context)
@@ -231,24 +231,24 @@ def _wealth_transition(
             np.concatenate((positions, next_positions)), return_inverse=True
         )
         with np.errstate(over="ignore", invalid="ignore"):
-            costs = _nonnegative_values(
+            costs = _validate_nonnegative_values(
                 packages.quantities[used] @ prices, "calculated transition basket costs"
             )
             current_cost, next_cost = np.split(costs[inverse], 2)
             next_cost = np.where(positions < len(tiers) - 1, next_cost, 0)
-            lower = _nonnegative_values(
+            lower = _validate_nonnegative_values(
                 _WEALTH_DECREASE_THRESHOLD * (scales[occupied] * current_cost),
                 "calculated decrease threshold",
             )
-            upper = _nonnegative_values(
+            upper = _validate_nonnegative_values(
                 _WEALTH_INCREASE_THRESHOLD * (scales[occupied] * next_cost),
                 "calculated increase threshold",
             )
             earnings = income[occupied]
-            lower_tolerance = _nonnegative_values(
+            lower_tolerance = _validate_nonnegative_values(
                 atol + rtol * np.maximum(earnings, lower), "decrease tolerance"
             )
-            upper_tolerance = _nonnegative_values(
+            upper_tolerance = _validate_nonnegative_values(
                 atol + rtol * np.maximum(earnings, upper), "increase tolerance"
             )
         below = earnings < lower - lower_tolerance
@@ -330,11 +330,11 @@ def _equilibrium_diagnostics(
         return tuple((int(row), int(col)) for row, col in np.argwhere(mask))
 
     with np.errstate(over="ignore", invalid="ignore"):
-        output_value = _nonnegative_values(
+        output_value = _validate_nonnegative_values(
             np.maximum(context.building_goods_flow, 0) @ evaluation.market_prices,
             "building output value",
         )
-        input_value = _nonnegative_values(
+        input_value = _validate_nonnegative_values(
             np.maximum(-context.building_goods_flow, 0) @ evaluation.market_prices,
             "building input value",
         )
