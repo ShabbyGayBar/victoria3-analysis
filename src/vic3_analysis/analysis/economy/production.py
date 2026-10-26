@@ -153,9 +153,7 @@ def economy_of_scale_bonuses(
         return np.zeros(expected_shape, dtype=np.float64)
 
     buildings = economy.df_production["building"].astype(str).to_numpy()
-    totals: dict[str, float] = {}
-    for building, level in zip(buildings, building_levels):
-        totals[building] = totals.get(building, 0.0) + float(level)
+    totals = _levels_by_building(economy, building_levels)
 
     eligible = (
         economy.df_production["economy_of_scale"]
@@ -170,28 +168,26 @@ def economy_of_scale_bonuses(
     return bonuses
 
 
+def _goods_matrices_unscaled(economy: Economy) -> tuple[np.ndarray, np.ndarray]:
+    """Extract signed coefficients once and return owned input/output matrices."""
+    goods_columns = [f"goods_{good}" for good in economy.goods_index]
+    matrix = economy.df_production.reindex(
+        columns=goods_columns, fill_value=0
+    ).to_numpy(dtype=np.float64)
+    return (
+        _readonly_array(np.maximum(-matrix, 0)),
+        _readonly_array(np.maximum(matrix, 0)),
+    )
+
+
 def goods_input_matrix_unscaled(economy: Economy) -> np.ndarray:
     """Cached read-only gross inputs per level, without throughput scaling."""
-    goods_columns = [f"goods_{good}" for good in economy.goods_index]
-    matrix = np.maximum(
-        -economy.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
-            dtype=np.float64
-        ),
-        0,
-    )
-    return _readonly_array(matrix)
+    return economy._goods_matrices_unscaled[0]
 
 
 def goods_output_matrix_unscaled(economy: Economy) -> np.ndarray:
     """Cached read-only gross outputs per level, without throughput scaling."""
-    goods_columns = [f"goods_{good}" for good in economy.goods_index]
-    matrix = np.maximum(
-        economy.df_production.reindex(columns=goods_columns, fill_value=0).to_numpy(
-            dtype=np.float64
-        ),
-        0,
-    )
-    return _readonly_array(matrix)
+    return economy._goods_matrices_unscaled[1]
 
 
 def goods_input_matrix(
@@ -276,18 +272,18 @@ def _supply_chain_production(economy: Economy) -> pd.DataFrame:
     return production
 
 
-def construction_cost(economy: Economy, eco: EconomyState) -> float:
+def construction_cost(economy: Economy, state: EconomyState) -> float:
     """Calculate the total construction cost for an `EconomyState`.
 
     Args:
-        eco: The `EconomyState` to evaluate (as produced by
+        state: The `EconomyState` to evaluate (as produced by
             `solve`).
 
     Returns:
         The dot product of ``building_levels`` with the per-configuration
         construction cost vector.
     """
-    return float(np.dot(eco.building_levels, economy.construction_cost_vector))
+    return float(np.dot(state.building_levels, economy.construction_cost_vector))
 
 
 def arable_land_vector(economy: Economy) -> np.ndarray:
@@ -331,6 +327,17 @@ def arable_land_consumption(economy: Economy, state: EconomyState) -> float:
     return float(np.dot(state.building_levels, economy.arable_land_vector))
 
 
+def _levels_by_building(
+    economy: Economy, building_levels: np.ndarray
+) -> dict[str, float]:
+    """Sum aligned configuration levels in building first-appearance order."""
+    totals: dict[str, float] = {}
+    for building, level in zip(economy.df_production["building"], building_levels):
+        key = str(building)
+        totals[key] = totals.get(key, 0.0) + float(level)
+    return totals
+
+
 def levels_per_building(economy: Economy, state: EconomyState) -> dict[str, float]:
     """Return total levels per building across all PM configurations.
 
@@ -355,10 +362,4 @@ def levels_per_building(economy: Economy, state: EconomyState) -> dict[str, floa
     if state.building_levels.shape != expected_shape:
         raise ValueError("state.building_levels shape must match the production table.")
 
-    totals: dict[str, float] = {}
-    for building, level in zip(
-        economy.df_production["building"], state.building_levels
-    ):
-        key = str(building)
-        totals[key] = totals.get(key, 0.0) + float(level)
-    return totals
+    return _levels_by_building(economy, state.building_levels)

@@ -118,7 +118,10 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `consumption.py` (baskets, demand, and expenses), `income.py` (household
   earnings), `market.py` (prices and nominal/market solves), `equilibrium.py`
   (wealth evaluation, iteration, and equilibrium solves), and `reports.py`
-  (DataFrame exports). `_utils.py` shares array and validation helpers.
+  (DataFrame exports). `_utils.py` shares array ownership, index-key, worker-count,
+  and goods validation helpers. Consumption calculations share array-based wealth
+  grouping, basket selection, demand aggregation, and expense allocation with the
+  equilibrium evaluator; final verification still uses the public calculators.
   `states.py` defines the snapshot components, diagnostics, and errors.
   `EconomyContext` owns fixed production, trade, worker counts, workforce ratio,
   and optional prepared baskets/scales. `MarketState` references that context

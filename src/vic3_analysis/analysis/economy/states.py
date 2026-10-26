@@ -539,8 +539,20 @@ class EconomyState:
         return self.gdp(annual) / self.total_population
 
     @cached_property
+    def total_wealth_by_profession(self) -> np.ndarray:
+        """Return read-only employment-weighted wealth sums by profession.
+
+        Values sum ``pop_wealth * pops`` over configurations, excluding
+        dependents. Divide by ``workforce_ratio`` for population-weighted totals.
+        """
+        return _readonly_array((self.pop_wealth * self.pops).sum(axis=0))
+
+    @cached_property
     def average_wealth(self) -> float:
         """Calculate the employment-weighted average wealth.
+
+        With a uniform workforce ratio and dependents sharing household wealth,
+        this also equals ``total_wealth / total_population``.
 
         Returns:
             The weighted average of ``wealth`` by ``employment``, or ``0.0``
@@ -548,7 +560,7 @@ class EconomyState:
         """
         if self.total_employment == 0:
             return 0.0
-        return float(np.sum(self.pop_wealth * self.pops) / self.total_employment)
+        return float(self.total_wealth_by_profession.sum() / self.total_employment)
 
     @cached_property
     def total_wealth(self) -> float:
@@ -558,21 +570,10 @@ class EconomyState:
             The sum of ``pop_wealth * pops / workforce_ratio``. This is a
             population-weighted sum of wealth tiers, not a monetary stock.
         """
-        return float(np.sum(self.pop_wealth * self.pops)) / self.workforce_ratio
-
-    def wealth_per_capita(self) -> float:
-        """Calculate the wealth per capita.
-
-        Returns:
-            ``total_wealth / total_population``, or ``0.0`` when total
-            population is zero.
-        """
-        if self.total_population == 0:
-            return 0.0
-        return self.total_wealth / self.total_population
+        return float(self.total_wealth_by_profession.sum()) / self.workforce_ratio
 
     @cached_property
-    def wealth_by_profession(self) -> np.ndarray:
+    def average_wealth_by_profession(self) -> np.ndarray:
         """Calculate the employment-weighted average wealth per profession.
 
         Returns:
@@ -580,7 +581,7 @@ class EconomyState:
             where a profession has no employment.
         """
         emp = self.employment_by_profession
-        weighted = (self.pop_wealth * self.pops).sum(axis=0)
+        weighted = self.total_wealth_by_profession
         with np.errstate(divide="ignore", invalid="ignore"):
             result = np.where(emp > 0, weighted / emp, 0.0)
         result.setflags(write=False)
@@ -605,7 +606,7 @@ class EconomyState:
         return {
             "min": float(vw.min()),
             "max": float(vw.max()),
-            "mean": float(np.average(vw, weights=ww)),
+            "mean": self.average_wealth,
             "median": _weighted_percentile(vw, ww, 0.5),
             "std": _weighted_std(vw, ww),
         }

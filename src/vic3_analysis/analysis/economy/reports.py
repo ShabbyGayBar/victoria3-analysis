@@ -18,11 +18,11 @@ if TYPE_CHECKING:
     from vic3_analysis.analysis.economy.model import Economy
 
 
-def df_buildings(economy: Economy, eco: EconomyState) -> pd.DataFrame:
+def df_buildings(economy: Economy, state: EconomyState) -> pd.DataFrame:
     """Export an `EconomyState`'s building registry to a DataFrame.
 
     Args:
-        eco: The `EconomyState` to export (as produced by
+        state: The `EconomyState` to export (as produced by
             `solve`).
 
     Returns:
@@ -33,8 +33,9 @@ def df_buildings(economy: Economy, eco: EconomyState) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "key": economy.building_index,
-            "level": eco.building_levels,
-            "construction_cost": economy.construction_cost_vector * eco.building_levels,
+            "level": state.building_levels,
+            "construction_cost": economy.construction_cost_vector
+            * state.building_levels,
         }
     )
     df = df[df["level"] > 0].copy()
@@ -42,11 +43,11 @@ def df_buildings(economy: Economy, eco: EconomyState) -> pd.DataFrame:
     return df
 
 
-def df_market(economy: Economy, eco: EconomyState) -> pd.DataFrame:
+def df_market(economy: Economy, state: EconomyState) -> pd.DataFrame:
     """Export an `EconomyState`'s market stats to a DataFrame.
 
     Args:
-        eco: The `EconomyState` to export (as produced by
+        state: The `EconomyState` to export (as produced by
             `solve`).
 
     Returns:
@@ -60,15 +61,15 @@ def df_market(economy: Economy, eco: EconomyState) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "goods": economy.goods_index,
-            "market_prices": eco.market_prices,
-            "market_prices_variance": economy.market_prices_variance(eco),
-            "sell_orders": eco.sell_orders,
-            "buy_orders": eco.buy_orders,
-            "building_goods_input": eco.building_goods_input,
-            "building_goods_output": eco.building_goods_output,
-            "imports": eco.imports,
-            "exports": eco.exports,
-            "pop_needs": eco.pop_needs,
+            "market_prices": state.market_prices,
+            "market_prices_variance": economy.market_prices_variance(state),
+            "sell_orders": state.sell_orders,
+            "buy_orders": state.buy_orders,
+            "building_goods_input": state.building_goods_input,
+            "building_goods_output": state.building_goods_output,
+            "imports": state.imports,
+            "exports": state.exports,
+            "pop_needs": state.pop_needs,
         }
     )
     df = df[(df["sell_orders"] > 0) | (df["buy_orders"] > 0)].copy()
@@ -76,14 +77,14 @@ def df_market(economy: Economy, eco: EconomyState) -> pd.DataFrame:
     return df
 
 
-def df_pop(economy: Economy, eco: EconomyState) -> pd.DataFrame:
+def df_pop(economy: Economy, state: EconomyState) -> pd.DataFrame:
     """Export an `EconomyState`'s pop employment and wealth to a DataFrame.
 
     Each row describes one profession, aggregating the per-building arrays
-    in *eco*.
+    in *state*.
 
     Args:
-        eco: The `EconomyState` to export (as produced by
+        state: The `EconomyState` to export (as produced by
             `solve`).
 
     Returns:
@@ -96,16 +97,15 @@ def df_pop(economy: Economy, eco: EconomyState) -> pd.DataFrame:
     df = pd.DataFrame(
         {
             "profession": economy.pop_index,
-            "employment": eco.employment_by_profession,
-            "employment_share": eco.profession_shares,
-            "dependents": eco.employment_by_profession * eco.dependents_per_worker,
-            "population": eco.employment_by_profession / eco.workforce_ratio,
-            "avg_wealth": eco.wealth_by_profession,
-            "total_wealth": (eco.pop_wealth * eco.pops).sum(axis=0)
-            / eco.workforce_ratio,
+            "employment": state.employment_by_profession,
+            "employment_share": state.profession_shares,
+            "dependents": state.employment_by_profession * state.dependents_per_worker,
+            "population": state.employment_by_profession / state.workforce_ratio,
+            "avg_wealth": state.average_wealth_by_profession,
+            "total_wealth": state.total_wealth_by_profession / state.workforce_ratio,
             "pop_balance": (
-                eco.pop_balance.sum(axis=0)
-                if eco.pop_balance is not None
+                state.pop_balance.sum(axis=0)
+                if state.pop_balance is not None
                 else np.full(len(economy.pop_index), np.nan)
             ),
         }

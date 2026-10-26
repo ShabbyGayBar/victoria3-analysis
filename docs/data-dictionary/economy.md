@@ -178,6 +178,15 @@ Both direct contexts and `solve()` default to `r=1.0`.
 | `total_wealth` | Float / population-weighted wealth levels | `sum_i(w_ij * n_ij) / r`. | Dependents share household wealth; not a stock of money or GDP. |
 | `pop_balance` | Float / £ per week | Sum of derived household income minus expenses over configurations for this profession. | `NaN` until both income and expenses are supplied on `PopState`; nominal and market solves leave them as `None`. |
 
+`state.average_wealth_by_profession` contains profession averages, while
+`state.total_wealth_by_profession` caches employment-weighted wealth sums,
+excluding dependents. The report divides those sums by the workforce ratio for
+its population-weighted `total_wealth` column. Because dependents share household
+wealth and the workforce ratio is
+uniform, `state.average_wealth` equals total wealth divided by total population
+and supplies `state.wealth_distribution["mean"]`. Both return zero for an empty
+population.
+
 ## Japan optimization comparison
 
 The current `examples/optimize_jap.py` writes `optimize_jap.csv`, one row per employment-cap

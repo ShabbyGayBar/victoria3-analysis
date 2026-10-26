@@ -15,6 +15,7 @@ from vic3_analysis.analysis.economy._utils import (
     _readonly_array,
     _readonly_wealth,
     _require_columns,
+    _validate_index_keys,
 )
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
@@ -44,10 +45,7 @@ def pop_wealth_init(economy: Economy) -> np.ndarray:
 def pop_wage_weights(economy: Economy) -> np.ndarray:
     """Return all professions' cooperative wage weights in pop_index order."""
     _require_columns(economy.df_pop_types, {"key", "wage_weight"}, "df_pop_types")
-    if len(set(economy.pop_index)) != len(economy.pop_index) or any(
-        not isinstance(key, str) or not key for key in economy.pop_index
-    ):
-        raise ValueError("pop_index must contain unique non-empty keys.")
+    _validate_index_keys(economy.pop_index, "pop_index")
     return _readonly_array(
         _nonnegative_values(
             economy.df_pop_types["wage_weight"].to_numpy(), "wage_weight"
@@ -102,7 +100,7 @@ def _prepare_pop_income(
     """Compile price-independent cooperative shares and dependent earnings once."""
     weights = economy.pop_wage_weights
     economy._validate_building_goods_flow(context)
-    pops = economy._pop_consumption_population(context)
+    pops = economy._validate_worker_counts(context)
     with np.errstate(over="ignore", invalid="ignore"):
         weighted = _nonnegative_values(pops * weights, "weighted population")
         totals = _nonnegative_values(weighted.sum(axis=1), "total wage weight")

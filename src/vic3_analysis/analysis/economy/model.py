@@ -222,6 +222,11 @@ class Economy:
         return _production.economy_of_scale_bonuses(self, building_levels, level_cap)
 
     @cached_property
+    def _goods_matrices_unscaled(self) -> tuple[np.ndarray, np.ndarray]:
+        """Prepare owned, read-only input/output matrices from one extraction."""
+        return _production._goods_matrices_unscaled(self)
+
+    @cached_property
     def goods_input_matrix_unscaled(self) -> np.ndarray:
         """Cached read-only gross inputs per level, without throughput scaling."""
         return _production.goods_input_matrix_unscaled(self)
@@ -465,11 +470,11 @@ class Economy:
         """
         return _consumption.calculate_buy_packages(self, state)
 
-    def _pop_consumption_population(
+    def _validate_worker_counts(
         self, state: EconomyState | EconomyContext
     ) -> np.ndarray:
         """Validate household alignment and return non-negative worker counts."""
-        return _consumption._pop_consumption_population(self, state)
+        return _validation._validate_worker_counts(self, state)
 
     def calculate_pop_consumption_scales(
         self, state: EconomyState | EconomyContext
@@ -757,17 +762,17 @@ class Economy:
         """Validate a goods-aligned vector and return it as float64."""
         return _validation._validate_goods_vector(self, vector, name)
 
-    def market_prices_variance(self, eco: EconomyState) -> np.ndarray:
+    def market_prices_variance(self, state: EconomyState) -> np.ndarray:
         """Calculate the market prices variance from base prices.
 
         Args:
-            eco: The `Economy` to evaluate (as produced by
+            state: The `EconomyState` to evaluate (as produced by
                 `solve`).
 
         Returns:
             A 1-D array of shape ``(n_goods,)`` containing the market prices variance.
         """
-        return _market.market_prices_variance(self, eco)
+        return _market.market_prices_variance(self, state)
 
     def market_prices(
         self,
@@ -791,18 +796,18 @@ class Economy:
         """
         return _market.market_prices(self, buy_orders, sell_orders)
 
-    def construction_cost(self, eco: EconomyState) -> float:
+    def construction_cost(self, state: EconomyState) -> float:
         """Calculate the total construction cost for an `EconomyState`.
 
         Args:
-            eco: The `EconomyState` to evaluate (as produced by
+            state: The `EconomyState` to evaluate (as produced by
                 `solve`).
 
         Returns:
             The dot product of ``building_levels`` with the per-configuration
             construction cost vector.
         """
-        return _production.construction_cost(self, eco)
+        return _production.construction_cost(self, state)
 
     @cached_property
     def arable_land_vector(self) -> np.ndarray:
@@ -1119,11 +1124,11 @@ class Economy:
             workforce_ratio=workforce_ratio,
         )
 
-    def df_buildings(self, eco: EconomyState) -> pd.DataFrame:
+    def df_buildings(self, state: EconomyState) -> pd.DataFrame:
         """Export an `EconomyState`'s building registry to a DataFrame.
 
         Args:
-            eco: The `EconomyState` to export (as produced by
+            state: The `EconomyState` to export (as produced by
                 `solve`).
 
         Returns:
@@ -1131,13 +1136,13 @@ class Economy:
             ``"construction_cost"``, filtered to non-zero levels and sorted by
             ``"level"`` descending.
         """
-        return _reports.df_buildings(self, eco)
+        return _reports.df_buildings(self, state)
 
-    def df_market(self, eco: EconomyState) -> pd.DataFrame:
+    def df_market(self, state: EconomyState) -> pd.DataFrame:
         """Export an `EconomyState`'s market stats to a DataFrame.
 
         Args:
-            eco: The `EconomyState` to export (as produced by
+            state: The `EconomyState` to export (as produced by
                 `solve`).
 
         Returns:
@@ -1148,16 +1153,16 @@ class Economy:
             with non-zero ``sell_orders`` or ``buy_orders`` and sorted by
             ``"sell_orders"`` descending.
         """
-        return _reports.df_market(self, eco)
+        return _reports.df_market(self, state)
 
-    def df_pop(self, eco: EconomyState) -> pd.DataFrame:
+    def df_pop(self, state: EconomyState) -> pd.DataFrame:
         """Export an `EconomyState`'s pop employment and wealth to a DataFrame.
 
         Each row describes one profession, aggregating the per-building arrays
-        in *eco*.
+        in *state*.
 
         Args:
-            eco: The `EconomyState` to export (as produced by
+            state: The `EconomyState` to export (as produced by
                 `solve`).
 
         Returns:
@@ -1167,4 +1172,4 @@ class Economy:
             ``"pop_balance"``, filtered to professions with non-zero employment
             and sorted by ``"employment"`` descending.
         """
-        return _reports.df_pop(self, eco)
+        return _reports.df_pop(self, state)

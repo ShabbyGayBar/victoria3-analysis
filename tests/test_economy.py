@@ -167,18 +167,26 @@ def test_missing_infrastructure_and_land_columns_default_to_zero(
     assert not model.arable_land_vector.flags.writeable
 
 
-def test_missing_goods_columns_warn_and_cache_zero_flows(coefficient_economy: Economy):
+@pytest.mark.parametrize("output_first", [False, True])
+def test_missing_goods_columns_warn_and_cache_zero_flows(
+    coefficient_economy: Economy, output_first: bool
+):
     with pytest.warns(UserWarning, match="Missing goods input columns.*goods_tools"):
         model = Economy(
             df_production=coefficient_economy.df_production.drop(columns="goods_tools"),
             df_goods=coefficient_economy.df_goods,
             df_pop_types=coefficient_economy.df_pop_types,
         )
+    if output_first:
+        assert model.goods_output_matrix_unscaled.shape == (2, 2)
     np.testing.assert_array_equal(
         model.goods_input_matrix_unscaled, [[0.0, 0.0], [3.0, 0.0]]
     )
     np.testing.assert_array_equal(
         model.goods_output_matrix_unscaled, [[5.0, 0.0], [0.0, 0.0]]
+    )
+    assert not np.shares_memory(
+        model.goods_input_matrix_unscaled, model.goods_output_matrix_unscaled
     )
     assert model.producible_goods == ("ore",)
 
@@ -306,7 +314,8 @@ def test_state_defensively_copies_and_freezes_input_arrays():
         "sell_orders",
         "buy_orders",
         "employment_by_profession",
-        "wealth_by_profession",
+        "average_wealth_by_profession",
+        "total_wealth_by_profession",
         "profession_shares",
     ],
 )
@@ -2175,6 +2184,26 @@ def test_economy_of_scale_bonuses_aggregate_configs_and_cap(
     )
 
 
+def test_building_totals_and_bonuses_share_configuration_aggregation(
+    coefficient_economy: Economy,
+):
+    production = coefficient_economy.df_production.iloc[[1, 0, 1]].copy()
+    production["production_method"] = ["first", "second", "third"]
+    production["economy_of_scale"] = True
+    model = replace(coefficient_economy, df_production=production)
+    levels = np.array([1.25, 0.0, 4.0])
+    state = model.solve(levels)
+    totals = model.levels_per_building(state)
+    assert list(totals) == ["factory", "mine"]
+    assert totals == {"factory": 5.25, "mine": 0.0}
+    np.testing.assert_allclose(
+        model.economy_of_scale_bonuses(levels), [0.0525, 0.0, 0.0525]
+    )
+    np.testing.assert_allclose(
+        model.economy_of_scale_bonuses(levels, level_cap=4.0), [0.04, 0.0, 0.04]
+    )
+
+
 @pytest.mark.parametrize("level_cap", [-1.0, np.nan, np.inf])
 def test_economy_of_scale_bonuses_reject_invalid_cap(
     economy: Economy, level_cap: float
@@ -2303,7 +2332,7 @@ def test_construction_cost(economy):
     levels[1] = 1.0
     state = economy.solve(levels)
     expected = float(np.dot(levels, economy.construction_cost_vector))
-    assert economy.construction_cost(state) == pytest.approx(expected)
+    assert economy.construction_cost(state=state) == pytest.approx(expected)
 
 
 def test_arable_land_consumption(economy: Economy):
@@ -2367,7 +2396,7 @@ def test_levels_per_building_rejects_misaligned_state(economy: Economy):
 def test_market_prices_variance(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
-    var = economy.market_prices_variance(state)
+    var = economy.market_prices_variance(state=state)
     assert var.shape == (len(economy.goods_index),)
     expected = (state.market_prices / economy.base_prices - 1) * 100
     np.testing.assert_allclose(var, expected)
@@ -2378,7 +2407,7 @@ def test_df_buildings(economy):
     levels[0] = 3.0
     levels[1] = 1.0
     state = economy.solve(levels)
-    df = economy.df_buildings(state)
+    df = economy.df_buildings(state=state)
     assert list(df.columns) == ["key", "level", "construction_cost"]
     assert (df["level"] > 0).all()
     assert len(df) == 2
@@ -2400,7 +2429,7 @@ def test_df_buildings(economy):
 def test_df_market(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
-    df = economy.df_market(state)
+    df = economy.df_market(state=state)
     expected_cols = [
         "goods",
         "market_prices",
@@ -2440,23 +2469,16 @@ def test_total_wealth_zero_population():
     assert state.total_wealth == 0.0
 
 
-def test_wealth_per_capita():
+def test_average_wealth_by_profession():
     pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
     wealth = np.array([[20.0, 40.0, 100.0], [20.0, 40.0, 100.0]])
     state = _make_state(pops=pops, pop_wealth=wealth)
-    assert state.wealth_per_capita() == pytest.approx(35.0)
-
-
-def test_wealth_per_capita_zero_population():
-    state = _make_state()
-    assert state.wealth_per_capita() == 0.0
-
-
-def test_wealth_by_profession():
-    pops = np.array([[4.0, 10.0, 0.0], [6.0, 20.0, 0.0]])
-    wealth = np.array([[20.0, 40.0, 100.0], [20.0, 40.0, 100.0]])
-    state = _make_state(pops=pops, pop_wealth=wealth)
-    np.testing.assert_allclose(state.wealth_by_profession, np.array([20.0, 40.0, 0.0]))
+    np.testing.assert_allclose(
+        state.average_wealth_by_profession, np.array([20.0, 40.0, 0.0])
+    )
+    np.testing.assert_array_equal(
+        state.total_wealth_by_profession, [200.0, 1200.0, 0.0]
+    )
 
 
 def test_profession_shares():
@@ -2525,7 +2547,7 @@ def test_gini_wealth_zero_wealth():
 def test_df_pop(economy):
     levels = _first_producing_levels(economy)
     state = economy.solve(levels)
-    df = economy.df_pop(state)
+    df = economy.df_pop(state=state)
     expected_cols = [
         "profession",
         "employment",
@@ -2571,14 +2593,13 @@ def test_workforce_ratio_population_wealth_and_cached_replacement():
     assert households.gdp_per_capita(annual=True) == workers.gdp_per_capita(True) / 4
     assert households.total_wealth == workers.total_wealth * 4
     assert households.average_wealth == workers.average_wealth
-    assert households.wealth_per_capita() == workers.wealth_per_capita()
     assert households.wealth_distribution == workers.wealth_distribution
     assert households.gini_wealth == workers.gini_wealth
     np.testing.assert_array_equal(
         households.profession_shares, workers.profession_shares
     )
     np.testing.assert_array_equal(
-        households.wealth_by_profession, workers.wealth_by_profession
+        households.average_wealth_by_profession, workers.average_wealth_by_profession
     )
     assert replace(households).workforce_ratio == 0.25
     changed = _replace_context(households, workforce_ratio=0.5)
@@ -2587,10 +2608,49 @@ def test_workforce_ratio_population_wealth_and_cached_replacement():
     assert households.dependents_per_worker == 3.0
 
 
+@pytest.mark.parametrize("ratio", [1.0, 0.25, 0.6])
+@pytest.mark.parametrize("empty", [False, True])
+def test_wealth_statistics_and_reports_agree_after_replacement(
+    needs_economy: Economy, ratio: float, empty: bool
+):
+    state = needs_economy.solve(np.ones(2), workforce_ratio=ratio)
+    state = _replace_context(
+        replace(
+            state,
+            households=replace(state.households, pop_wealth=np.array([[1, 2], [2, 1]])),
+        ),
+        pops=np.zeros((2, 2)) if empty else np.array([[2.0, 0.0], [4.0, 3.0]]),
+    )
+    expected_mean = 0.0 if empty else 13.0 / 9.0
+    assert state.average_wealth == pytest.approx(expected_mean)
+    assert state.wealth_distribution["mean"] == state.average_wealth
+    assert state.total_wealth == pytest.approx(0.0 if empty else 13.0 / ratio)
+    np.testing.assert_allclose(
+        state.average_wealth_by_profession, [0.0, 0.0] if empty else [10.0 / 6.0, 1.0]
+    )
+    report = needs_economy.df_pop(state=state)
+    assert report["total_wealth"].sum() == pytest.approx(state.total_wealth)
+    if not empty:
+        assert state.average_wealth == pytest.approx(
+            state.total_wealth / state.total_population
+        )
+        np.testing.assert_allclose(
+            report["total_wealth"], report["avg_wealth"] * report["population"]
+        )
+    changed = replace(
+        state, households=replace(state.households, pop_wealth=state.pop_wealth + 1)
+    )
+    assert changed.average_wealth == pytest.approx(0.0 if empty else expected_mean + 1)
+    assert state.average_wealth == pytest.approx(expected_mean)
+    assert needs_economy.df_pop(changed)["total_wealth"].sum() == pytest.approx(
+        changed.total_wealth
+    )
+
+
 def test_workforce_ratio_empty_population(income_economy: Economy):
     state = income_economy.solve(np.zeros(3), workforce_ratio=0.25)
     assert state.total_employment == state.total_population == 0
-    assert state.gdp_per_capita() == state.wealth_per_capita() == 0
+    assert state.gdp_per_capita() == 0
     assert state.average_wealth == state.total_wealth == state.gini_wealth == 0
     assert state.wealth_distribution["mean"] == 0
     np.testing.assert_array_equal(state.profession_shares, [0, 0, 0])

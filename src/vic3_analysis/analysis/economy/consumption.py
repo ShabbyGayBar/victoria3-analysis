@@ -16,6 +16,7 @@ from vic3_analysis.analysis.economy._utils import (
     _readonly_array,
     _readonly_wealth,
     _require_columns,
+    _validate_index_keys,
 )
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
@@ -73,10 +74,7 @@ def _pop_needs_coefficients(economy: Economy) -> _PopNeedsCoefficients:
     values = _nonnegative_values(
         packages[categories].to_numpy(), "df_buy_packages need values"
     )[order]
-    if len(set(economy.goods_index)) != len(economy.goods_index) or any(
-        not isinstance(key, str) or not key for key in economy.goods_index
-    ):
-        raise ValueError("goods_index must contain unique non-empty keys.")
+    _validate_index_keys(economy.goods_index, "goods_index")
     if any(not isinstance(key, str) or not key for key in needs["key"].tolist()):
         raise ValueError("df_pop_needs.key must contain non-empty category keys.")
     goods_positions = {key: j for j, key in enumerate(economy.goods_index)}
@@ -135,10 +133,7 @@ def _pop_needs_coefficients(economy: Economy) -> _PopNeedsCoefficients:
 
 def _pop_consumption_multipliers(economy: Economy) -> np.ndarray:
     """Return validated profession multipliers for aggregate population demand."""
-    if len(set(economy.pop_index)) != len(economy.pop_index) or any(
-        not isinstance(key, str) or not key for key in economy.pop_index
-    ):
-        raise ValueError("pop_index must contain unique non-empty keys.")
+    _validate_index_keys(economy.pop_index, "pop_index")
     if "consumption_mult" in economy.df_pop_types:
         consumption = economy.df_pop_types["consumption_mult"].fillna(1).to_numpy()
     else:
@@ -268,20 +263,6 @@ def calculate_buy_packages(
     )
 
 
-def _pop_consumption_population(
-    economy: Economy, state: EconomyState | EconomyContext
-) -> np.ndarray:
-    """Validate household alignment and return non-negative worker counts."""
-    expected_shape = (len(economy.building_index), len(economy.pop_index))
-    names = ("pops", "pop_wealth") if isinstance(state, EconomyState) else ("pops",)
-    for name in names:
-        if getattr(state, name).shape != expected_shape:
-            raise ValueError(
-                f"state.{name} shape must match building_index and pop_index."
-            )
-    return _nonnegative_values(state.pops, "state.pops")
-
-
 def calculate_pop_consumption_scales(
     economy: Economy, state: EconomyState | EconomyContext
 ) -> np.ndarray:
@@ -308,7 +289,7 @@ def calculate_pop_consumption_scales(
         ValueError: If household shapes, worker counts, profession keys,
             or consumption multipliers are invalid, or scales overflow.
     """
-    pops = economy._pop_consumption_population(state)
+    pops = economy._validate_worker_counts(state)
     context = state.context if isinstance(state, EconomyState) else state
     if context.consumption_scales is not None:
         return context.consumption_scales.copy()
@@ -326,7 +307,7 @@ def _prepare_pop_consumption(
     economy: Economy, state: EconomyState, consumption_scales: np.ndarray | None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return occupied cells, unique wealth, inverse labels, and cell scales."""
-    pops = economy._pop_consumption_population(state)
+    pops = economy._validate_worker_counts(state)
     occupied = pops > 0
     if consumption_scales is None:
         consumption_scales = state.context.consumption_scales
@@ -338,8 +319,25 @@ def _prepare_pop_consumption(
             raise ValueError("consumption_scales shape must match state.pops.")
         if (scales[~occupied] != 0).any():
             raise ValueError("consumption_scales must be zero for empty cells.")
-    wealth, inverse = np.unique(state.pop_wealth[occupied], return_inverse=True)
+    return _group_pop_consumption(pops, state.pop_wealth, scales)
+
+
+def _group_pop_consumption(
+    pops: np.ndarray, pop_wealth: np.ndarray, scales: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Group validated occupied cells by wealth without constructing a state."""
+    occupied = pops > 0
+    wealth, inverse = np.unique(pop_wealth[occupied], return_inverse=True)
     return occupied, wealth, inverse, scales[occupied]
+
+
+def _wealth_positions(
+    tiers: np.ndarray, wealth: np.ndarray, name: str = "buy_packages"
+) -> np.ndarray:
+    """Locate occupied wealth in sorted, unique tiers after checking coverage."""
+    if not np.isin(wealth, tiers).all():
+        raise ValueError(f"Occupied pop_wealth tiers must be defined in {name}.")
+    return np.searchsorted(tiers, wealth)
 
 
 def _select_pop_buy_packages(
@@ -358,10 +356,8 @@ def _select_pop_buy_packages(
         buy_packages.loc[:, list(economy.goods_index)].to_numpy(),
         "buy_packages quantities",
     )
-    if not np.isin(wealth, tiers).all():
-        raise ValueError("Occupied pop_wealth tiers must be defined in buy_packages.")
     order = np.argsort(tiers)
-    return values[order[np.searchsorted(tiers[order], wealth)]]
+    return values[order[_wealth_positions(tiers[order], wealth)]]
 
 
 def _select_prepared_buy_packages(
@@ -370,9 +366,48 @@ def _select_prepared_buy_packages(
     """Select prepared baskets without materializing a DataFrame."""
     if values.shape[1] != len(economy.goods_index):
         raise ValueError("Prepared buy_packages columns must match goods_index.")
-    if not np.isin(wealth, tiers).all():
-        raise ValueError("Occupied pop_wealth tiers must be defined in buy_packages.")
-    return values[np.searchsorted(tiers, wealth)]
+    return values[_wealth_positions(tiers, wealth)]
+
+
+def _select_consumption_baskets(
+    economy: Economy,
+    state: EconomyState,
+    wealth: np.ndarray,
+    buy_packages: pd.DataFrame | None,
+) -> np.ndarray | None:
+    """Select explicit or prepared baskets, leaving raw calculation to callers."""
+    if buy_packages is not None:
+        return economy._select_pop_buy_packages(buy_packages, wealth)
+    context = state.context
+    if context.buy_packages is not None and context.buy_package_wealth is not None:
+        return economy._select_prepared_buy_packages(
+            context.buy_packages, context.buy_package_wealth, wealth
+        )
+    return None
+
+
+def _pop_demand_from_baskets(
+    selected: np.ndarray, inverse: np.ndarray, scales: np.ndarray
+) -> np.ndarray:
+    """Aggregate household scales before allocating their selected baskets."""
+    with np.errstate(over="ignore", invalid="ignore"):
+        counts = np.bincount(inverse, weights=scales, minlength=len(selected))
+        return counts @ selected
+
+
+def _pop_expenses_at_prices(
+    occupied: np.ndarray,
+    inverse: np.ndarray,
+    scales: np.ndarray,
+    selected: np.ndarray,
+    prices: np.ndarray,
+) -> np.ndarray:
+    """Price selected baskets and allocate costs to validated occupied cells."""
+    expenses = np.zeros(occupied.shape, dtype=np.float64)
+    with np.errstate(over="ignore", invalid="ignore"):
+        costs = _nonnegative_values(selected @ prices, "calculated basket costs")
+        expenses[occupied] = scales * costs[inverse]
+    return _nonnegative_values(expenses, "calculated pop_expenses")
 
 
 def calculate_pop_needs(
@@ -465,30 +500,22 @@ def calculate_pop_needs(
         - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
           wealth-dependent needs and valuation using goods' base prices.
     """
-    _, wealth, inverse, population = economy._prepare_pop_consumption(
+    _, wealth, inverse, scales = economy._prepare_pop_consumption(
         state, consumption_scales
     )
+    selected = _select_consumption_baskets(economy, state, wealth, buy_packages)
     with np.errstate(over="ignore", invalid="ignore"):
-        counts = np.bincount(inverse, weights=population, minlength=len(wealth))
-        if buy_packages is not None:
-            selected = economy._select_pop_buy_packages(buy_packages, wealth)
-            demand = counts @ selected
-        elif (
-            state.context.buy_packages is not None
-            and state.context.buy_package_wealth is not None
-        ):
-            demand = counts @ economy._select_prepared_buy_packages(
-                state.context.buy_packages, state.context.buy_package_wealth, wealth
-            )
+        if selected is not None:
+            demand = _pop_demand_from_baskets(selected, inverse, scales)
         else:
+            counts = np.bincount(inverse, weights=scales, minlength=len(wealth))
             purchases, prices = economy._pop_need_purchase_shares(state)
             data = economy._pop_needs_coefficients
-            if not np.isin(wealth, data.wealth_levels).all():
-                raise ValueError(
-                    "Occupied pop_wealth tiers must be defined in df_buy_packages."
-                )
             budgets = (
-                counts @ data.packages[np.searchsorted(data.wealth_levels, wealth)]
+                counts
+                @ data.packages[
+                    _wealth_positions(data.wealth_levels, wealth, "df_buy_packages")
+                ]
             )
             demand = budgets @ purchases / prices
     return economy._validate_goods_vector(demand, "calculated pop_needs")
@@ -539,24 +566,12 @@ def calculate_pop_expenses(
         state, consumption_scales
     )
     prices = economy._validate_goods_vector(state.market_prices, "state.market_prices")
-    if buy_packages is not None:
-        selected = economy._select_pop_buy_packages(buy_packages, wealth)
-    elif (
-        state.context.buy_packages is not None
-        and state.context.buy_package_wealth is not None
-    ):
-        selected = economy._select_prepared_buy_packages(
-            state.context.buy_packages, state.context.buy_package_wealth, wealth
-        )
-    else:
+    selected = _select_consumption_baskets(economy, state, wealth, buy_packages)
+    if selected is None:
         selected = economy._select_pop_buy_packages(
             economy.calculate_buy_packages(state), wealth
         )
-    expenses = np.zeros(state.pops.shape, dtype=np.float64)
-    with np.errstate(over="ignore", invalid="ignore"):
-        costs = _nonnegative_values(selected @ prices, "calculated basket costs")
-        expenses[occupied] = scales * costs[inverse]
-    return _nonnegative_values(expenses, "calculated pop_expenses")
+    return _pop_expenses_at_prices(occupied, inverse, scales, selected, prices)
 
 
 def _prepared_consumption(

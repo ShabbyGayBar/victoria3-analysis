@@ -60,6 +60,13 @@ multipliers = np.full(unscaled.shape[0], 2.0)
 scaled = economy.goods_input_matrix(throughput_multipliers=multipliers)
 ```
 
+The unscaled input and output matrices are prepared together from the production
+table and cached as separate read-only arrays. Scaled matrices remain writable
+copies.
+
+Snapshot helpers use the `state` argument name, including keyword calls such as
+`economy.df_market(state=state)` and `economy.construction_cost(state=state)`.
+
 ## Direct solving
 
 Now that we have a model of the economy, if we know the levels of each building, we can solve for all kinds of metrics we care about, such as employment, goods flows, and GDP, all of which stored in the `EconomyState` dataclass.

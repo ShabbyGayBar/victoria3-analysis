@@ -57,6 +57,31 @@ def _require_columns(frame: pd.DataFrame, columns: set[str], name: str) -> None:
         )
 
 
+def _validate_index_keys(keys: tuple[str, ...], name: str) -> None:
+    """Require unique, non-empty string keys at coefficient validation time."""
+    if any(not isinstance(key, str) or not key for key in keys) or len(
+        set(keys)
+    ) != len(keys):
+        raise ValueError(f"{name} must contain unique non-empty keys.")
+
+
+def _validate_worker_counts(
+    economy: Economy, state: EconomyState | EconomyContext
+) -> np.ndarray:
+    """Validate household alignment and return non-negative worker counts."""
+    # Imported lazily because snapshot classes use the array helpers above.
+    from vic3_analysis.analysis.economy.states import EconomyState
+
+    expected_shape = (len(economy.building_index), len(economy.pop_index))
+    names = ("pops", "pop_wealth") if isinstance(state, EconomyState) else ("pops",)
+    for name in names:
+        if getattr(state, name).shape != expected_shape:
+            raise ValueError(
+                f"state.{name} shape must match building_index and pop_index."
+            )
+    return _nonnegative_values(state.pops, "state.pops")
+
+
 def _validate_building_goods_flow(
     economy: Economy, state: EconomyState | EconomyContext
 ) -> None:

@@ -14,6 +14,11 @@ from vic3_analysis.analysis.economy._utils import (
     _nonnegative_values,
     _readonly_wealth,
 )
+from vic3_analysis.analysis.economy.consumption import (
+    _group_pop_consumption,
+    _pop_demand_from_baskets,
+    _pop_expenses_at_prices,
+)
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
     EconomyState,
@@ -104,7 +109,7 @@ def _validate_wealth_assignment(
     economy: Economy, context: EconomyContext, pop_wealth: np.ndarray
 ) -> np.ndarray:
     """Validate full matrix alignment and occupied basket coverage."""
-    pops = economy._pop_consumption_population(context)
+    pops = economy._validate_worker_counts(context)
     wealth = _readonly_wealth(pop_wealth, "pop_wealth")
     if wealth.shape != pops.shape:
         raise ValueError(
@@ -128,14 +133,15 @@ def _evaluate_prepared_wealth(
 ) -> _WealthEvaluation:
     """Evaluate working arrays without constructing immutable intermediate states."""
     packages, tiers, scales = economy._prepared_consumption(context)
-    occupied = context.pops > 0
-    used_wealth, inverse = np.unique(wealth[occupied], return_inverse=True)
+    occupied, used_wealth, inverse, cell_scales = _group_pop_consumption(
+        context.pops, wealth, scales
+    )
     selected = economy._select_prepared_buy_packages(packages, tiers, used_wealth)
     with np.errstate(over="ignore", invalid="ignore"):
-        counts = np.bincount(
-            inverse, weights=scales[occupied], minlength=len(used_wealth)
+        demand = _nonnegative_values(
+            _pop_demand_from_baskets(selected, inverse, cell_scales),
+            "calculated pop_needs",
         )
-        demand = _nonnegative_values(counts @ selected, "calculated pop_needs")
         prices = economy._validate_goods_vector(
             economy.market_prices(
                 context.non_pop_buy_orders + demand, context.sell_orders
@@ -143,10 +149,9 @@ def _evaluate_prepared_wealth(
             "calculated market_prices",
         )
         income = economy._pop_income_at_prices(context, prices, income_coefficients)
-        costs = _nonnegative_values(selected @ prices, "calculated basket costs")
-        expenses = np.zeros(context.pops.shape, dtype=np.float64)
-        expenses[occupied] = scales[occupied] * costs[inverse]
-        _nonnegative_values(expenses, "calculated pop_expenses")
+        expenses = _pop_expenses_at_prices(
+            occupied, inverse, cell_scales, selected, prices
+        )
         balance = income - expenses
     if not np.isfinite(balance).all():
         raise ValueError("calculated pop_balance must contain finite values.")
@@ -185,7 +190,7 @@ def _validate_iteration_context(economy: Economy, context: EconomyContext) -> No
     economy._validate_building_goods_flow(context)
     economy._validate_goods_vector(context.imports, "context.imports")
     economy._validate_goods_vector(context.exports, "context.exports")
-    pops = economy._pop_consumption_population(context)
+    pops = economy._validate_worker_counts(context)
     _nonnegative_values(context.building_levels, "building_levels")
     if context.building_levels.shape != (len(economy.building_index),):
         raise ValueError("building_levels shape must match building_index.")

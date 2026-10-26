@@ -299,20 +299,28 @@ flowchart TD
     EP --> PS["[C] profession_shares *"]:::context
     EMP --> PS
 
-    W["[P] pop_wealth"]:::household --> WS["[S] average_wealth *<br/>wealth_by_profession *<br/>wealth_distribution *<br/>gini_wealth *"]:::snapshot
+    W["[P] pop_wealth"]:::household --> WT["[S] total_wealth_by_profession *"]:::snapshot
+    N --> WT
+    WT --> AW["[S] average_wealth *"]:::snapshot
+    EMP --> AW
+    WT --> WP["[S] average_wealth_by_profession *"]:::snapshot
+    EP --> WP
+
+    W --> WS["[S] wealth_distribution *"]:::snapshot
     N --> WS
+    AW --> WS
+    W --> GW["[S] gini_wealth *"]:::snapshot
+    N --> GW
 
-    W --> TW["[S] total_wealth *"]:::snapshot
-    N --> TW
+    WT --> TW["[S] total_wealth *"]:::snapshot
     R --> TW
-
-    TW --> WPC["[S] wealth_per_capita()"]:::snapshot
-    POP --> WPC
 
 ```
 
 Wealth statistics describe integer consumption tiers rather than monetary
 assets. GDP is production value added; it does not include the exogenous
-dependent earnings added to household income.
+dependent earnings added to household income. Employment-weighted profession
+totals are cached once and shared by the wealth summaries and population report.
+The uniform workforce ratio makes per-capita wealth equal to average wealth.
 
 </div>

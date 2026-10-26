@@ -21,17 +21,17 @@ if TYPE_CHECKING:
     from vic3_analysis.analysis.economy.model import Economy
 
 
-def market_prices_variance(economy: Economy, eco: EconomyState) -> np.ndarray:
+def market_prices_variance(economy: Economy, state: EconomyState) -> np.ndarray:
     """Calculate the market prices variance from base prices.
 
     Args:
-        eco: The `Economy` to evaluate (as produced by
+        state: The `EconomyState` to evaluate (as produced by
             `solve`).
 
     Returns:
         A 1-D array of shape ``(n_goods,)`` containing the market prices variance.
     """
-    return (eco.market_prices / economy.base_prices - 1) * 100
+    return (state.market_prices / economy.base_prices - 1) * 100
 
 
 def market_prices(
