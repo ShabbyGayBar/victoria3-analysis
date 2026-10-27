@@ -13,9 +13,12 @@ import numpy as np
 from vic3_analysis.analysis.economy._utils import (
     _readonly_array,
     _readonly_wealth,
+    _validate_building_goods_flow,
     _validate_columns,
+    _validate_goods_vector,
     _validate_index_keys,
     _validate_nonnegative_values,
+    _validate_worker_counts,
 )
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
@@ -88,9 +91,12 @@ def pop_income(economy: Economy, state: EconomyState) -> np.ndarray:
         expenses, and does not change wealth or ``pop_balance``. Dependent
         earnings do not reduce building surplus or increase production GDP.
     """
-    economy._validate_goods_vector(state.market_prices, "state.market_prices")
-    return economy._pop_income_from_arrays(
-        state.context, state.market_prices, economy._prepare_pop_income(state.context)
+    _validate_goods_vector(economy, state.market_prices, "state.market_prices")
+    return _pop_income_from_arrays(
+        economy,
+        state.context,
+        state.market_prices,
+        _prepare_pop_income(economy, state.context),
     )
 
 
@@ -99,8 +105,8 @@ def _prepare_pop_income(
 ) -> _PopIncomeCoefficients:
     """Compile price-independent cooperative shares and dependent earnings once."""
     weights = economy.pop_wage_weights
-    economy._validate_building_goods_flow(context)
-    pops = economy._validate_worker_counts(context)
+    _validate_building_goods_flow(economy, context)
+    pops = _validate_worker_counts(economy, context)
     with np.errstate(over="ignore", invalid="ignore"):
         weighted = _validate_nonnegative_values(pops * weights, "weighted population")
         totals = _validate_nonnegative_values(weighted.sum(axis=1), "total wage weight")

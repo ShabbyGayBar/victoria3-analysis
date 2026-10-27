@@ -13,9 +13,12 @@ import numpy as np
 from vic3_analysis.analysis.economy._utils import (
     _readonly_array,
     _readonly_wealth,
+    _validate_building_goods_flow,
     _validate_columns,
+    _validate_goods_vector,
     _validate_index_keys,
     _validate_nonnegative_values,
+    _validate_worker_counts,
 )
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
@@ -147,16 +150,16 @@ def _pop_need_purchase_shares(
     economy: Economy, state: EconomyState | EconomyContext
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return category-by-goods purchase shares and validated base prices."""
-    economy._validate_building_goods_flow(state)
+    _validate_building_goods_flow(economy, state)
     for name in (
         "building_goods_input",
         "building_goods_output",
     ):
-        economy._validate_goods_vector(getattr(state, name), f"state.{name}")
-    economy._validate_goods_vector(
-        state.goods_trade_flow, "state.goods_trade_flow", nonnegative=False
+        _validate_goods_vector(economy, getattr(state, name), f"state.{name}")
+    _validate_goods_vector(
+        economy, state.goods_trade_flow, "state.goods_trade_flow", nonnegative=False
     )
-    supply = economy._validate_goods_vector(state.sell_orders, "state.sell_orders")
+    supply = _validate_goods_vector(economy, state.sell_orders, "state.sell_orders")
     prices = _validate_nonnegative_values(economy.base_prices, "base_prices")
     if (prices == 0).any():
         raise ValueError("base_prices must be strictly positive.")
@@ -247,9 +250,9 @@ def goods_buy_packages(
     """
     context = state.context if isinstance(state, EconomyState) else state
     if context.goods_buy_packages is not None:
-        economy._validate_goods_buy_packages(context.goods_buy_packages)
+        _validate_goods_buy_packages(economy, context.goods_buy_packages)
         return context.goods_buy_packages
-    purchases, prices = economy._pop_need_purchase_shares(context)
+    purchases, prices = _pop_need_purchase_shares(economy, context)
     data = economy._pop_needs_coefficients
     with np.errstate(over="ignore", invalid="ignore"):
         values = _validate_nonnegative_values(
@@ -284,7 +287,7 @@ def pop_consumption_scales(
         ValueError: If household shapes, worker counts, profession keys,
             or consumption multipliers are invalid, or scales overflow.
     """
-    pops = economy._validate_worker_counts(state)
+    pops = _validate_worker_counts(economy, state)
     context = state.context if isinstance(state, EconomyState) else state
     if context.consumption_scales is not None:
         return context.consumption_scales.copy()
@@ -302,7 +305,7 @@ def _prepare_pop_consumption(
     economy: Economy, state: EconomyState, consumption_scales: np.ndarray | None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return occupied cells, unique wealth, inverse labels, and cell scales."""
-    pops = economy._validate_worker_counts(state)
+    pops = _validate_worker_counts(economy, state)
     occupied = pops > 0
     if consumption_scales is None:
         consumption_scales = state.context.consumption_scales
@@ -347,7 +350,7 @@ def _select_goods_buy_packages(
     economy: Economy, packages: GoodsBuyPackages, wealth: np.ndarray
 ) -> np.ndarray:
     """Check goods alignment and select baskets for occupied wealth tiers."""
-    economy._validate_goods_buy_packages(packages)
+    _validate_goods_buy_packages(economy, packages)
     return packages.quantities[_wealth_positions(packages.wealth, wealth)]
 
 
@@ -362,7 +365,7 @@ def _prepare_goods_buy_packages(
         goods_buy_packages = state.context.goods_buy_packages
     if goods_buy_packages is None:
         goods_buy_packages = economy.goods_buy_packages(state)
-    return economy._select_goods_buy_packages(goods_buy_packages, wealth)
+    return _select_goods_buy_packages(economy, goods_buy_packages, wealth)
 
 
 def _pop_buy_orders_from_arrays(
@@ -482,12 +485,12 @@ def pop_buy_orders(
         - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
           wealth-dependent needs and valuation using goods' base prices.
     """
-    _, wealth, inverse, scales = economy._prepare_pop_consumption(
-        state, consumption_scales
+    _, wealth, inverse, scales = _prepare_pop_consumption(
+        economy, state, consumption_scales
     )
     selected = _prepare_goods_buy_packages(economy, state, wealth, goods_buy_packages)
     demand = _pop_buy_orders_from_arrays(selected, inverse, scales)
-    return economy._validate_goods_vector(demand, "calculated pop_needs")
+    return _validate_goods_vector(economy, demand, "calculated pop_needs")
 
 
 def pop_expenses(
@@ -532,10 +535,10 @@ def pop_expenses(
         rationing, taxes, or wealth transitions. Prices affect expenses but
         do not affect the basket quantities or consumption scales.
     """
-    occupied, wealth, inverse, scales = economy._prepare_pop_consumption(
-        state, consumption_scales
+    occupied, wealth, inverse, scales = _prepare_pop_consumption(
+        economy, state, consumption_scales
     )
-    prices = economy._validate_goods_vector(state.market_prices, "state.market_prices")
+    prices = _validate_goods_vector(economy, state.market_prices, "state.market_prices")
     selected = _prepare_goods_buy_packages(economy, state, wealth, goods_buy_packages)
     return _pop_expenses_from_arrays(occupied, inverse, scales, selected, prices)
 

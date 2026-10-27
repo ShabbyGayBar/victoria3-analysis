@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
+from vic3_analysis.analysis.economy.consumption import _validate_goods_buy_packages
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
     EconomyState,
@@ -41,7 +42,7 @@ def df_goods_buy_packages(
     """
     if isinstance(source, GoodsBuyPackages):
         packages = source
-        economy._validate_goods_buy_packages(packages)
+        _validate_goods_buy_packages(economy, packages)
     elif isinstance(source, (EconomyState, EconomyContext)):
         packages = economy.goods_buy_packages(source)
     else:

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from vic3_analysis.analysis.economy._utils import _validate_goods_vector
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
     EconomyState,
@@ -54,8 +55,8 @@ def market_prices(
         ValueError: If either input is not a 1-D goods-aligned array, does
             not contain finite values, or contains negative values.
     """
-    buy_orders = economy._validate_goods_vector(buy_orders, "buy_orders")
-    sell_orders = economy._validate_goods_vector(sell_orders, "sell_orders")
+    buy_orders = _validate_goods_vector(economy, buy_orders, "buy_orders")
+    sell_orders = _validate_goods_vector(economy, sell_orders, "sell_orders")
 
     base_prices = economy.base_prices
     prices = base_prices.copy()
@@ -134,7 +135,8 @@ def _solve_market(
     workforce_ratio: float = 1.0,
 ) -> EconomyState:
     """Derive a market-price `EconomyState` from a building vector."""
-    state = economy._solve_nominal(
+    state = _solve_nominal(
+        economy,
         building_levels,
         goods_trade_flow,
         throughput_multipliers,

@@ -19,15 +19,9 @@ import vic3_analysis.analysis.economy.market as _market
 import vic3_analysis.analysis.economy.production as _production
 import vic3_analysis.analysis.economy.reports as _reports
 from vic3_analysis.analysis.economy.consumption import _PopNeedsCoefficients
-from vic3_analysis.analysis.economy.equilibrium import (
-    _WealthEvaluation,
-    _WealthTransition,
-)
-from vic3_analysis.analysis.economy.income import _PopIncomeCoefficients
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
     EconomyState,
-    EquilibriumDiagnostics,
     GoodsBuyPackages,
     MarketState,
     PopState,
@@ -178,25 +172,6 @@ class Economy:
         """Return Victoria 3 base prices aligned to `goods_index`."""
         return _production.base_prices(self)
 
-    def _apply_throughput_multipliers(
-        self,
-        matrix: np.ndarray,
-        throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
-    ) -> np.ndarray:
-        """Scale matrix rows by optional per-configuration multipliers."""
-        return _production._apply_throughput_multipliers(
-            self, matrix, throughput_multipliers
-        )
-
-    def _validate_throughput_multipliers(
-        self,
-        throughput_multipliers: np.ndarray[tuple[int], np.dtype[np.float64]],
-    ) -> None:
-        """Validate a production-row-aligned throughput multiplier vector."""
-        return _production._validate_throughput_multipliers(
-            self, throughput_multipliers
-        )
-
     def economy_of_scale_bonuses(
         self,
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
@@ -281,12 +256,6 @@ class Economy:
         """Return validated profession multipliers for aggregate population demand."""
         return _consumption._pop_consumption_multipliers(self)
 
-    def _pop_need_purchase_shares(
-        self, state: EconomyState | EconomyContext
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Return category-by-goods purchase shares and validated base prices."""
-        return _consumption._pop_need_purchase_shares(self, state)
-
     def prepare_context(self, context: EconomyContext) -> EconomyContext:
         """Return a context with reusable baskets and consumption scales.
 
@@ -332,60 +301,6 @@ class Economy:
             assignment without affordability limits or wealth transitions.
         """
         return _equilibrium.evaluate_wealth(self, context, pop_wealth)
-
-    def _validate_wealth_assignment(
-        self, context: EconomyContext, pop_wealth: np.ndarray
-    ) -> np.ndarray:
-        """Validate full matrix alignment and occupied basket coverage."""
-        return _equilibrium._validate_wealth_assignment(self, context, pop_wealth)
-
-    def _evaluate_prepared_wealth(
-        self,
-        context: EconomyContext,
-        wealth: np.ndarray,
-        income_coefficients: _PopIncomeCoefficients,
-    ) -> _WealthEvaluation:
-        """Evaluate working arrays without constructing immutable intermediate states."""
-        return _equilibrium._evaluate_prepared_wealth(
-            self, context, wealth, income_coefficients
-        )
-
-    @staticmethod
-    def _prepared_consumption(
-        context: EconomyContext,
-    ) -> tuple[GoodsBuyPackages, np.ndarray]:
-        """Require the prepared arrays needed by wealth iteration."""
-        return _consumption._prepared_consumption(context)
-
-    @staticmethod
-    def _freeze_wealth(
-        context: EconomyContext, evaluation: _WealthEvaluation
-    ) -> tuple[MarketState, PopState]:
-        """Freeze matching components while sharing all fixed context arrays."""
-        return _equilibrium._freeze_wealth(context, evaluation)
-
-    @staticmethod
-    def _validate_equilibrium_tolerances(rtol: float, atol: float) -> None:
-        """Reject negative, non-finite, boolean, or non-scalar tolerances."""
-        return _equilibrium._validate_equilibrium_tolerances(rtol, atol)
-
-    def _validate_iteration_context(self, context: EconomyContext) -> None:
-        """Check prepared axes and consecutive tiers without restricting evaluation."""
-        return _equilibrium._validate_iteration_context(self, context)
-
-    def _wealth_transition(
-        self,
-        context: EconomyContext,
-        wealth: np.ndarray,
-        prices: np.ndarray,
-        income: np.ndarray,
-        rtol: float,
-        atol: float,
-    ) -> _WealthTransition:
-        """Select simultaneous one-tier changes, with decrease taking precedence."""
-        return _equilibrium._wealth_transition(
-            self, context, wealth, prices, income, rtol, atol
-        )
 
     def iterate(
         self,
@@ -472,12 +387,6 @@ class Economy:
         """
         return _consumption.goods_buy_packages(self, state)
 
-    def _validate_worker_counts(
-        self, state: EconomyState | EconomyContext
-    ) -> np.ndarray:
-        """Validate household alignment and return non-negative worker counts."""
-        return _validation._validate_worker_counts(self, state)
-
     def pop_consumption_scales(
         self, state: EconomyState | EconomyContext
     ) -> np.ndarray:
@@ -505,22 +414,6 @@ class Economy:
                 or consumption multipliers are invalid, or scales overflow.
         """
         return _consumption.pop_consumption_scales(self, state)
-
-    def _prepare_pop_consumption(
-        self, state: EconomyState, consumption_scales: np.ndarray | None
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Return occupied cells, unique wealth, inverse labels, and cell scales."""
-        return _consumption._prepare_pop_consumption(self, state, consumption_scales)
-
-    def _validate_goods_buy_packages(self, packages: GoodsBuyPackages) -> None:
-        """Require immutable baskets with columns aligned to this economy's goods."""
-        _consumption._validate_goods_buy_packages(self, packages)
-
-    def _select_goods_buy_packages(
-        self, packages: GoodsBuyPackages, wealth: np.ndarray
-    ) -> np.ndarray:
-        """Check goods alignment and select baskets for occupied wealth tiers."""
-        return _consumption._select_goods_buy_packages(self, packages, wealth)
 
     def pop_buy_orders(
         self,
@@ -674,12 +567,6 @@ class Economy:
         """Return all professions' cooperative wage weights in pop_index order."""
         return _income.pop_wage_weights(self)
 
-    def _validate_building_goods_flow(
-        self, state: EconomyState | EconomyContext
-    ) -> None:
-        """Require finite signed flows aligned to this economy's configurations/goods."""
-        return _validation._validate_building_goods_flow(self, state)
-
     def pop_income(self, state: EconomyState) -> np.ndarray:
         """Return cooperative employee income plus exogenous dependent earnings.
 
@@ -717,19 +604,6 @@ class Economy:
         """
         return _income.pop_income(self, state)
 
-    def _prepare_pop_income(self, context: EconomyContext) -> _PopIncomeCoefficients:
-        """Compile price-independent cooperative shares and dependent earnings once."""
-        return _income._prepare_pop_income(self, context)
-
-    def _pop_income_from_arrays(
-        self,
-        context: EconomyContext,
-        prices: np.ndarray,
-        coefficients: _PopIncomeCoefficients,
-    ) -> np.ndarray:
-        """Allocate changing surplus using fixed income coefficients."""
-        return _income._pop_income_from_arrays(self, context, prices, coefficients)
-
     @cached_property
     def employment_vector(self) -> np.ndarray:
         """Total employment per building level, aligned to production-table rows.
@@ -750,18 +624,6 @@ class Economy:
     def infrastructure_vector(self) -> np.ndarray:
         """Cached infrastructure usage per level; missing values default to zero."""
         return _production.infrastructure_vector(self)
-
-    def _validate_goods_vector(
-        self,
-        vector: np.ndarray,
-        name: str,
-        *,
-        nonnegative: bool = True,
-    ) -> np.ndarray:
-        """Validate a finite goods vector, optionally allowing signed quantities."""
-        return _validation._validate_goods_vector(
-            self, vector, name, nonnegative=nonnegative
-        )
 
     def market_prices_variance(self, state: EconomyState) -> np.ndarray:
         """Calculate the market prices variance from base prices.
@@ -936,7 +798,7 @@ class Economy:
                 raise ValueError(
                     "pop_needs must be omitted for equilibrium; household demand is endogenous."
                 )
-            self._validate_equilibrium_tolerances(rtol, atol)
+            _equilibrium._validate_equilibrium_tolerances(rtol, atol)
             if (
                 isinstance(max_iterations, (bool, np.bool_))
                 or not isinstance(max_iterations, (int, np.integer))
@@ -953,23 +815,24 @@ class Economy:
         if goods_trade_flow is None:
             goods_trade_flow = np.zeros(len(self.goods_index), dtype=np.float64)
         else:
-            goods_trade_flow = self._validate_goods_vector(
-                goods_trade_flow, "goods_trade_flow", nonnegative=False
+            goods_trade_flow = _validation._validate_goods_vector(
+                self, goods_trade_flow, "goods_trade_flow", nonnegative=False
             )
         if pop_needs is None:
             pop_needs = np.zeros(len(self.goods_index), dtype=np.float64)
         else:
-            pop_needs = self._validate_goods_vector(pop_needs, "pop_needs")
+            pop_needs = _validation._validate_goods_vector(self, pop_needs, "pop_needs")
         bonuses = self.economy_of_scale_bonuses(
             building_levels, economy_of_scale_level_cap
         )
         if throughput_multipliers is None:
             throughput_multipliers = np.ones(len(self.df_production), dtype=np.float64)
         else:
-            self._validate_throughput_multipliers(throughput_multipliers)
+            _production._validate_throughput_multipliers(self, throughput_multipliers)
         throughput_multipliers = throughput_multipliers + bonuses
         if method == "nominal":
-            return self._solve_nominal(
+            return _market._solve_nominal(
+                self,
                 building_levels,
                 goods_trade_flow,
                 throughput_multipliers,
@@ -977,7 +840,8 @@ class Economy:
                 workforce_ratio=workforce_ratio,
             )
         if method == "market":
-            return self._solve_market(
+            return _market._solve_market(
+                self,
                 building_levels,
                 goods_trade_flow,
                 throughput_multipliers,
@@ -985,14 +849,16 @@ class Economy:
                 workforce_ratio=workforce_ratio,
             )
         if method == "equilibrium":
-            initial = self._solve_nominal(
+            initial = _market._solve_nominal(
+                self,
                 building_levels,
                 goods_trade_flow,
                 throughput_multipliers,
                 pop_needs,
                 workforce_ratio=workforce_ratio,
             )
-            return self._solve_equilibrium(
+            return _equilibrium._solve_equilibrium(
+                self,
                 initial.context,
                 initial.pop_wealth if initial_wealth is None else initial_wealth,
                 max_iterations=max_iterations,
@@ -1000,117 +866,6 @@ class Economy:
                 atol=atol,
             )
         raise ValueError(f"Invalid method: {method!r}")
-
-    def _equilibrium_diagnostics(
-        self,
-        context: EconomyContext,
-        evaluation: _WealthEvaluation,
-        transition: _WealthTransition,
-        iterations: int,
-        rtol: float,
-        atol: float,
-    ) -> EquilibriumDiagnostics:
-        """Describe the current assignment and its material financial shortfalls."""
-        return _equilibrium._equilibrium_diagnostics(
-            self, context, evaluation, transition, iterations, rtol, atol
-        )
-
-    def _equilibrium_snapshot(
-        self,
-        context: EconomyContext,
-        evaluation: _WealthEvaluation,
-        diagnostics: EquilibriumDiagnostics,
-    ) -> EconomyState:
-        """Freeze only public success/failure results, never the fixed context again."""
-        return _equilibrium._equilibrium_snapshot(
-            self, context, evaluation, diagnostics
-        )
-
-    def _verify_equilibrium(
-        self,
-        context: EconomyContext,
-        evaluation: _WealthEvaluation,
-        rtol: float,
-        atol: float,
-    ) -> tuple[_WealthEvaluation, _WealthTransition]:
-        """Recompute through public accounting helpers and recheck stationarity."""
-        return _equilibrium._verify_equilibrium(self, context, evaluation, rtol, atol)
-
-    def _solve_equilibrium(
-        self,
-        context: EconomyContext,
-        initial_wealth: np.ndarray,
-        *,
-        max_iterations: int,
-        rtol: float,
-        atol: float,
-    ) -> EconomyState:
-        """Bounded discrete fixed-point iteration with exact cycle detection."""
-        return _equilibrium._solve_equilibrium(
-            self,
-            context,
-            initial_wealth,
-            max_iterations=max_iterations,
-            rtol=rtol,
-            atol=atol,
-        )
-
-    def _solve_nominal(
-        self,
-        building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-        goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
-        throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
-        pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
-        *,
-        workforce_ratio: float = 1.0,
-    ) -> EconomyState:
-        """Derive a nominal `EconomyState` from a building-level vector.
-
-        Uses base (nominal) goods prices, gross goods output for supply, gross
-        goods input plus supplied population needs for demand, per-profession
-        employment, and per-profession
-        ``start_quality_of_life`` for wealth.
-
-        Args:
-            building_levels: 1-D array of shape ``(n_buildings,)``.
-            goods_trade_flow: Signed 1-D array of shape ``(n_goods,)``;
-                positive values import goods, negative values export goods.
-            throughput_multipliers: Optional per-configuration multipliers for
-                gross goods inputs and outputs.
-            pop_needs: 1-D array of goods-aligned population needs demand.
-            workforce_ratio: Economy-wide workers / total population.
-
-        Returns:
-            An `EconomyState` with prices, supply, demand, employment,
-            and wealth derived from *building_levels*.
-        """
-        return _market._solve_nominal(
-            self,
-            building_levels,
-            goods_trade_flow,
-            throughput_multipliers,
-            pop_needs,
-            workforce_ratio=workforce_ratio,
-        )
-
-    def _solve_market(
-        self,
-        building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-        goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
-        throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
-        pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
-        *,
-        workforce_ratio: float = 1.0,
-    ) -> EconomyState:
-        """Derive a market-price `EconomyState` from a building vector."""
-        return _market._solve_market(
-            self,
-            building_levels,
-            goods_trade_flow,
-            throughput_multipliers,
-            pop_needs,
-            workforce_ratio=workforce_ratio,
-        )
 
     def df_goods_buy_packages(
         self, source: EconomyState | EconomyContext | GoodsBuyPackages

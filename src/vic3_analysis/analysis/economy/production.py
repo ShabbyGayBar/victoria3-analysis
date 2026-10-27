@@ -101,7 +101,7 @@ def _apply_throughput_multipliers(
     """Scale matrix rows by optional per-configuration multipliers."""
     if throughput_multipliers is None:
         return matrix.copy()
-    economy._validate_throughput_multipliers(throughput_multipliers)
+    _validate_throughput_multipliers(economy, throughput_multipliers)
     return matrix * throughput_multipliers[:, None]
 
 
@@ -196,8 +196,8 @@ def goods_input_matrix(
     ) = None,
 ) -> np.ndarray:
     """Return writable gross inputs using the cached unscaled matrix."""
-    return economy._apply_throughput_multipliers(
-        economy.goods_input_matrix_unscaled, throughput_multipliers
+    return _apply_throughput_multipliers(
+        economy, economy.goods_input_matrix_unscaled, throughput_multipliers
     )
 
 
@@ -208,8 +208,8 @@ def goods_output_matrix(
     ) = None,
 ) -> np.ndarray:
     """Return writable gross outputs using the cached unscaled matrix."""
-    return economy._apply_throughput_multipliers(
-        economy.goods_output_matrix_unscaled, throughput_multipliers
+    return _apply_throughput_multipliers(
+        economy, economy.goods_output_matrix_unscaled, throughput_multipliers
     )
 
 

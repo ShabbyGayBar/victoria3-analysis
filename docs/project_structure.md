@@ -113,7 +113,8 @@ or expose a `pyradox.Tree` subclass with helper methods.
     private-wage-normalized metrics, respectively.
 - `economy/` — Economy model and frozen snapshot components. `__init__.py`
   preserves the public exports. `model.py` defines `Economy`, retaining its
-  initialization, cached properties, and delegating methods; calculation
+  initialization, cached properties, and public delegating methods; private
+  helpers are called directly from their calculation modules. Calculation
   functions live in `production.py` (coefficients, throughput, and resources),
   `consumption.py` (baskets, demand, and expenses), `income.py` (household
   earnings), `market.py` (prices and nominal/market solves), `equilibrium.py`
