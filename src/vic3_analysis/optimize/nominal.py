@@ -21,6 +21,11 @@ class NominalOptimizer(BaseOptimizer[LinearProblem]):
                 "NominalOptimizer does not support the nonlinear "
                 "gdp_per_capita objective; use MarketOptimizer."
             )
+        if scenario.objective == "average_wealth":
+            raise ValueError(
+                "NominalOptimizer does not support average_wealth; "
+                "use EquilibriumOptimizer."
+            )
         data = self._compile_common(scenario)
         if scenario.objective == "gdp":
             objective = -data.gdp_vector

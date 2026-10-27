@@ -1,6 +1,6 @@
 ---
 title: Optimization API
-description: Scenario configuration and compiled linear and market-price optimization APIs.
+description: Scenario configuration and compiled nominal, market-price, and equilibrium optimization APIs.
 ---
 
 # Optimization API
@@ -20,3 +20,7 @@ and [supply-chain examples](../showcase/supply-chains.md).
 ::: vic3_analysis.MarketProblem
 
 ::: vic3_analysis.MarketOptimizer
+
+::: vic3_analysis.EquilibriumProblem
+
+::: vic3_analysis.EquilibriumOptimizer

@@ -26,6 +26,7 @@ from vic3_analysis.analysis.supply_chain.result import (
 )
 from vic3_analysis.analysis.supply_chain.sweep import sweep_supply_chains
 from vic3_analysis.optimize.base import BaseOptimizer, LinearProblem, MarketProblem
+from vic3_analysis.optimize.equilibrium import EquilibriumOptimizer, EquilibriumProblem
 from vic3_analysis.optimize.market import MarketOptimizer
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
@@ -55,6 +56,8 @@ __all__ = [
     "EconomyState",
     "EquilibriumDiagnostics",
     "EquilibriumError",
+    "EquilibriumOptimizer",
+    "EquilibriumProblem",
     "GoodsBuyPackages",
     "LinearProblem",
     "MarketOptimizer",

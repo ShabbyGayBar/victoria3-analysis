@@ -62,6 +62,7 @@
 - [x] Implement the solver method for nominal price
 - [x] Implement the solver method with market price mechanics
 - [x] Implement `MarketOptimizer` for bounded endogenous-price GDP and GDP-per-capita scenarios
+- [x] Implement `EquilibriumOptimizer` for bounded building-level searches maximizing GDP, GDP per capita, or average wealth, with endogenous household demand and verified equilibrium states
 - [x] Implement the solver method with population composition and wealth levels
 
 ## Supply chain analysis (nominal)

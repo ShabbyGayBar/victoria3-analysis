@@ -4,8 +4,6 @@
 """Nonlinear market-price optimization compilation and solving."""
 
 from collections.abc import Mapping
-from dataclasses import replace
-from types import MappingProxyType
 from typing import Any, cast
 
 import numpy as np
@@ -14,13 +12,9 @@ import scipy.optimize as opt
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.optimize.base import (
     BaseOptimizer,
-    ConstraintSlices,
-    LinearProblem,
     MarketProblem,
 )
 from vic3_analysis.optimize.scenario import Scenario
-
-_FEASIBILITY_TOLERANCE = 1e-7
 
 
 class MarketOptimizer(BaseOptimizer[MarketProblem]):
@@ -174,112 +168,6 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
             np.asarray(result.x, dtype=np.float64),
             method="market",
         )
-
-    @staticmethod
-    def _extract_fixed_zero_bounds(problem: LinearProblem) -> LinearProblem:
-        """Turn non-negative zero-sum equalities into fixed-zero bounds."""
-        if problem.A_eq is None or problem.b_eq is None:
-            return problem
-        bounds = list(problem.bounds)
-        keep = np.ones(len(problem.b_eq), dtype=bool)
-        for row_index, (row, rhs) in enumerate(
-            zip(problem.A_eq, problem.b_eq, strict=True)
-        ):
-            nonzero = np.flatnonzero(row)
-            same_sign = (row[nonzero] > 0).all() or (row[nonzero] < 0).all()
-            if abs(rhs) <= _FEASIBILITY_TOLERANCE and len(nonzero) > 0 and same_sign:
-                for variable in nonzero:
-                    bounds[int(variable)] = (0.0, 0.0)
-                keep[row_index] = False
-
-        remaining_A_eq = problem.A_eq[keep]
-        remaining_b_eq = problem.b_eq[keep]
-        slices = MarketOptimizer._retained_slices(problem.equality_slices, keep)
-        return replace(
-            problem,
-            A_eq=remaining_A_eq if len(remaining_A_eq) > 0 else None,
-            b_eq=remaining_b_eq if len(remaining_b_eq) > 0 else None,
-            bounds=tuple(bounds),
-            equality_slices=slices,
-        )
-
-    @staticmethod
-    def _retained_slices(
-        slices: ConstraintSlices, keep: np.ndarray
-    ) -> ConstraintSlices:
-        """Map named equality slices after fixed-zero rows are removed."""
-        retained: dict[str, slice] = {}
-        for name, row_slice in slices.items():
-            start = 0 if row_slice.start is None else row_slice.start
-            stop = len(keep) if row_slice.stop is None else row_slice.stop
-            block_keep = keep[start:stop]
-            count = int(block_keep.sum())
-            if count == 0:
-                continue
-            new_start = int(keep[:start].sum())
-            retained[name] = slice(new_start, new_start + count)
-        return MappingProxyType(retained)
-
-    @staticmethod
-    def _check_feasibility_and_boundedness(problem: LinearProblem) -> None:
-        """Reject infeasible or unbounded linear scenario regions."""
-        n_buildings = len(problem.bounds)
-        boundedness = opt.linprog(
-            -np.ones(n_buildings, dtype=np.float64),
-            A_ub=problem.A_ub,
-            b_ub=problem.b_ub,
-            A_eq=problem.A_eq,
-            b_eq=problem.b_eq,
-            bounds=problem.bounds,
-            method="highs",
-        )
-        if boundedness.success:
-            return
-        if boundedness.status == 2:
-            raise ValueError(
-                f"Market optimization is infeasible: {boundedness.message}"
-            )
-        if boundedness.status == 3:
-            raise ValueError(
-                "Market optimization requires a bounded feasible region: "
-                f"{boundedness.message}"
-            )
-        raise ValueError(f"Market preflight failed: {boundedness.message}")
-
-    @staticmethod
-    def _validate_initial_point(
-        x0: np.ndarray,
-        A_ub: np.ndarray | None,
-        b_ub: np.ndarray | None,
-        A_eq: np.ndarray | None,
-        b_eq: np.ndarray | None,
-        bounds: tuple[tuple[float, float | None], ...],
-        n_buildings: int,
-    ) -> np.ndarray:
-        """Validate and copy a user-provided feasible initial point."""
-        initial = np.asarray(x0, dtype=np.float64)
-        if initial.ndim != 1 or initial.shape[0] != n_buildings:
-            raise ValueError(
-                "x0 must be a 1-D vector aligned to building configurations."
-            )
-        if not np.isfinite(initial).all():
-            raise ValueError("x0 must contain only finite values.")
-        if (initial < 0).any():
-            raise ValueError("x0 must contain only non-negative values.")
-        for value, (_lower, upper) in zip(initial, bounds, strict=True):
-            if upper is not None and value > upper + _FEASIBILITY_TOLERANCE:
-                raise ValueError("x0 violates scenario variable bounds.")
-        if A_ub is not None and b_ub is not None:
-            residual = A_ub @ initial - b_ub
-            if not np.all(residual <= _FEASIBILITY_TOLERANCE * (1 + np.abs(b_ub))):
-                raise ValueError("x0 violates scenario inequality constraints.")
-        if A_eq is not None and b_eq is not None:
-            residual = A_eq @ initial - b_eq
-            if not np.all(
-                np.abs(residual) <= _FEASIBILITY_TOLERANCE * (1 + np.abs(b_eq))
-            ):
-                raise ValueError("x0 violates scenario equality constraints.")
-        return initial.copy()
 
     @staticmethod
     def _value_and_gradient(

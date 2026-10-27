@@ -9,6 +9,7 @@ from math import isfinite
 _OBJECTIVES = (
     "gdp",
     "gdp_per_capita",
+    "average_wealth",
     "employment",
     "automation",
     "construction_cost",
@@ -20,8 +21,8 @@ class Scenario:
     """An immutable optimization recipe expressed as data.
 
     The optimizer interpreting a scenario owns all economy-dependent
-    compilation. This object only records assumptions shared by the nominal
-    and market formulations.
+    compilation. This object records assumptions interpreted by the nominal,
+    market, and equilibrium formulations.
 
     ``min_goods_output`` sets minimum weekly net domestic output by good,
     after production inputs are deducted. Explicit entries override

@@ -41,8 +41,8 @@ production_table, ...` directly.
   `StateRegionsParser`, `technology`), the analysis helpers
   (`production_table`, `Economy`, `EconomyContext`, `EconomyState`, `MarketState`,
   `PopState`), and the optimization API (`Scenario`,
-  `BaseOptimizer`, `LinearProblem`, `NominalOptimizer`, `MarketProblem`, and
-  `MarketOptimizer`).
+  `BaseOptimizer`, `LinearProblem`, `NominalOptimizer`, `MarketProblem`,
+  `MarketOptimizer`, `EquilibriumProblem`, and `EquilibriumOptimizer`).
 - `utils.py` — Shared helpers:
   - `get_vic3_directory()` auto-detects the `Victoria 3/game` install across
     common Steam library paths on Windows/Linux/macOS.
@@ -159,8 +159,8 @@ or expose a `pyradox.Tree` subclass with helper methods.
   urban-center tie). It has no economy- or solver-dependent methods.
 - `base.py` — public abstract `BaseOptimizer` plus immutable `LinearProblem`
   and `MarketProblem` compiled types. The base compiles fixed market context,
-  throughput-adjusted matrices, shared constraints with named row slices, and
-  solution-state context for both concrete optimizers.
+  throughput-adjusted matrices, shared constraints with named row slices,
+  feasibility validation, and fixed-zero handling for the concrete optimizers.
 - `nominal.py` — `NominalOptimizer.compile()` attaches the fixed-price linear
   objective; `solve()` and `solve_problem()` call HiGHS through
   `scipy.optimize.linprog`. `import_marginals()` maps LP duals through the
@@ -170,6 +170,11 @@ or expose a `pyradox.Tree` subclass with helper methods.
   Jacobian, linear feasible region, bounds, and nominal warm-start problem;
   `solve()` and `solve_problem()` use SLSQP for endogenous-price GDP or GDP per
   capita.
+- `equilibrium.py` — immutable `EquilibriumProblem` freezes household solver
+  controls and wealth seeds; `EquilibriumOptimizer` uses bounded COBYLA local
+  search over building levels for GDP, GDP per capita, or average wealth.
+  Trial equilibrium failures are counted and skipped. Hard evaluation budgets
+  return the best feasible, freshly verified state with explicit search status.
 
 ## `examples/` — Artifact-generation Scripts
 
@@ -244,6 +249,9 @@ game directory.
 - `test_market_optimizer.py` — exercises nonlinear market compilation,
   fixed-zero bounds, warm starts, objective/Jacobian behavior, solve entry
   points, market validation, and cross-economy rejection.
+- `test_equilibrium_optimizer.py` — synthetic objective, accounting, constraint,
+  fixed-seed, failure-recovery, budget, and validation tests, plus a full vanilla
+  production-table integration test with a small hard evaluation budget.
 - `test_supply_chain.py` — uses a synthetic economy to exercise analyzer
   validation, immutable results, cyclic realized/allowed graphs, exact flows,
   coproduct attribution, resource metadata, constraints, Mermaid/Matplotlib
