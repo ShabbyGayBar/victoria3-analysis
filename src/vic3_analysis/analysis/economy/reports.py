@@ -11,9 +11,9 @@ import numpy as np
 import pandas as pd
 
 from vic3_analysis.analysis.economy.states import (
-    BuyPackages,
     EconomyContext,
     EconomyState,
+    GoodsBuyPackages,
 )
 
 if TYPE_CHECKING:
@@ -21,13 +21,13 @@ if TYPE_CHECKING:
 
 
 def df_goods_buy_packages(
-    economy: Economy, source: EconomyState | EconomyContext | BuyPackages
+    economy: Economy, source: EconomyState | EconomyContext | GoodsBuyPackages
 ) -> pd.DataFrame:
     """Export standard goods baskets as an independent, mutable DataFrame.
 
     Args:
         source: A snapshot or context from which to calculate or reuse baskets,
-            or immutable `BuyPackages` with columns in `goods_index` order.
+            or immutable `GoodsBuyPackages` with columns in `goods_index` order.
 
     Returns:
         A fresh DataFrame with ascending int64 index named ``wealth`` and
@@ -36,17 +36,17 @@ def df_goods_buy_packages(
         are copied; editing the report does not modify its source.
 
     Raises:
-        TypeError: If source is not a state, context, or `BuyPackages`.
+        TypeError: If source is not a state, context, or `GoodsBuyPackages`.
         ValueError: If goods alignment or basket calculation is invalid.
     """
-    if isinstance(source, BuyPackages):
+    if isinstance(source, GoodsBuyPackages):
         packages = source
-        economy._validate_buy_packages(packages)
+        economy._validate_goods_buy_packages(packages)
     elif isinstance(source, (EconomyState, EconomyContext)):
-        packages = economy.calculate_buy_packages(source)
+        packages = economy.calculate_goods_buy_packages(source)
     else:
         raise TypeError(
-            "source must be an EconomyState, EconomyContext, or BuyPackages."
+            "source must be an EconomyState, EconomyContext, or GoodsBuyPackages."
         )
     return pd.DataFrame(
         packages.quantities,

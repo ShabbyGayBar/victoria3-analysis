@@ -28,10 +28,10 @@ solves leave these finances unevaluated; `df_pop()` reports balances as `NaN`.
 
 `Economy.prepare_context(context)` returns a context with prepared baskets and
 scales, computing only missing fields and returning a fully prepared context
-unchanged. `buy_packages` is an optional immutable `BuyPackages` object with
+unchanged. `goods_buy_packages` is an optional immutable `GoodsBuyPackages` object with
 read-only `quantities` (wealth × goods) and ascending integer `wealth` labels;
-it defaults to `None`. Construct it with `BuyPackages(wealth=..., quantities=...)`
-or clear it with `buy_packages=None`. `consumption_scales` is an optional
+it defaults to `None`. Construct it with `GoodsBuyPackages(wealth=..., quantities=...)`
+or clear it with `goods_buy_packages=None`. `consumption_scales` is an optional
 read-only configuration-by-profession array. Goods and profession axes follow
 the owning economy's indexes. Existing solves leave these fields unprepared.
 
@@ -83,18 +83,18 @@ as `(1 - workforce_ratio) / workforce_ratio`. `pops` and `total_employment`
 count workers; `total_population` includes dependents. `Scenario.workforce_ratio`
 passes the same assumption to optimizer-created states.
 
-`Economy.calculate_buy_packages(state_or_context)` returns immutable `BuyPackages`,
+`Economy.calculate_goods_buy_packages(state_or_context)` returns immutable `GoodsBuyPackages`,
 reusing prepared baskets when available. Its `wealth` labels and `quantities`
 matrix are read-only; goods columns follow `economy.goods_index` order.
 `Economy.df_goods_buy_packages(source)` exports a fresh mutable DataFrame from
-an `EconomyState`, `EconomyContext`, or `BuyPackages`, copying both quantities and
+an `EconomyState`, `EconomyContext`, or `GoodsBuyPackages`, copying both quantities and
 wealth labels. The index is named `wealth` and columns follow `goods_index`.
 The raw `Economy.df_buy_packages` input table remains separate and unchanged.
 `Economy.calculate_pop_consumption_scales(state_or_context)` returns a fresh writable
 float64 matrix of dimensionless household scales:
 `pops / 10_000 * consumption_mult * (1 + 0.5 * dependents_per_worker)`.
 `calculate_pop_needs()` and `calculate_pop_expenses()` accept keyword-only
-`buy_packages: BuyPackages | None = None` and `consumption_scales=None` to reuse baskets and scales
+`goods_buy_packages: GoodsBuyPackages | None = None` and `consumption_scales=None` to reuse baskets and scales
 independently. Each omitted argument uses its prepared context value before
 falling back to calculation. Explicit and prepared baskets share the same
 selection and alignment checks; DataFrame basket arguments are rejected.
@@ -115,7 +115,7 @@ reuse conditions, and an explicit `income - expenses` example.
 
 ::: vic3_analysis.EconomyContext
 
-::: vic3_analysis.BuyPackages
+::: vic3_analysis.GoodsBuyPackages
 
 ::: vic3_analysis.MarketState
 

@@ -9,12 +9,12 @@ buildings, goods, production methods, technologies, and economic optimisation.
 """
 
 from vic3_analysis.analysis.economy import (
-    BuyPackages,
     Economy,
     EconomyContext,
     EconomyState,
     EquilibriumDiagnostics,
     EquilibriumError,
+    GoodsBuyPackages,
     MarketState,
     PopState,
 )
@@ -50,12 +50,12 @@ __all__ = [
     "BaseOptimizer",
     "BuildingGroupParser",
     "BuildingsParser",
-    "BuyPackages",
     "Economy",
     "EconomyContext",
     "EconomyState",
     "EquilibriumDiagnostics",
     "EquilibriumError",
+    "GoodsBuyPackages",
     "LinearProblem",
     "MarketOptimizer",
     "MarketProblem",

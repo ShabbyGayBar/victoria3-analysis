@@ -142,7 +142,7 @@ their owning components. Direct construction now uses
 `EconomyState(context=context, market=market, households=households)`.
 The market must reference the exact same context object.
 
-Nominal and market solves leave `buy_packages`,
+Nominal and market solves leave `goods_buy_packages`,
 `consumption_scales`, `pop_income`, and `pop_expenses` as `None`. They continue
 to accept externally supplied population demand without evaluating household
 finances. `pop_balance` is `None` until both finances exist; `df_pop()` reports
@@ -164,11 +164,11 @@ needs = economy.calculate_pop_needs(state)
 expenses = economy.calculate_pop_expenses(state)
 ```
 
-The context stores `buy_packages` as an immutable `BuyPackages` object containing
+The context stores `goods_buy_packages` as an immutable `GoodsBuyPackages` object containing
 read-only arrays: `wealth` holds ascending positive integer row labels, and
 `quantities` holds the wealth-by-goods matrix. Goods columns follow
 the owning economy's `goods_index`; worker columns follow `pop_index`.
-`calculate_buy_packages(context)` returns `BuyPackages`, reusing the prepared
+`calculate_goods_buy_packages(context)` returns `GoodsBuyPackages`, reusing the prepared
 object when present. `df_goods_buy_packages(source)` exports an independent
 DataFrame from a state, context, or basket object, while
 `calculate_pop_consumption_scales(context)` returns an independent writable
@@ -179,18 +179,18 @@ To supply custom prepared baskets, construct one object with both arrays:
 ```python
 import numpy as np
 
-from vic3_analysis import BuyPackages
+from vic3_analysis import GoodsBuyPackages
 
-packages = BuyPackages(
+packages = GoodsBuyPackages(
     wealth=np.array([1, 5]),
     quantities=np.zeros((2, len(economy.goods_index))),
 )
-context = replace(state.context, buy_packages=packages)
+context = replace(state.context, goods_buy_packages=packages)
 ```
 
-`BuyPackages` owns copies of its inputs, validates their alignment, and sorts
+`GoodsBuyPackages` owns copies of its inputs, validates their alignment, and sorts
 labels and quantities together. Contexts share the immutable object.
-Use `context.buy_packages.wealth` and `context.buy_packages.quantities` after
+Use `context.goods_buy_packages.wealth` and `context.goods_buy_packages.quantities` after
 checking that baskets are prepared. This replaces the former separate
 `buy_packages` array and `buy_package_wealth` attributes.
 
@@ -210,7 +210,7 @@ context = economy.prepare_context(
 state = replace(state, context=context, market=replace(state.market, context=context))
 ```
 
-Set `buy_packages=None` when refreshing baskets. Wealth and prices may change
+Set `goods_buy_packages=None` when refreshing baskets. Wealth and prices may change
 while sharing the same context.
 Context preparation does not evaluate wealth or implement iteration.
 
@@ -258,7 +258,7 @@ from dataclasses import replace
 context = replace(
     state.context,
     building_goods_flow=state.building_goods_flow * 2,
-    buy_packages=None,
+    goods_buy_packages=None,
 )
 changed_state = replace(state, context=context, market=replace(state.market, context=context))
 ```
@@ -341,7 +341,7 @@ not modeled here.
 
 ### Standard packages by wealth
 
-`calculate_buy_packages(state)` returns immutable `BuyPackages` of weekly goods
+`calculate_goods_buy_packages(state)` returns immutable `GoodsBuyPackages` of weekly goods
 quantities per **10,000 standard workers**. Its read-only `wealth` array contains
 ascending positive int64 labels, and `quantities` is a read-only float64 matrix
 with columns in `goods_index` order and zeros for unconsumed goods. Prepared
@@ -349,7 +349,7 @@ context baskets are authoritative and reused; otherwise every level defined in
 the raw `df_buy_packages` table is calculated.
 
 ```python
-packages = economy.calculate_buy_packages(state)
+packages = economy.calculate_goods_buy_packages(state)
 wealth = int(packages.wealth[0])
 goods_at_wealth = packages.quantities[0]
 # Convert only when a table or export is needed:
@@ -369,10 +369,10 @@ columns in model order. Editing that report changes no baskets or model tables.
 Pass the basket object to `calculate_pop_needs` to reuse its goods quantities:
 
 ```python
-packages = economy.calculate_buy_packages(state)
-needs = economy.calculate_pop_needs(state, buy_packages=packages)
+packages = economy.calculate_goods_buy_packages(state)
+needs = economy.calculate_pop_needs(state, goods_buy_packages=packages)
 next_state = economy.solve(levels, method="market", pop_needs=needs)
-next_needs = economy.calculate_pop_needs(next_state, buy_packages=packages)
+next_needs = economy.calculate_pop_needs(next_state, goods_buy_packages=packages)
 ```
 
 Supplied baskets stay fixed when market supply changes. Demand is calculated
@@ -382,7 +382,7 @@ consumption multipliers per 10,000 workers. Substitution,
 base-price conversion, and validation of unused state goods flows and raw
 need/package tables are skipped.
 
-`BuyPackages` construction validates unique positive integer wealth labels and
+`GoodsBuyPackages` construction validates unique positive integer wealth labels and
 finite nonnegative quantities, and sorts rows with their labels. Quantity
 columns must already follow the model's `goods_index` order; consumption
 calculations check the column count and coverage of occupied tiers. Only
@@ -410,13 +410,13 @@ reused after changing household wealth or market prices.
 Pass either or both precomputed inputs to needs and expense calculations:
 
 ```python
-packages = economy.calculate_buy_packages(state)
+packages = economy.calculate_goods_buy_packages(state)
 scales = economy.calculate_pop_consumption_scales(state)
 needs = economy.calculate_pop_needs(
-    state, buy_packages=packages, consumption_scales=scales
+    state, goods_buy_packages=packages, consumption_scales=scales
 )
 expenses = economy.calculate_pop_expenses(
-    state, buy_packages=packages, consumption_scales=scales
+    state, goods_buy_packages=packages, consumption_scales=scales
 )
 income = economy.calculate_pop_income(state)
 balance = income - expenses
@@ -440,7 +440,7 @@ and multiplies by its consumption scale, including profession and dependent
 effects. Prices must be finite, nonnegative, and goods-aligned; zero prices are
 valid. Changing prices changes expenses without changing basket quantities.
 
-The `buy_packages` argument follows the same contract as for needs. Supplied
+The `goods_buy_packages` argument follows the same contract as for needs. Supplied
 baskets bypass unused production flows, base prices, and raw needs/package
 tables. Empty households have zero expenses; an empty population may use an
 empty supplied basket table. All calculated costs and expenses must be finite.

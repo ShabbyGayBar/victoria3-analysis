@@ -11,22 +11,22 @@ finances, and `PopState` household results inside a complete `EconomyState`.
 
 from vic3_analysis.analysis.economy.model import Economy
 from vic3_analysis.analysis.economy.states import (
-    BuyPackages,
     EconomyContext,
     EconomyState,
     EquilibriumDiagnostics,
     EquilibriumError,
+    GoodsBuyPackages,
     MarketState,
     PopState,
 )
 
 __all__ = [
-    "BuyPackages",
     "Economy",
     "EconomyContext",
     "EconomyState",
     "EquilibriumDiagnostics",
     "EquilibriumError",
+    "GoodsBuyPackages",
     "MarketState",
     "PopState",
 ]

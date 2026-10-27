@@ -116,10 +116,10 @@ def _validate_wealth_assignment(
         raise ValueError(
             "state.pop_wealth shape must match building_index and pop_index."
         )
-    if context.buy_packages is None:
-        raise ValueError("Prepared buy_packages are required.")
-    economy._select_buy_packages(
-        context.buy_packages,
+    if context.goods_buy_packages is None:
+        raise ValueError("Prepared goods_buy_packages are required.")
+    economy._select_goods_buy_packages(
+        context.goods_buy_packages,
         np.unique(wealth[pops > 0]),
     )
     return wealth
@@ -136,7 +136,7 @@ def _evaluate_prepared_wealth(
     occupied, used_wealth, inverse, cell_scales = _group_pop_consumption(
         context.pops, wealth, scales
     )
-    selected = economy._select_buy_packages(packages, used_wealth)
+    selected = economy._select_goods_buy_packages(packages, used_wealth)
     with np.errstate(over="ignore", invalid="ignore"):
         demand = _validate_nonnegative_values(
             _pop_demand_from_baskets(selected, inverse, cell_scales),
@@ -197,7 +197,7 @@ def _validate_iteration_context(economy: Economy, context: EconomyContext) -> No
         raise ValueError("building_levels shape must match building_index.")
     packages, scales = economy._prepared_consumption(context)
     tiers = packages.wealth
-    economy._validate_buy_packages(packages)
+    economy._validate_goods_buy_packages(packages)
     if scales.shape != pops.shape:
         raise ValueError("consumption_scales shape must match state.pops.")
     if (len(tiers) == 0 and (pops > 0).any()) or (np.diff(tiers) != 1).any():

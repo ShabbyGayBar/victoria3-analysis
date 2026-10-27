@@ -94,7 +94,7 @@ def _weighted_std(values: np.ndarray, weights: np.ndarray) -> float:
 
 
 @dataclass(frozen=True)
-class BuyPackages:
+class GoodsBuyPackages:
     """Owned, read-only goods baskets and their ascending wealth labels.
 
     Attributes:
@@ -111,21 +111,21 @@ class BuyPackages:
 
     def __post_init__(self) -> None:
         """Validate aligned baskets and own sorted, read-only array copies."""
-        tiers = _readonly_wealth(self.wealth, "buy_packages.wealth")
+        tiers = _readonly_wealth(self.wealth, "goods_buy_packages.wealth")
         if tiers.ndim != 1 or (tiers == 0).any() or len(np.unique(tiers)) != len(tiers):
             raise ValueError(
-                "buy_packages.wealth must contain unique positive wealth tiers."
+                "goods_buy_packages.wealth must contain unique positive wealth tiers."
             )
         values = _validate_nonnegative_values(
-            self.quantities, "buy_packages.quantities"
+            self.quantities, "goods_buy_packages.quantities"
         )
         if values.ndim != 2 or values.shape[0] != len(tiers):
             raise ValueError(
-                "buy_packages.quantities shape must match wealth tiers × goods."
+                "goods_buy_packages.quantities shape must match wealth tiers × goods."
             )
         order = np.argsort(tiers)
         object.__setattr__(
-            self, "wealth", _readonly_wealth(tiers[order], "buy_packages.wealth")
+            self, "wealth", _readonly_wealth(tiers[order], "goods_buy_packages.wealth")
         )
         object.__setattr__(self, "quantities", _readonly_array(values[order]))
 
@@ -134,7 +134,7 @@ class BuyPackages:
 class EconomyContext:
     """Fixed production, trade, and population inputs shared by snapshots.
 
-    Direct array inputs are owned, read-only copies; immutable ``BuyPackages``
+    Direct array inputs are owned, read-only copies; immutable ``GoodsBuyPackages``
     objects are shared. Goods columns follow the owning economy's
     ``goods_index``; population columns follow its ``pop_index``.
     Prepared consumption data is optional and remains fixed as wealth and
@@ -151,7 +151,7 @@ class EconomyContext:
         exports: Derived non-negative weekly export quantities by good.
         pops: Employed-worker counts by configuration and profession.
         workforce_ratio: Workers / total population, in ``(0, 1]``.
-        buy_packages: Optional immutable goods baskets with their wealth labels,
+        goods_buy_packages: Optional immutable goods baskets with their wealth labels,
             shared across contexts and snapshots.
         consumption_scales: Optional dimensionless basket multiples, shaped
             like ``pops`` and zero in empty cells.
@@ -162,7 +162,7 @@ class EconomyContext:
     goods_trade_flow: np.ndarray
     pops: np.ndarray
     workforce_ratio: float = field(default=1.0, kw_only=True)
-    buy_packages: BuyPackages | None = field(default=None, kw_only=True)
+    goods_buy_packages: GoodsBuyPackages | None = field(default=None, kw_only=True)
     consumption_scales: np.ndarray | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
@@ -176,15 +176,17 @@ class EconomyContext:
             "pops",
         ):
             object.__setattr__(self, name, _readonly_array(getattr(self, name)))
-        if self.buy_packages is not None:
-            if not isinstance(self.buy_packages, BuyPackages):
-                raise TypeError("buy_packages must be a BuyPackages instance or None.")
-            quantities = self.buy_packages.quantities
+        if self.goods_buy_packages is not None:
+            if not isinstance(self.goods_buy_packages, GoodsBuyPackages):
+                raise TypeError(
+                    "goods_buy_packages must be a GoodsBuyPackages instance or None."
+                )
+            quantities = self.goods_buy_packages.quantities
             if self.goods_trade_flow.ndim != 1 or quantities.shape[1] != len(
                 self.goods_trade_flow
             ):
                 raise ValueError(
-                    "buy_packages.quantities shape must match context goods."
+                    "goods_buy_packages.quantities shape must match context goods."
                 )
         if self.consumption_scales is not None:
             scales = _validate_nonnegative_values(
@@ -439,9 +441,9 @@ class EconomyState:
         return self.context.workforce_ratio
 
     @property
-    def buy_packages(self) -> BuyPackages | None:
-        """Return ``context.buy_packages``."""
-        return self.context.buy_packages
+    def goods_buy_packages(self) -> GoodsBuyPackages | None:
+        """Return ``context.goods_buy_packages``."""
+        return self.context.goods_buy_packages
 
     @property
     def consumption_scales(self) -> np.ndarray | None:

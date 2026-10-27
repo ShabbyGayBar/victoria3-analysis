@@ -24,8 +24,8 @@ or household results shares the fixed arrays.
 | `PopState` | Wealth, demand, optional weekly income/expenses | Weekly balance (`income - expenses`), or `None` when either is absent |
 | `EconomyState` | Component references, optional equilibrium diagnostics | Total buy orders, wealth summaries, per-capita reports |
 
-Prepared context fields default to `None`: `buy_packages` is an immutable
-`BuyPackages` object whose read-only `quantities` array is wealth-by-goods float64
+Prepared context fields default to `None`: `goods_buy_packages` is an immutable
+`GoodsBuyPackages` object whose read-only `quantities` array is wealth-by-goods float64
 in `goods_index` column order, and whose read-only `wealth` array contains
 ascending positive int64 wealth labels;
 `consumption_scales` is read-only float64, shaped like worker counts.
@@ -33,7 +33,7 @@ ascending positive int64 wealth labels;
 leaves these and household finances unevaluated. `Economy.df_buy_packages`
 continues to hold raw category budgets, distinct from prepared goods quantities.
 
-`calculate_buy_packages()` returns the same `BuyPackages` representation, reusing
+`calculate_goods_buy_packages()` returns the same `GoodsBuyPackages` representation, reusing
 prepared baskets when available. `df_goods_buy_packages(source)` exports a state,
 context, or basket object as an independent DataFrame: an ascending int64 index
 named `wealth`, and float64 goods-quantity columns in `goods_index` order.
@@ -91,7 +91,7 @@ taxes, transfers, reserves, and subsistence income; it does not update
 ## Household consumption calculations
 
 Let `s_ij = pops_ij / 10_000 * consumption_mult_j * (1 + 0.5 * dependents_per_worker)`
-and `Q_wg` be the `quantities` matrix from `calculate_buy_packages(state)`.
+and `Q_wg` be the `quantities` matrix from `calculate_goods_buy_packages(state)`.
 
 | Result | Shape / unit | Meaning / calculation |
 | --- | --- | --- |
@@ -100,7 +100,7 @@ and `Q_wg` be the `quantities` matrix from `calculate_buy_packages(state)`.
 | `calculate_pop_expenses(state, ...)` | Configurations × professions / £ per week | `s_ij * sum_g(Q[pop_wealth_ij, g] * market_prices_g)`, household totals. |
 
 All three return independent writable float64 arrays. Needs and expenses accept
-optional `buy_packages: BuyPackages | None` and `consumption_scales`, independently. Each resolves
+optional `goods_buy_packages: GoodsBuyPackages | None` and `consumption_scales`, independently. Each resolves
 explicit arguments first, then prepared context values, then calculation.
 Supplied scales
 are authoritative and already include all population factors; they must match

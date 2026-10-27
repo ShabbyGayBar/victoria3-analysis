@@ -124,8 +124,8 @@ or expose a `pyradox.Tree` subclass with helper methods.
   grouping, basket selection, demand aggregation, and expense allocation with the
   equilibrium evaluator; final verification still uses the public calculators.
   `states.py` defines the snapshot components, diagnostics, errors, and immutable
-  `BuyPackages` objects holding aligned wealth labels and goods quantities.
-  Basket calculations and consumption inputs use `BuyPackages` throughout;
+  `GoodsBuyPackages` objects holding aligned wealth labels and goods quantities.
+  Basket calculations and consumption inputs use `GoodsBuyPackages` throughout;
   raw parser tables remain DataFrames.
   `EconomyContext` owns fixed production, trade, worker counts, workforce ratio,
   and optional prepared baskets/scales. `MarketState` references that context
