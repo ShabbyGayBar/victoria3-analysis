@@ -168,12 +168,12 @@ stay fixed while worker counts, workforce ratio, and profession multipliers
 are fixed. Changing wealth selects different basket rows; changing prices
 changes their monetary cost rather than their quantities.
 
-`calculate_goods_buy_packages()` returns immutable `GoodsBuyPackages`, reusing prepared
+`goods_buy_packages()` returns immutable `GoodsBuyPackages`, reusing prepared
 baskets when present. Explicit, prepared, and freshly calculated baskets share
 one selection path in consumption calculations. `df_goods_buy_packages()`
 exports an independent DataFrame from a state, context, or basket object.
-`calculate_pop_consumption_scales()`, `calculate_pop_needs()`, and
-`calculate_pop_expenses()` return arrays without updating a snapshot.
+`pop_consumption_scales()`, `pop_buy_orders()`, and
+`pop_expenses()` return arrays without updating a snapshot.
 Preparation and wealth evaluation attach the appropriate results to their
 owners. The evaluator calculates total buy orders as a working array; the
 composed snapshot exposes the same quantity through cached `buy_orders`.

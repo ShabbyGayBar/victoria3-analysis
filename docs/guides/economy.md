@@ -160,18 +160,18 @@ state = replace(
     context=context,
     market=MarketState(context=context, market_prices=state.market_prices),
 )
-needs = economy.calculate_pop_needs(state)
-expenses = economy.calculate_pop_expenses(state)
+needs = economy.pop_buy_orders(state)
+expenses = economy.pop_expenses(state)
 ```
 
 The context stores `goods_buy_packages` as an immutable `GoodsBuyPackages` object containing
 read-only arrays: `wealth` holds ascending positive integer row labels, and
 `quantities` holds the wealth-by-goods matrix. Goods columns follow
 the owning economy's `goods_index`; worker columns follow `pop_index`.
-`calculate_goods_buy_packages(context)` returns `GoodsBuyPackages`, reusing the prepared
+`goods_buy_packages(context)` returns `GoodsBuyPackages`, reusing the prepared
 object when present. `df_goods_buy_packages(source)` exports an independent
 DataFrame from a state, context, or basket object, while
-`calculate_pop_consumption_scales(context)` returns an independent writable
+`pop_consumption_scales(context)` returns an independent writable
 array. Both calculators also accept complete states.
 
 To supply custom prepared baskets, construct one object with both arrays:
@@ -269,7 +269,7 @@ magnitude of a negative surplus, representing input costs not covered by output
 revenue. Both are cached, read-only arrays aligned to `building_index`.
 Replacing flows or prices creates a new state with fresh caches.
 
-`calculate_pop_income(state)` implements a simplified worker-cooperative policy:
+`pop_income(state)` implements a simplified worker-cooperative policy:
 each configuration distributes all positive surplus to its employees in
 proportion to employee counts times profession `wage_weight`. Every employed
 profession participates regardless of `paid_private_wage`; zero weights receive
@@ -277,7 +277,7 @@ zero cooperative income. Configurations of the same building type distribute ind
 
 ```python
 state = economy.solve(levels, method="market")
-income = economy.calculate_pop_income(state)
+income = economy.pop_income(state)
 income_by_profession = income.sum(axis=0)
 deficits_by_configuration = state.building_deficit
 ```
@@ -300,7 +300,7 @@ transfers, reserves, subsistence income, and wealth iteration.
 
 ## Population needs
 
-`calculate_pop_needs(state)` returns weekly goods quantities aligned to
+`pop_buy_orders(state)` returns weekly goods quantities aligned to
 `goods_index`. It uses the state's employed-worker counts and integer wealth,
 the model's `df_buy_packages`, and the goods substitution definitions in
 `df_pop_needs`. Both tables can be passed as keyword arguments when constructing
@@ -310,7 +310,7 @@ the model's `df_buy_packages`, and the goods substitution definitions in
 from dataclasses import replace
 
 state = economy.solve(levels)
-needs = economy.calculate_pop_needs(state)
+needs = economy.pop_buy_orders(state)
 state_with_needs = replace(state, households=replace(state.households, pop_needs=needs))
 # Or explicitly include these orders in a new market-price evaluation:
 market_state = economy.solve(levels, method="market", pop_needs=needs)
@@ -341,7 +341,7 @@ not modeled here.
 
 ### Standard packages by wealth
 
-`calculate_goods_buy_packages(state)` returns immutable `GoodsBuyPackages` of weekly goods
+`goods_buy_packages(state)` returns immutable `GoodsBuyPackages` of weekly goods
 quantities per **10,000 standard workers**. Its read-only `wealth` array contains
 ascending positive int64 labels, and `quantities` is a read-only float64 matrix
 with columns in `goods_index` order and zeros for unconsumed goods. Prepared
@@ -349,7 +349,7 @@ context baskets are authoritative and reused; otherwise every level defined in
 the raw `df_buy_packages` table is calculated.
 
 ```python
-packages = economy.calculate_goods_buy_packages(state)
+packages = economy.goods_buy_packages(state)
 wealth = int(packages.wealth[0])
 goods_at_wealth = packages.quantities[0]
 # Convert only when a table or export is needed:
@@ -366,13 +366,13 @@ The returned object owns read-only arrays. `df_goods_buy_packages(state)`,
 an independently mutable report with int64 index named `wealth` and goods
 columns in model order. Editing that report changes no baskets or model tables.
 
-Pass the basket object to `calculate_pop_needs` to reuse its goods quantities:
+Pass the basket object to `pop_buy_orders` to reuse its goods quantities:
 
 ```python
-packages = economy.calculate_goods_buy_packages(state)
-needs = economy.calculate_pop_needs(state, goods_buy_packages=packages)
+packages = economy.goods_buy_packages(state)
+needs = economy.pop_buy_orders(state, goods_buy_packages=packages)
 next_state = economy.solve(levels, method="market", pop_needs=needs)
-next_needs = economy.calculate_pop_needs(next_state, goods_buy_packages=packages)
+next_needs = economy.pop_buy_orders(next_state, goods_buy_packages=packages)
 ```
 
 Supplied baskets stay fixed when market supply changes. Demand is calculated
@@ -393,7 +393,7 @@ arguments. The basket object and state remain unchanged.
 
 ### Reusable household consumption scales
 
-`calculate_pop_consumption_scales(state)` returns a fresh writable float64
+`pop_consumption_scales(state)` returns a fresh writable float64
 matrix aligned to configurations × professions. Each cell is a dimensionless
 multiple of a weekly basket for 10,000 standard workers:
 
@@ -410,15 +410,15 @@ reused after changing household wealth or market prices.
 Pass either or both precomputed inputs to needs and expense calculations:
 
 ```python
-packages = economy.calculate_goods_buy_packages(state)
-scales = economy.calculate_pop_consumption_scales(state)
-needs = economy.calculate_pop_needs(
+packages = economy.goods_buy_packages(state)
+scales = economy.pop_consumption_scales(state)
+needs = economy.pop_buy_orders(
     state, goods_buy_packages=packages, consumption_scales=scales
 )
-expenses = economy.calculate_pop_expenses(
+expenses = economy.pop_expenses(
     state, goods_buy_packages=packages, consumption_scales=scales
 )
-income = economy.calculate_pop_income(state)
+income = economy.pop_income(state)
 balance = income - expenses
 ```
 
@@ -427,13 +427,13 @@ finite nonnegative values, and be zero wherever worker counts are zero. They
 already include all population factors, which are not reapplied or checked
 against the current profession multipliers or workforce ratio. The caller is
 responsible for refreshing stale scales. Omitted scales reuse prepared context
-scales when present, otherwise calling `calculate_pop_consumption_scales(state)`.
+scales when present, otherwise calling `pop_consumption_scales(state)`.
 Every occupied wealth tier needs a
 basket even if its scale is zero; empty cells need no defined wealth tier.
 
 ### Household expenses
 
-`calculate_pop_expenses(state)` returns a fresh writable float64 matrix shaped
+`pop_expenses(state)` returns a fresh writable float64 matrix shaped
 like `state.pops`, containing household consumption expenses in pounds per week.
 It values each occupied wealth tier's goods basket at `state.market_prices`
 and multiplies by its consumption scale, including profession and dependent

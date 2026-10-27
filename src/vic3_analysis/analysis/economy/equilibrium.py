@@ -376,13 +376,13 @@ def _verify_equilibrium(
     """Recompute through public accounting helpers and recheck stationarity."""
     market, households = economy._freeze_wealth(context, evaluation)
     state = EconomyState(context, market, households)
-    needs = economy.calculate_pop_needs(state)
+    needs = economy.pop_buy_orders(state)
     prices = economy.market_prices(
         context.non_pop_buy_orders + needs, context.sell_orders
     )
     state = replace(state, market=MarketState(context, prices))
-    income = economy.calculate_pop_income(state)
-    expenses = economy.calculate_pop_expenses(state)
+    income = economy.pop_income(state)
+    expenses = economy.pop_expenses(state)
     balance = income - expenses
     verified = _WealthEvaluation(
         evaluation.pop_wealth, needs, prices, income, expenses, balance

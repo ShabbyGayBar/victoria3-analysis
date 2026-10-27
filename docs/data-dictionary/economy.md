@@ -33,7 +33,7 @@ ascending positive int64 wealth labels;
 leaves these and household finances unevaluated. `Economy.df_buy_packages`
 continues to hold raw category budgets, distinct from prepared goods quantities.
 
-`calculate_goods_buy_packages()` returns the same `GoodsBuyPackages` representation, reusing
+`goods_buy_packages()` returns the same `GoodsBuyPackages` representation, reusing
 prepared baskets when available. `df_goods_buy_packages(source)` exports a state,
 context, or basket object as an independent DataFrame: an ascending int64 index
 named `wealth`, and float64 goods-quantity columns in `goods_index` order.
@@ -73,7 +73,7 @@ aggregates are cached on `MarketState`.
 | `building_goods_output` | Goods / units per week | `maximum(building_goods_flow, 0).sum(axis=0)`. |
 | `building_surplus` | Configurations / £ per week | `building_goods_flow @ market_prices`, value added before wages; may be negative. |
 | `building_deficit` | Configurations / £ per week | `maximum(-building_surplus, 0)`, unfunded input costs. |
-| `calculate_pop_income(state)` | Configurations × professions / £ per week | Positive surplus allocated by `pops * wage_weight`, plus `pops * dependents_per_worker * dependent_wage / 52`; household totals, not per-worker rates. |
+| `pop_income(state)` | Configurations × professions / £ per week | Positive surplus allocated by `pops * wage_weight`, plus `pops * dependents_per_worker * dependent_wage / 52`; household totals, not per-worker rates. |
 
 The four state properties are cached, owned, read-only float64 arrays. Signs
 are split before aggregation to retain opposing flows between configurations;
@@ -91,13 +91,13 @@ taxes, transfers, reserves, and subsistence income; it does not update
 ## Household consumption calculations
 
 Let `s_ij = pops_ij / 10_000 * consumption_mult_j * (1 + 0.5 * dependents_per_worker)`
-and `Q_wg` be the `quantities` matrix from `calculate_goods_buy_packages(state)`.
+and `Q_wg` be the `quantities` matrix from `goods_buy_packages(state)`.
 
 | Result | Shape / unit | Meaning / calculation |
 | --- | --- | --- |
-| `calculate_pop_consumption_scales(state)` | Configurations × professions / dimensionless | `s_ij`, multiples of a weekly basket for 10,000 standard workers. Missing profession multipliers default to one. |
-| `calculate_pop_needs(state, ...)` | Goods / units per week | `sum_ij(s_ij * Q[pop_wealth_ij, g])`. |
-| `calculate_pop_expenses(state, ...)` | Configurations × professions / £ per week | `s_ij * sum_g(Q[pop_wealth_ij, g] * market_prices_g)`, household totals. |
+| `pop_consumption_scales(state)` | Configurations × professions / dimensionless | `s_ij`, multiples of a weekly basket for 10,000 standard workers. Missing profession multipliers default to one. |
+| `pop_buy_orders(state, ...)` | Goods / units per week | `sum_ij(s_ij * Q[pop_wealth_ij, g])`. |
+| `pop_expenses(state, ...)` | Configurations × professions / £ per week | `s_ij * sum_g(Q[pop_wealth_ij, g] * market_prices_g)`, household totals. |
 
 All three return independent writable float64 arrays. Needs and expenses accept
 optional `goods_buy_packages: GoodsBuyPackages | None` and `consumption_scales`, independently. Each resolves
@@ -118,7 +118,7 @@ are errors.
 
 Total expenses equal population demand valued at market prices when using the
 same inputs. These helpers do not update the state; compute weekly balances as
-`calculate_pop_income(state) - calculate_pop_expenses(state)`. Expenses exclude
+`pop_income(state) - pop_expenses(state)`. Expenses exclude
 taxes, rationing, affordability restrictions, and wealth transitions.
 
 ## Equilibrium diagnostics

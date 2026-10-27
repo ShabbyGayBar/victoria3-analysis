@@ -419,7 +419,7 @@ class Economy:
             self, context, market, households, rtol=rtol, atol=atol
         )
 
-    def calculate_goods_buy_packages(
+    def goods_buy_packages(
         self, state: EconomyState | EconomyContext
     ) -> GoodsBuyPackages:
         """Calculate weekly goods packages per 10,000 standard workers by wealth.
@@ -428,7 +428,7 @@ class Economy:
         the supplied state's substitution shares and the model's base prices:
         ``wealth_category_values @ category_purchase_shares / base_prices``.
         Substitution uses effective supply, configured weights, minimum/maximum
-        supply shares, and default goods as described by `calculate_pop_needs`.
+        supply shares, and default goods as described by `pop_buy_orders`.
 
         Args:
             state: Snapshot or context aligned to this economy. Prepared
@@ -469,7 +469,7 @@ class Economy:
             - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
               wealth-dependent needs and valuation at goods' base prices.
         """
-        return _consumption.calculate_goods_buy_packages(self, state)
+        return _consumption.goods_buy_packages(self, state)
 
     def _validate_worker_counts(
         self, state: EconomyState | EconomyContext
@@ -477,7 +477,7 @@ class Economy:
         """Validate household alignment and return non-negative worker counts."""
         return _validation._validate_worker_counts(self, state)
 
-    def calculate_pop_consumption_scales(
+    def pop_consumption_scales(
         self, state: EconomyState | EconomyContext
     ) -> np.ndarray:
         """Return household consumption as multiples of a standard buy package.
@@ -503,7 +503,7 @@ class Economy:
             ValueError: If household shapes, worker counts, profession keys,
                 or consumption multipliers are invalid, or scales overflow.
         """
-        return _consumption.calculate_pop_consumption_scales(self, state)
+        return _consumption.pop_consumption_scales(self, state)
 
     def _prepare_pop_consumption(
         self, state: EconomyState, consumption_scales: np.ndarray | None
@@ -521,14 +521,14 @@ class Economy:
         """Check goods alignment and select baskets for occupied wealth tiers."""
         return _consumption._select_goods_buy_packages(self, packages, wealth)
 
-    def calculate_pop_needs(
+    def pop_buy_orders(
         self,
         state: EconomyState,
         *,
         goods_buy_packages: GoodsBuyPackages | None = None,
         consumption_scales: np.ndarray | None = None,
     ) -> np.ndarray:
-        """Calculate target weekly goods demand for the represented workers.
+        """Calculate weekly population buy orders for the represented workers.
 
         Prepared context baskets and scales are reused when their explicit
         arguments are omitted. Without prepared baskets, each need category's
@@ -556,7 +556,7 @@ class Economy:
                 same wealth tier; dependents consume half as much per person.
                 Empty cells need no wealth package.
             goods_buy_packages: Optional immutable `GoodsBuyPackages`, as returned by
-                `calculate_goods_buy_packages`. Wealth labels must cover every occupied
+                `goods_buy_packages`. Wealth labels must cover every occupied
                 tier. Quantity columns must follow `goods_index` order; column
                 count is checked against the economy. Construction validates and
                 sorts wealth labels and quantities together. Supplied baskets
@@ -567,7 +567,7 @@ class Economy:
                 Unused state goods flows and raw need/package tables are not
                 validated in this mode. The baskets are unchanged.
             consumption_scales: Optional precomputed matrix returned by
-                `calculate_pop_consumption_scales`. Supplied values are
+                `pop_consumption_scales`. Supplied values are
                 authoritative, finite, non-negative, and shaped like ``pops``;
                 empty cells must have zero scale. They already include all
                 population factors, so profession multipliers are not read or
@@ -612,14 +612,14 @@ class Economy:
             - [Official developer diary #13](https://steamcommunity.com/games/529340/announcements/detail/2965045886379003737):
               wealth-dependent needs and valuation using goods' base prices.
         """
-        return _consumption.calculate_pop_needs(
+        return _consumption.pop_buy_orders(
             self,
             state,
             goods_buy_packages=goods_buy_packages,
             consumption_scales=consumption_scales,
         )
 
-    def calculate_pop_expenses(
+    def pop_expenses(
         self,
         state: EconomyState,
         *,
@@ -630,7 +630,7 @@ class Economy:
 
         Value each occupied wealth tier's standard goods basket at the state's
         market prices, then multiply by its household consumption scale. This
-        uses the same baskets and scales as `calculate_pop_needs`, without a
+        uses the same baskets and scales as `pop_buy_orders`, without a
         configuration-by-profession-by-goods tensor.
 
         Args:
@@ -638,12 +638,12 @@ class Economy:
                 worker counts, and finite non-negative goods-aligned market
                 prices. Zero prices are valid. Empty cells need no wealth basket.
             goods_buy_packages: Optional goods baskets with the same contract as in
-                `calculate_pop_needs`. When omitted, reuse prepared context
-                baskets or call `calculate_goods_buy_packages(state)`. Supplied baskets
+                `pop_buy_orders`. When omitted, reuse prepared context
+                baskets or call `goods_buy_packages(state)`. Supplied baskets
                 bypass unused goods flows, base prices, and raw needs/package
                 definitions.
             consumption_scales: Optional authoritative precomputed household
-                scales, with the same contract as in `calculate_pop_needs`.
+                scales, with the same contract as in `pop_buy_orders`.
                 When omitted, reuse context scales or calculate them.
 
         Returns:
@@ -661,7 +661,7 @@ class Economy:
             rationing, taxes, or wealth transitions. Prices affect expenses but
             do not affect the basket quantities or consumption scales.
         """
-        return _consumption.calculate_pop_expenses(
+        return _consumption.pop_expenses(
             self,
             state,
             goods_buy_packages=goods_buy_packages,
@@ -679,7 +679,7 @@ class Economy:
         """Require finite signed flows aligned to this economy's configurations/goods."""
         return _validation._validate_building_goods_flow(self, state)
 
-    def calculate_pop_income(self, state: EconomyState) -> np.ndarray:
+    def pop_income(self, state: EconomyState) -> np.ndarray:
         """Return cooperative employee income plus exogenous dependent earnings.
 
         Each configuration distributes all of its positive ``building_surplus``
@@ -714,7 +714,7 @@ class Economy:
             expenses, and does not change wealth or ``pop_balance``. Dependent
             earnings do not reduce building surplus or increase production GDP.
         """
-        return _income.calculate_pop_income(self, state)
+        return _income.pop_income(self, state)
 
     def _prepare_pop_income(self, context: EconomyContext) -> _PopIncomeCoefficients:
         """Compile price-independent cooperative shares and dependent earnings once."""

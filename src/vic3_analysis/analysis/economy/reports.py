@@ -43,7 +43,7 @@ def df_goods_buy_packages(
         packages = source
         economy._validate_goods_buy_packages(packages)
     elif isinstance(source, (EconomyState, EconomyContext)):
-        packages = economy.calculate_goods_buy_packages(source)
+        packages = economy.goods_buy_packages(source)
     else:
         raise TypeError(
             "source must be an EconomyState, EconomyContext, or GoodsBuyPackages."

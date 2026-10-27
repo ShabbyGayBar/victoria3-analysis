@@ -68,7 +68,7 @@ failures. Setup/initial-evaluation errors remain `ValueError`. See
 [solving equilibrium](../guides/economy.md#solving-equilibrium) for exception
 handling and [diagnostic fields](../data-dictionary/economy.md#equilibrium-diagnostics).
 
-`Economy.calculate_pop_income(state)` returns a fresh writable float64 matrix
+`Economy.pop_income(state)` returns a fresh writable float64 matrix
 of weekly cooperative income totals aligned to configurations × professions.
 It allocates each configuration's positive surplus using employee counts times
 profession wage weights, including professions with `paid_private_wage=False`.
@@ -83,17 +83,17 @@ as `(1 - workforce_ratio) / workforce_ratio`. `pops` and `total_employment`
 count workers; `total_population` includes dependents. `Scenario.workforce_ratio`
 passes the same assumption to optimizer-created states.
 
-`Economy.calculate_goods_buy_packages(state_or_context)` returns immutable `GoodsBuyPackages`,
+`Economy.goods_buy_packages(state_or_context)` returns immutable `GoodsBuyPackages`,
 reusing prepared baskets when available. Its `wealth` labels and `quantities`
 matrix are read-only; goods columns follow `economy.goods_index` order.
 `Economy.df_goods_buy_packages(source)` exports a fresh mutable DataFrame from
 an `EconomyState`, `EconomyContext`, or `GoodsBuyPackages`, copying both quantities and
 wealth labels. The index is named `wealth` and columns follow `goods_index`.
 The raw `Economy.df_buy_packages` input table remains separate and unchanged.
-`Economy.calculate_pop_consumption_scales(state_or_context)` returns a fresh writable
+`Economy.pop_consumption_scales(state_or_context)` returns a fresh writable
 float64 matrix of dimensionless household scales:
 `pops / 10_000 * consumption_mult * (1 + 0.5 * dependents_per_worker)`.
-`calculate_pop_needs()` and `calculate_pop_expenses()` accept keyword-only
+`pop_buy_orders()` and `pop_expenses()` accept keyword-only
 `goods_buy_packages: GoodsBuyPackages | None = None` and `consumption_scales=None` to reuse baskets and scales
 independently. Each omitted argument uses its prepared context value before
 falling back to calculation. Explicit and prepared baskets share the same
@@ -102,7 +102,7 @@ Supplied scales are authoritative, finite, nonnegative,
 population-shaped, and zero for empty cells; profession multipliers are not
 recomputed. Refresh them when the population assumptions change.
 
-`Economy.calculate_pop_expenses(state)` returns a fresh writable float64 matrix
+`Economy.pop_expenses(state)` returns a fresh writable float64 matrix
 of weekly household consumption expenses aligned to configurations × professions.
 It prices each wealth basket at the state's market prices and applies the
 household scale. It does not change wealth, demand, or `pop_balance`.

@@ -53,7 +53,7 @@ def pop_wage_weights(economy: Economy) -> np.ndarray:
     )
 
 
-def calculate_pop_income(economy: Economy, state: EconomyState) -> np.ndarray:
+def pop_income(economy: Economy, state: EconomyState) -> np.ndarray:
     """Return cooperative employee income plus exogenous dependent earnings.
 
     Each configuration distributes all of its positive ``building_surplus``
