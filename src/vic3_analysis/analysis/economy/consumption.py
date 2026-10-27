@@ -365,7 +365,7 @@ def _prepare_goods_buy_packages(
     return economy._select_goods_buy_packages(goods_buy_packages, wealth)
 
 
-def _pop_demand_from_baskets(
+def _pop_buy_orders_from_arrays(
     selected: np.ndarray, inverse: np.ndarray, scales: np.ndarray
 ) -> np.ndarray:
     """Aggregate household scales before allocating their selected baskets."""
@@ -374,7 +374,7 @@ def _pop_demand_from_baskets(
         return counts @ selected
 
 
-def _pop_expenses_at_prices(
+def _pop_expenses_from_arrays(
     occupied: np.ndarray,
     inverse: np.ndarray,
     scales: np.ndarray,
@@ -486,7 +486,7 @@ def pop_buy_orders(
         state, consumption_scales
     )
     selected = _prepare_goods_buy_packages(economy, state, wealth, goods_buy_packages)
-    demand = _pop_demand_from_baskets(selected, inverse, scales)
+    demand = _pop_buy_orders_from_arrays(selected, inverse, scales)
     return economy._validate_goods_vector(demand, "calculated pop_needs")
 
 
@@ -537,7 +537,7 @@ def pop_expenses(
     )
     prices = economy._validate_goods_vector(state.market_prices, "state.market_prices")
     selected = _prepare_goods_buy_packages(economy, state, wealth, goods_buy_packages)
-    return _pop_expenses_at_prices(occupied, inverse, scales, selected, prices)
+    return _pop_expenses_from_arrays(occupied, inverse, scales, selected, prices)
 
 
 def _prepared_consumption(

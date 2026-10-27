@@ -89,7 +89,7 @@ def pop_income(economy: Economy, state: EconomyState) -> np.ndarray:
         earnings do not reduce building surplus or increase production GDP.
     """
     economy._validate_goods_vector(state.market_prices, "state.market_prices")
-    return economy._pop_income_at_prices(
+    return economy._pop_income_from_arrays(
         state.context, state.market_prices, economy._prepare_pop_income(state.context)
     )
 
@@ -126,7 +126,7 @@ def _prepare_pop_income(
     return _PopIncomeCoefficients(shares, totals, dependent_income)
 
 
-def _pop_income_at_prices(
+def _pop_income_from_arrays(
     economy: Economy,
     context: EconomyContext,
     prices: np.ndarray,

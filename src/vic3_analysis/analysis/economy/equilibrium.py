@@ -16,8 +16,8 @@ from vic3_analysis.analysis.economy._utils import (
 )
 from vic3_analysis.analysis.economy.consumption import (
     _group_pop_consumption,
-    _pop_demand_from_baskets,
-    _pop_expenses_at_prices,
+    _pop_buy_orders_from_arrays,
+    _pop_expenses_from_arrays,
 )
 from vic3_analysis.analysis.economy.states import (
     EconomyContext,
@@ -139,7 +139,7 @@ def _evaluate_prepared_wealth(
     selected = economy._select_goods_buy_packages(packages, used_wealth)
     with np.errstate(over="ignore", invalid="ignore"):
         demand = _validate_nonnegative_values(
-            _pop_demand_from_baskets(selected, inverse, cell_scales),
+            _pop_buy_orders_from_arrays(selected, inverse, cell_scales),
             "calculated pop_buy_orders",
         )
         prices = economy._validate_goods_vector(
@@ -148,8 +148,8 @@ def _evaluate_prepared_wealth(
             ),
             "calculated market_prices",
         )
-        income = economy._pop_income_at_prices(context, prices, income_coefficients)
-        expenses = _pop_expenses_at_prices(
+        income = economy._pop_income_from_arrays(context, prices, income_coefficients)
+        expenses = _pop_expenses_from_arrays(
             occupied, inverse, cell_scales, selected, prices
         )
         balance = income - expenses

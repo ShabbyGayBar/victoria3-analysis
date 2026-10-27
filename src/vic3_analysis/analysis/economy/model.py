@@ -720,14 +720,14 @@ class Economy:
         """Compile price-independent cooperative shares and dependent earnings once."""
         return _income._prepare_pop_income(self, context)
 
-    def _pop_income_at_prices(
+    def _pop_income_from_arrays(
         self,
         context: EconomyContext,
         prices: np.ndarray,
         coefficients: _PopIncomeCoefficients,
     ) -> np.ndarray:
         """Allocate changing surplus using fixed income coefficients."""
-        return _income._pop_income_at_prices(self, context, prices, coefficients)
+        return _income._pop_income_from_arrays(self, context, prices, coefficients)
 
     @cached_property
     def employment_vector(self) -> np.ndarray:
