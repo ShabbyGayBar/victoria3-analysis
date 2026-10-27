@@ -1,6 +1,6 @@
 ---
 title: Economy reports
-description: Building, market, population, and Japan optimization report columns.
+description: Building, market, population, and optimization report columns.
 ---
 
 # Economy reports
@@ -8,7 +8,7 @@ description: Building, market, population, and Japan optimization report columns
 These reports export a supplied `EconomyState`; they do not solve a new
 scenario. Totals include the entire modeled economy. Monetary values use its
 state prices, which are base prices in nominal mode and national market prices
-in market mode. See [shared conventions](index.md).
+in market and equilibrium modes. See [shared conventions](index.md).
 
 ## Snapshot ownership
 
@@ -202,6 +202,46 @@ wealth and the workforce ratio is
 uniform, `state.average_wealth` equals total wealth divided by total population
 and supplies `state.wealth_distribution["mean"]`. Both return zero for an empty
 population.
+
+## Equilibrium optimization summary
+
+`examples/optimize_equilibrium.py` writes one row to
+`artifacts/analyses/optimization/equilibrium/summary.csv` for the best feasible,
+verified state found by its GDP search. A budget-limited search saves that state
+with an unsuccessful search status. Errors before a verified result propagate
+without writing new files. The companion `buildings.csv` uses the
+[building registry](#building-registry) schema above.
+
+| Column | Type / unit | Meaning / calculation | Presence / edge cases |
+| --- | --- | --- | --- |
+| `objective` | String / category | Scenario objective, `gdp`. | Maximized at equilibrium prices. |
+| `employment_cap` | Integer / workers | Upper bound on employed workers, 1,000,000. | Does not require full employment. |
+| `workforce_ratio` | Float / fraction | Workers divided by total population, 0.4. | Shared uniformly across households. |
+| `banned_building_groups` | String / identifiers | Semicolon-separated `DEFAULT_BANNED_BGS`. | Excluded configurations have zero levels. |
+| `min_net_infrastructure_usage` | Float / infrastructure units | Scenario lower bound on net usage, zero. | Uses the existing net-usage convention. |
+| `default_min_goods_output` | Float or empty / weekly goods units | Default minimum net domestic output. | Empty means `None`, leaving unspecified goods unconstrained. |
+| `throughput_multiplier` | Float / multiplier | Common fixed multiplier, 1.0. | No throughput bonus. |
+| `economy_of_scale_level_cap` | Float / building levels | Economy-of-scale cap, zero. | Level-dependent bonuses are disabled. |
+| `max_evaluations` | Integer / trials | Requested hard optimizer budget. | Baseline evaluation and final verification are additional solves. |
+| `initial_gdp_weekly` | Float / £ per week | GDP at the initial, uniformly scaled allowed mix after household equilibrium. | Uses the same scenario and wealth seed as search trials. |
+| `initial_annual_gdp` | Float / £ per year | `52 * initial_gdp_weekly`. | Baseline for comparison with the final state. |
+| `gdp_weekly` | Float / £ per week | Returned state's equilibrium GDP. | Best verified value found during search. |
+| `annual_gdp` | Float / £ per year | `52 * gdp_weekly`. | Includes all modeled production. |
+| `employment` | Float / workers | Returned state's total employed workers. | At most the cap within solver tolerance. |
+| `population` | Float / people | `employment / workforce_ratio`. | Includes dependents. |
+| `gdp_per_capita` | Float / £ per person per year | Annual GDP divided by total population. | Zero for an empty population. |
+| `average_wealth` | Float / wealth tier | Population-weighted household wealth tier. | Equal to employment-weighted wealth with a uniform workforce ratio. |
+| `net_infrastructure_usage` | Float / infrastructure units | Levels dotted with the model infrastructure vector. | Satisfies the configured floor within solver tolerance. |
+| `search_success` | Boolean | Optimizer search success flag. | Can be false for a saved, converged household equilibrium. |
+| `search_status` | Integer / code | Optimizer termination code. | Interpret together with `search_message`. |
+| `search_message` | String / diagnostic text | Search termination message. | Explicitly reports budget exhaustion. |
+| `trial_evaluations` | Integer / trials | Optimizer `result.nfev`. | Includes rejected physical trials; consecutive repeated points reuse a score. |
+| `equilibrium_evaluations` | Integer / inner attempts | Household solves attempted by the search. | Excludes the separate baseline and final verification. |
+| `failed_equilibrium_evaluations` | Integer / inner failures | Sum of trial equilibrium failures across diagnostic statuses. | Failed trials are skipped while search continues. |
+| `equilibrium_status` | String / category | Household solver status for the returned state. | Always `converged` in a saved result. |
+| `equilibrium_iterations` | Integer / transitions | Household transition steps in the fresh final solve. | Initialization and final accounting verification are excluded. |
+| `loss_buildings_count` | Integer / configurations | Number of materially loss-making configurations. | A financial flag, without implicit financing. |
+| `unaffordable_floor_cells_count` | Integer / household cells | Number of configuration/profession cells unable to afford the lowest tier. | A financial flag that does not prevent numerical convergence. |
 
 ## Japan optimization comparison
 

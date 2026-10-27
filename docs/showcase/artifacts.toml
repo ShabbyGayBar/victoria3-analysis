@@ -73,6 +73,14 @@ page = "showcase/resource-limited-optimization.md"
 artifacts = ["artifacts/analyses/optimization/japan/employment_sweep.csv"]
 
 [[collection]]
+script = "examples/optimize_equilibrium.py"
+page = "showcase/equilibrium-optimization.md"
+artifacts = [
+    "artifacts/analyses/optimization/equilibrium/summary.csv",
+    "artifacts/analyses/optimization/equilibrium/buildings.csv",
+]
+
+[[collection]]
 script = "examples/buy_packages.py"
 page = "guides/economy.md"
 artifacts = ["artifacts/analyses/buy_packages/default.csv"]

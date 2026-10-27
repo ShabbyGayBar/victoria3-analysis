@@ -48,6 +48,13 @@ script that regenerates the result.
 
     [:octicons-arrow-right-24: Explore resource limits](resource-limited-optimization.md)
 
+-   :material-account-group: **Equilibrium optimization**
+
+    Search GDP with up to one million workers, a 40% workforce ratio,
+    endogenous household demand, and no throughput bonuses.
+
+    [:octicons-arrow-right-24: Explore equilibrium results](equilibrium-optimization.md)
+
 </div>
 
 !!! info "Reproducible snapshots"

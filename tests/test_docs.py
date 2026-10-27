@@ -320,6 +320,16 @@ def test_dictionary_covers_analytical_csv_headers() -> None:
             "economy.md",
             ("Japan optimization comparison",),
         ),
+        (
+            "analyses/optimization/equilibrium/summary.csv",
+            "economy.md",
+            ("Equilibrium optimization summary",),
+        ),
+        (
+            "analyses/optimization/equilibrium/buildings.csv",
+            "economy.md",
+            ("Building registry",),
+        ),
     ):
         entries = (
             set().union(*(_dictionary_columns(page, section) for section in sections))

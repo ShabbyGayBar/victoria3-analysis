@@ -26,6 +26,7 @@ PRODUCTION_DIR = DATASETS_DIR / "production"
 ANALYSES_DIR = _artifact_directory("analyses")
 SUPPLY_CHAINS_DIR = ANALYSES_DIR / "supply_chains"
 JAPAN_DIR = ANALYSES_DIR / "optimization" / "japan"
+EQUILIBRIUM_DIR = ANALYSES_DIR / "optimization" / "equilibrium"
 
 DEFAULT_BANNED_BGS = (
     "bg_gold_fields",

@@ -140,6 +140,9 @@ state = MarketOptimizer(economy).solve(scenario)
 
 ## Equilibrium optimization
 
+For a runnable example and saved building levels, see the
+[million-worker GDP search](../showcase/equilibrium-optimization.md).
+
 `EquilibriumOptimizer` chooses building levels while the existing
 [household equilibrium solver](economy.md#solving-equilibrium) determines
 wealth, consumption, prices, and finances. It supports `gdp`,

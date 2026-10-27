@@ -199,6 +199,7 @@ no previously generated tables.
 | `production_analysis.py` | `datasets/production/production_table.csv` |
 | `buy_packages.py` | `analyses/buy_packages/default.csv`: goods packages per 10,000 standard workers at every wealth tier, using a state with zero building levels |
 | `optimize_jap.py` | `analyses/optimization/japan/employment_sweep.csv` |
+| `optimize_equilibrium.py` | `analyses/optimization/equilibrium/summary.csv` and `buildings.csv`: best verified GDP found under a one-million-worker cap and 40% workforce ratio; optional `--max-evaluations` controls the search budget |
 | `supply_chain_compare.py` | `analyses/supply_chains/<configuration>/<good>/` reports, plots, and diagrams; each configuration's `summary.csv`; combined `comparison/summary.csv` with `pop.svg`, `construction_points.svg`, and `gdp_per_capita.svg` grouped by good and configuration |
 | `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun_video/summary.csv`, containing all goods and variants |
 
