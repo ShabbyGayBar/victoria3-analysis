@@ -4,6 +4,7 @@
 """Search equilibrium GDP with up to one million workers and a 40% workforce."""
 
 import argparse
+import logging
 
 import numpy as np
 import pandas as pd
@@ -28,11 +29,14 @@ else:
 from vic3_analysis import Economy, EconomyState, EquilibriumOptimizer, Scenario
 
 
-def run(max_evaluations: int = 20_000) -> tuple[Economy, EconomyState]:
+def run(
+    max_evaluations: int = 20_000, *, log_every: int = 100
+) -> tuple[Economy, EconomyState]:
     """Optimize, export the verified result, and return its model and state.
 
     A budget-limited search still writes its best verified equilibrium. Model
     errors and searches without a feasible converged state propagate to callers.
+    Callers configure logging; this function does not install handlers.
     """
     economy = Economy(
         df_production=pd.read_csv(PRODUCTION_DIR / "production_table.csv"),
@@ -67,7 +71,7 @@ def run(max_evaluations: int = 20_000) -> tuple[Economy, EconomyState]:
     # Fixed multipliers are all 1.0; level-dependent economy of scale is also
     # disabled by the optimizer. No trade, resource, land, or era caps are added.
     state = optimizer.solve_problem(
-        problem, x0=levels, options={"maxiter": max_evaluations}
+        problem, x0=levels, options={"maxiter": max_evaluations}, log_every=log_every
     )
     result = optimizer.result
     diagnostics = state.equilibrium_diagnostics
@@ -139,10 +143,28 @@ def main() -> None:
         default=20_000,
         help="Hard trial-evaluation budget (default: 20000).",
     )
+    parser.add_argument(
+        "--log-every",
+        type=int,
+        default=100,
+        help="Emit an INFO progress summary every N trials (default: 100).",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=("WARNING", "INFO", "DEBUG"),
+        default="INFO",
+        help="Progress verbosity; DEBUG includes individual trials (default: INFO).",
+    )
     args = parser.parse_args()
     if args.max_evaluations <= 0:
         parser.error("--max-evaluations must be positive")
-    run(args.max_evaluations)
+    if args.log_every <= 0:
+        parser.error("--log-every must be positive")
+    logging.basicConfig(
+        level=args.log_level,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+    run(args.max_evaluations, log_every=args.log_every)
 
 
 if __name__ == "__main__":

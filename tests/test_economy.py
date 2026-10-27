@@ -3592,6 +3592,55 @@ def test_equilibrium_known_solution_and_iteration_boundary(
     assert new_households is result.households
 
 
+def test_equilibrium_debug_lifecycle(
+    equilibrium_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
+    result = equilibrium_economy.solve(np.ones(1), method="equilibrium")
+    diagnostics = result.equilibrium_diagnostics
+    assert diagnostics is not None
+    assert len(caplog.records) == 2
+    assert "Equilibrium solver started:" in caplog.records[0].message
+    final = caplog.records[-1].message
+    assert "Equilibrium solver finished: status=converged" in final
+    assert f"inner_iterations={diagnostics.iterations}" in final
+    assert f"loss_buildings={len(diagnostics.loss_buildings)}" in final
+    assert "elapsed_s=" in final
+
+
+@pytest.mark.parametrize(("budget", "status"), [(1, "max_iterations"), (10, "cycle")])
+def test_equilibrium_debug_failure_summary(
+    cycling_economy: Economy, budget: int, status: str, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
+    with pytest.raises(EquilibriumError) as caught:
+        cycling_economy.solve(
+            np.ones(1),
+            method="equilibrium",
+            goods_trade_flow=np.array([-2.5, 1.0]),
+            max_iterations=budget,
+        )
+    assert len(caplog.records) == 2
+    final = caplog.records[-1].message
+    assert f"Equilibrium solver failed: status={status}" in final
+    assert f"inner_iterations={caught.value.diagnostics.iterations}" in final
+    assert f"cycle_length={caught.value.diagnostics.cycle_length}" in final
+
+
+def test_equilibrium_debug_setup_error_preserves_exception(
+    equilibrium_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
+    with pytest.raises(ValueError, match="shape"):
+        equilibrium_economy.solve(
+            np.ones(1),
+            method="equilibrium",
+            initial_wealth=np.ones((2, 2)),
+        )
+    assert "Equilibrium solver failed: status=ValueError" in caplog.records[-1].message
+    assert "inner_iterations=n/a" in caplog.records[-1].message
+
+
 def test_equilibrium_default_wealth_and_legacy_modes(equilibrium_economy: Economy):
     result = equilibrium_economy.solve(np.ones(1), method="equilibrium")
     np.testing.assert_array_equal(result.pop_wealth, [[2, 999]])

@@ -235,6 +235,68 @@ state is found, solving raises `ValueError` with these diagnostics still
 available on `.result`. A failure during final verification propagates and
 marks the retained result unsuccessful.
 
+### Live progress logging
+
+The library uses standard Python module loggers and leaves handler configuration
+to the caller. Calls remain quiet under Python's default logging levels. Enable
+INFO summaries and choose a positive trial interval with `log_every` on either
+`solve()` or `solve_problem()`:
+
+```python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+state = optimizer.solve_problem(
+    problem, log_every=100, options={"maxiter": 20_000}
+)
+```
+
+The logger `vic3_analysis.optimize.equilibrium` reports start, completed
+preflight and warm start, initialization, periodic progress, search termination,
+verification, and completion. Periodic summaries appear every `log_every`
+uncached trials; lifecycle and terminal messages appear regardless of that
+interval. COBYLA initialization can consume many trials before its first
+trust-region iteration. `phase=initialization` distinguishes this stage from
+`phase=search`, which begins when COBYLA reports a trust-region step.
+
+Progress messages contain these scalar fields:
+
+| Field | Meaning |
+| --- | --- |
+| `phase`, `status`, `message` | Current stage, run/termination status, and explanatory text. The search stop is logged before fresh verification. |
+| `trials`, `elapsed_s` | Uncached trials used versus the hard budget, and elapsed monotonic seconds since optimizer start. Time includes preflight and verification; trial counts exclude final verification. |
+| `objective`, `units`, `current`, `best` | Actual maximizing metric for the latest converged trial and best feasible converged trial. Units are `GBP/week`, `GBP/person/week`, or `wealth_tier`. `n/a` means no corresponding value is available. These values are unscaled and do not use the internal minimizing transform. |
+| `current_feasible` | Whether the latest converged trial satisfies scenario constraints. Physical rejections report `False`; unverified equilibrium failures report `None`. A current metric can exceed the best when the current trial is infeasible. |
+| `feasible_trials`, `infeasible_trials` | Counts of converged trial evaluations satisfying or violating the scenario, respectively. Repeated points do not count again. |
+| `physical_rejections`, `equilibrium_evaluations` | Physically invalid trials rejected before an inner solve, and inner solve attempts. |
+| `failures` | Counts of skipped equilibrium errors by solver status. Each skipped error remains separate from converged infeasible points. |
+| `last_equilibrium`, `last_inner_iterations` | Latest trial's household outcome and completed wealth-transition count, or `None` when unavailable. This inner count is separate from optimizer trials. |
+
+DEBUG adds individual uncached trial outcomes and new-incumbent messages.
+The solver logger `vic3_analysis.analysis.economy.equilibrium` emits DEBUG
+start, completion, and failure summaries, including completed transitions,
+cycle information on failure, and financial-flag counts on success. It does
+not emit per-transition or household-level traces. Enable that logger
+independently when using `Economy.solve(..., method="equilibrium")` directly:
+
+```python
+logging.getLogger("vic3_analysis.analysis.economy.equilibrium").setLevel(logging.DEBUG)
+```
+
+The final optimizer message distinguishes `status=budget_exhausted` from
+`household_equilibrium=converged`. If verification or another computation fails,
+it logs the failing phase with `status=failed` and preserves the original
+exception. No progress history is retained. Reporting controls are runtime
+arguments rather than scenario or compiled-problem data; they do not affect
+the numerical stopping rules, returned metrics, or evaluation budget. Native
+COBYLA `options["disp"]` remains available independently.
+
+To save package logs, configure a file handler or pass `filename` and
+`encoding="utf-8"` to `logging.basicConfig()` in the calling application.
+
 ## State-region limits
 
 ```python

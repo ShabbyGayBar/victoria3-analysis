@@ -588,6 +588,13 @@ cycle or exhausted budget does not prove that no equilibrium exists.
 Nominal and market modes retain their existing behavior and leave equilibrium
 diagnostics as `None`; equilibrium controls are ignored in those modes.
 
+For concise live diagnostics, enable the standard logger
+`vic3_analysis.analysis.economy.equilibrium` at DEBUG. It reports solver start,
+completed wealth transitions, elapsed seconds, success/failure status, cycle
+information on failure, and financial-flag counts on success. It emits lifecycle
+summaries rather than a per-transition trace. Library code does not configure
+handlers; see [logging configuration and optimizer progress](optimization.md#live-progress-logging).
+
 ### Exporting standard packages
 
 To export packages for an economy with no buildings, run

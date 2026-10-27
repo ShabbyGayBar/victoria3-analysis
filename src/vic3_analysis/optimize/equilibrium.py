@@ -3,8 +3,10 @@
 
 """Deterministic building-level search with endogenous household equilibrium."""
 
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from time import perf_counter
 
 import numpy as np
 import scipy.optimize as opt
@@ -16,6 +18,13 @@ from vic3_analysis.analysis.economy.equilibrium import (
 )
 from vic3_analysis.optimize.base import BaseOptimizer, LinearProblem, _CompiledProblem
 from vic3_analysis.optimize.scenario import Scenario
+
+_LOGGER = logging.getLogger(__name__)
+_OBJECTIVE_UNITS = {
+    "gdp": "GBP/week",
+    "gdp_per_capita": "GBP/person/week",
+    "average_wealth": "wealth_tier",
+}
 
 
 def _metric(state: EconomyState, objective: str) -> float:
@@ -115,6 +124,58 @@ class _Search:
     scale: float | None = None
     last_levels: np.ndarray | None = None
     last_value: float = np.pi
+    log_every: int = 100
+    phase: str = "initialization"
+    started_at: float = field(default_factory=perf_counter)
+    feasible_trials: int = 0
+    infeasible_trials: int = 0
+    current_metric: float | None = None
+    current_feasible: bool | None = None
+    last_equilibrium: str = "not_started"
+    last_inner_iterations: int | None = None
+
+    def report(
+        self,
+        event: str,
+        *,
+        level: int = logging.INFO,
+        status: str = "running",
+        message: str = "-",
+    ) -> None:
+        """Log scalar progress without snapshots, histories, or transformed scores."""
+        if not _LOGGER.isEnabledFor(level):
+            return
+        current = (
+            "n/a" if self.current_metric is None else f"{self.current_metric:.12g}"
+        )
+        best = "n/a" if self.best is None else f"{-self.best_value:.12g}"
+        _LOGGER.log(
+            level,
+            "Equilibrium optimizer %s: phase=%s trials=%d/%d elapsed_s=%.3f "
+            "objective=%s units=%s current=%s best=%s current_feasible=%s "
+            "feasible_trials=%d infeasible_trials=%d physical_rejections=%d "
+            "equilibrium_evaluations=%d failures=%s last_equilibrium=%s "
+            "last_inner_iterations=%s status=%s message=%s",
+            event,
+            self.phase,
+            self.nfev,
+            self.budget,
+            perf_counter() - self.started_at,
+            self.problem.scenario.objective,
+            _OBJECTIVE_UNITS[self.problem.scenario.objective],
+            current,
+            best,
+            self.current_feasible,
+            self.feasible_trials,
+            self.infeasible_trials,
+            self.nfev - self.equilibrium_evaluations,
+            self.equilibrium_evaluations,
+            dict(sorted(self.failures.items())),
+            self.last_equilibrium,
+            self.last_inner_iterations,
+            status,
+            message,
+        )
 
     def trial(self, levels: np.ndarray) -> float:
         """Score a trial; rejected points have a finite, strictly worse penalty."""
@@ -125,7 +186,25 @@ class _Search:
         self.nfev += 1
         self.last_levels = levels.copy()
         self.last_value = float(np.pi)
+        self.current_metric = None
+        self.current_feasible = None
+        self.last_inner_iterations = None
+        self.last_equilibrium = "evaluating"
+        try:
+            return self._evaluate_trial(levels)
+        except Exception as error:
+            self.last_equilibrium = type(error).__name__
+            raise
+        finally:
+            self.report("trial", level=logging.DEBUG, status=self.last_equilibrium)
+            if self.nfev % self.log_every == 0:
+                self.report("progress")
+
+    def _evaluate_trial(self, levels: np.ndarray) -> float:
+        """Evaluate and classify one uncached trial without changing its score."""
         if not np.isfinite(levels).all() or (levels < 0).any():
+            self.current_feasible = False
+            self.last_equilibrium = "invalid_levels"
             return self.last_value
         self.equilibrium_evaluations += 1
         try:
@@ -134,16 +213,29 @@ class _Search:
             status = error.diagnostics.status
             self.failures[status] = self.failures.get(status, 0) + 1
             self.last_error = error
+            self.last_equilibrium = status
+            self.last_inner_iterations = error.diagnostics.iterations
             return self.last_value
         value = -_metric(state, self.problem.scenario.objective)
+        self.current_metric = -value
+        self.current_feasible = _is_feasible(self.problem, levels)
+        self.last_equilibrium = "converged"
+        diagnostics = state.equilibrium_diagnostics
+        if diagnostics is not None:
+            self.last_inner_iterations = diagnostics.iterations
+        if self.current_feasible:
+            self.feasible_trials += 1
+        else:
+            self.infeasible_trials += 1
         if self.scale is None:
             self.scale = max(1.0, abs(value))
         # A monotone bounded transform keeps every valid metric below the
         # failure penalty, even with negative GDP or widely different units.
         self.last_value = float(np.arctan(value / self.scale))
-        if value < self.best_value and _is_feasible(self.problem, levels):
+        if value < self.best_value and self.current_feasible:
             self.best = state
             self.best_value = value
+            self.report("new_incumbent", level=logging.DEBUG)
         return self.last_value
 
 
@@ -244,6 +336,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         *,
         x0: np.ndarray | None = None,
         options: Mapping[str, object] | None = None,
+        log_every: int = 100,
         initial_wealth: np.ndarray | None = None,
         max_iterations: int = 1000,
         rtol: float = 1e-9,
@@ -254,6 +347,8 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         ``options`` accepts COBYLA's ``rhobeg``, ``tol``, ``catol``, ``disp``,
         and ``f_target`` plus a hard ``maxiter`` trial limit (default 20,000).
         ``max_iterations`` separately limits each household equilibrium solve.
+        ``log_every`` sets the trial interval for INFO progress summaries when
+        this module's logger is enabled; it must be a positive integer.
         See ``solve_problem`` for search termination and failure diagnostics.
         """
         problem = self.compile(
@@ -263,7 +358,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             rtol=rtol,
             atol=atol,
         )
-        return self.solve_problem(problem, x0=x0, options=options)
+        return self.solve_problem(problem, x0=x0, options=options, log_every=log_every)
 
     def solve_problem(
         self,
@@ -271,6 +366,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         *,
         x0: np.ndarray | None = None,
         options: Mapping[str, object] | None = None,
+        log_every: int = 100,
     ) -> EconomyState:
         """Search a compiled problem over a bounded, feasible linear region.
 
@@ -285,6 +381,12 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         ``equilibrium_failures`` counts failures by status and
         ``last_equilibrium_error`` retains the last failed inner solve.
 
+        Enable ``vic3_analysis.optimize.equilibrium`` at INFO for lifecycle
+        events and summaries every ``log_every`` trials (default 100, positive
+        integer). DEBUG additionally reports uncached trials and incumbents.
+        Logging uses actual maximizing metrics in explicit units, independently
+        of native COBYLA ``disp``. Library code never configures log handlers.
+
         Raises:
             ValueError: For invalid inputs, infeasible/unbounded regions, or no
                 feasible converged equilibrium (with diagnostics on ``result``).
@@ -292,7 +394,32 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         """
         self._bind_problem(problem)
         solver_options, budget = _options(options)
+        if (
+            isinstance(log_every, (bool, np.bool_))
+            or not isinstance(log_every, (int, np.integer))
+            or log_every <= 0
+        ):
+            raise ValueError("log_every must be a positive integer.")
+        search = _Search(problem, budget, log_every=int(log_every), phase="preflight")
+        search.report("started")
+        try:
+            return self._solve_problem(problem, x0, solver_options, search)
+        except Exception as error:
+            search.report("finished", status="failed", message=str(error))
+            raise
+
+    def _solve_problem(
+        self,
+        problem: EquilibriumProblem,
+        x0: np.ndarray | None,
+        solver_options: dict[str, object],
+        search: _Search,
+    ) -> EconomyState:
+        """Run the numerical search while retaining reporting state on failures."""
+        budget = search.budget
         self._check_feasibility_and_boundedness(problem.warm_start, label="Equilibrium")
+        search.report("preflight_complete")
+        search.phase = "warm_start"
         if x0 is None:
             warm = opt.linprog(
                 **problem.warm_start.linprog_args(),
@@ -302,6 +429,9 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             if not warm.success:
                 raise ValueError(f"Nominal warm-start failed: {warm.message}")
             x0 = np.asarray(warm.x, dtype=np.float64)
+            seed = "nominal_GDP_LP"
+        else:
+            seed = "provided"
         initial = self._validate_initial_point(
             x0,
             problem.A_ub,
@@ -311,10 +441,14 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             problem.bounds,
             len(problem.bounds),
         )
+        search.report("warm_start_complete", message=f"seed={seed}")
         free = np.array([upper != 0 for _lower, upper in problem.bounds])
         initial[~free] = 0.0
         scales = np.maximum(1.0, np.abs(initial[free]))
-        search = _Search(problem, budget)
+        search.phase = "initialization"
+        search.report(
+            "initialization_started", message=f"free_configurations={int(free.sum())}"
+        )
         search.trial(initial)
         raw: opt.OptimizeResult | None = None
         exhausted = False
@@ -324,6 +458,11 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
                 levels = np.zeros(len(initial), dtype=np.float64)
                 levels[free] = reduced * scales
                 return search.trial(levels)
+
+            def iteration_complete(intermediate_result: opt.OptimizeResult) -> None:
+                # COBYLA calls this after initialization, at trust-region steps.
+                # It observes progress only; it never evaluates or stops a trial.
+                search.phase = "search"
 
             bounds = [
                 (lower / scale, None if upper is None else upper / scale)
@@ -349,6 +488,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
                     method="COBYLA",
                     bounds=bounds,
                     constraints=_constraints(problem, free, scales),
+                    callback=iteration_complete,
                     options=solver_options,
                 )
                 raw = solved
@@ -372,6 +512,12 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             fun=search.best_value,
         )
         self.result = result
+        status = (
+            "budget_exhausted"
+            if exhausted
+            else ("completed" if result.success else "stopped")
+        )
+        search.report("search_stopped", status=status, message=str(result.message))
         if search.best is None:
             result.success = False
             result.message = (
@@ -380,6 +526,8 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             raise ValueError(result.message) from search.last_error
         # Rebuild baskets and rerun from the original seed, independent of all
         # prior objective calls. A final failure must never return stale success.
+        search.phase = "verification"
+        search.report("verification_started")
         try:
             verified = problem.evaluate(search.best.building_levels)
             if not _is_feasible(problem, verified.building_levels) or not np.isclose(
@@ -394,6 +542,12 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             result.message = "Equilibrium optimizer final verification failed."
             raise
         result.fun = -_metric(verified, problem.scenario.objective)
+        search.phase = "finished"
+        search.report(
+            "finished",
+            status=status,
+            message=f"household_equilibrium=converged; {result.message}",
+        )
         return verified
 
 

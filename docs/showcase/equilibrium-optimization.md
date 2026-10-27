@@ -52,6 +52,26 @@ and regenerate reviewable snapshots:
 uv run python examples/optimize_equilibrium.py --max-evaluations 8
 ```
 
+The CLI enables timestamped INFO progress on stderr by default, with periodic
+summaries every 100 trials. Use a shorter interval for a small-budget run:
+
+```bash
+uv run python -m examples.optimize_equilibrium --max-evaluations 8 --log-every 2
+```
+
+`--log-level DEBUG` adds individual trial outcomes, new incumbents, and concise
+inner-solver start/finish/failure messages. `--log-level WARNING` suppresses
+the progress logs while retaining the printed result summary. `--log-every`
+must be positive. Imported calls to `run(..., log_every=100)` leave logging
+configuration to their caller. Standard logging stream handlers flush each
+record, so progress appears as the search runs; redirect stderr to save it.
+
+Progress reports distinguish initialization from subsequent search, show
+uncached trials used versus budget, current and best unscaled objective values
+in weekly units, scenario feasibility, inner-solver iteration counts, failures,
+and elapsed seconds. See the [progress-field reference](../guides/optimization.md#live-progress-logging).
+The CSV schemas and annualization rules are unaffected by logging options.
+
 The budget limits optimizer trials. Evaluation of the initial baseline and
 fresh verification of the returned state are additional equilibrium solves.
 A very small budget can end during search initialization and retain the

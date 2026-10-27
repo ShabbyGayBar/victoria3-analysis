@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -41,6 +43,8 @@ from vic3_analysis.analysis.economy.states import (
 
 if TYPE_CHECKING:
     from vic3_analysis.analysis.economy.model import Economy
+
+_LOGGER = logging.getLogger(__name__)
 
 # common/defines/00_defines.txt: WEALTH_PROGRESS_ACCEPTABLE_DEFICIT / WANTED_BUFFER.
 _WEALTH_DECREASE_THRESHOLD = 0.98
@@ -427,6 +431,62 @@ def _verify_equilibrium(
 
 
 def _solve_equilibrium(
+    economy: Economy,
+    context: EconomyContext,
+    initial_wealth: np.ndarray,
+    *,
+    max_iterations: int,
+    rtol: float,
+    atol: float,
+) -> EconomyState:
+    """Log solver lifecycle summaries without changing iteration or errors."""
+    started_at = perf_counter()
+    _LOGGER.debug("Equilibrium solver started: max_iterations=%d", max_iterations)
+    try:
+        state = _iterate_equilibrium(
+            economy,
+            context,
+            initial_wealth,
+            max_iterations=max_iterations,
+            rtol=rtol,
+            atol=atol,
+        )
+    except EquilibriumError as error:
+        _LOGGER.debug(
+            "Equilibrium solver failed: status=%s inner_iterations=%d "
+            "elapsed_s=%.3f cycle_start=%s cycle_length=%s message=%s",
+            error.diagnostics.status,
+            error.diagnostics.iterations,
+            perf_counter() - started_at,
+            error.diagnostics.cycle_start,
+            error.diagnostics.cycle_length,
+            str(error),
+        )
+        raise
+    except Exception as error:
+        _LOGGER.debug(
+            "Equilibrium solver failed: status=%s inner_iterations=n/a "
+            "elapsed_s=%.3f message=%s",
+            type(error).__name__,
+            perf_counter() - started_at,
+            str(error),
+        )
+        raise
+    diagnostics = state.equilibrium_diagnostics
+    assert diagnostics is not None
+    _LOGGER.debug(
+        "Equilibrium solver finished: status=%s inner_iterations=%d "
+        "elapsed_s=%.3f loss_buildings=%d unaffordable_floor_cells=%d",
+        diagnostics.status,
+        diagnostics.iterations,
+        perf_counter() - started_at,
+        len(diagnostics.loss_buildings),
+        len(diagnostics.unaffordable_floor_cells),
+    )
+    return state
+
+
+def _iterate_equilibrium(
     economy: Economy,
     context: EconomyContext,
     initial_wealth: np.ndarray,

@@ -3,6 +3,8 @@
 
 """Equilibrium optimization acceptance tests with independent accounting checks."""
 
+import logging
+import re
 from dataclasses import FrozenInstanceError, replace
 
 import numpy as np
@@ -308,8 +310,9 @@ def _cycling_model(toy_economy: Economy) -> Economy:
     ("iterations", "status"), [(1, "max_iterations"), (10, "cycle")]
 )
 def test_failed_trials_are_counted_and_search_recovers(
-    toy_economy: Economy, iterations: int, status: str
+    toy_economy: Economy, iterations: int, status: str, caplog: pytest.LogCaptureFixture
 ):
+    caplog.set_level(logging.DEBUG, logger="vic3_analysis")
     model = _cycling_model(toy_economy)
     optimizer = EquilibriumOptimizer(model)
     scenario = Scenario(
@@ -323,16 +326,29 @@ def test_failed_trials_are_counted_and_search_recovers(
         x0=np.ones(1),
         max_iterations=iterations,
         options={"maxiter": 50},
+        log_every=1,
     )
     result = optimizer.result
     assert result is not None
     assert result.equilibrium_failures[status] >= 1
     assert isinstance(result.last_equilibrium_error, EquilibriumError)
     assert state.building_levels[0] != 1.0
+    assert any(
+        "optimizer progress:" in record.message and f"'{status}':" in record.message
+        for record in caplog.records
+    )
+    assert any(
+        "Equilibrium solver failed:" in record.message
+        and f"status={status}" in record.message
+        for record in caplog.records
+    )
     _assert_accounting(model, state)
 
 
-def test_no_valid_equilibrium_preserves_failure_diagnostics(toy_economy: Economy):
+def test_no_valid_equilibrium_preserves_failure_diagnostics(
+    toy_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level(logging.INFO, logger="vic3_analysis.optimize.equilibrium")
     optimizer = EquilibriumOptimizer(_cycling_model(toy_economy))
     scenario = Scenario(
         objective="gdp",
@@ -348,6 +364,9 @@ def test_no_valid_equilibrium_preserves_failure_diagnostics(toy_economy: Economy
     assert optimizer.result.nfev == 1
     assert optimizer.result.x is None
     assert optimizer.result.equilibrium_failures == {"cycle": 1}
+    assert "optimizer finished:" in caplog.records[-1].message
+    assert "status=failed" in caplog.records[-1].message
+    assert "No feasible converged equilibrium" in caplog.records[-1].message
 
 
 def test_rejected_trials_and_single_entry_cache(toy_economy: Economy):
@@ -535,8 +554,9 @@ def test_large_starting_levels_are_scaled(toy_economy: Economy):
     "failure", ["different_metric", "infeasible", "equilibrium_error"]
 )
 def test_final_verification_never_returns_stale_success(
-    toy_economy: Economy, failure: str
+    toy_economy: Economy, failure: str, caplog: pytest.LogCaptureFixture
 ):
+    caplog.set_level(logging.INFO, logger="vic3_analysis.optimize.equilibrium")
     calls = [0]
 
     class ChangingEconomy(Economy):
@@ -587,6 +607,8 @@ def test_final_verification_never_returns_stale_success(
         optimizer.result.message == "Equilibrium optimizer final verification failed."
     )
     assert calls[0] == 2
+    assert "phase=verification" in caplog.records[-1].message
+    assert "status=failed" in caplog.records[-1].message
 
 
 def test_nonfinite_objective_is_rejected(toy_economy: Economy):
@@ -598,7 +620,10 @@ def test_nonfinite_objective_is_rejected(toy_economy: Economy):
         _metric(invalid, "gdp")
 
 
-def test_numerical_warm_start_failure_is_reported(toy_economy: Economy, monkeypatch):
+def test_numerical_warm_start_failure_is_reported(
+    toy_economy: Economy, monkeypatch, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level(logging.INFO, logger="vic3_analysis.optimize.equilibrium")
     real_linprog = opt.linprog
     calls = [0]
 
@@ -612,6 +637,9 @@ def test_numerical_warm_start_failure_is_reported(toy_economy: Economy, monkeypa
     with pytest.raises(ValueError, match="Nominal warm-start failed: numerical"):
         EquilibriumOptimizer(toy_economy).solve(_scenario())
     assert calls[0] == 2
+    assert "phase=warm_start" in caplog.records[-1].message
+    assert "status=failed" in caplog.records[-1].message
+    assert "numerical solver failure" in caplog.records[-1].message
 
 
 def test_full_vanilla_table_with_hard_budget(vanilla_economy: Economy):
@@ -636,3 +664,214 @@ def test_full_vanilla_table_with_hard_budget(vanilla_economy: Economy):
     assert optimizer.result.nfev == 2
     assert not optimizer.result.success
     _assert_accounting(vanilla_economy, state)
+
+
+def test_info_progress_lifecycle_and_initialization_budget(
+    toy_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level(logging.INFO, logger="vic3_analysis.optimize.equilibrium")
+    optimizer = EquilibriumOptimizer(toy_economy)
+    state = optimizer.solve(
+        _scenario(), x0=np.array([0.8, 0.1]), options={"maxiter": 2}, log_every=1
+    )
+    messages = [record.message for record in caplog.records]
+    for event in (
+        "started",
+        "preflight_complete",
+        "warm_start_complete",
+        "initialization_started",
+        "search_stopped",
+        "verification_started",
+        "finished",
+    ):
+        assert any(f"optimizer {event}:" in message for message in messages)
+    progress = [message for message in messages if "optimizer progress:" in message]
+    assert len(progress) == 2
+    assert "trials=1/2" in progress[0]
+    assert "trials=2/2" in progress[1]
+    assert all("phase=initialization" in message for message in progress)
+    assert all(
+        "units=GBP/week" in message and "last_inner_iterations=" in message
+        for message in progress
+    )
+    assert "status=budget_exhausted" in messages[-1]
+    assert "household_equilibrium=converged" in messages[-1]
+    assert not any("optimizer trial:" in message for message in messages)
+    assert not any("Equilibrium solver" in message for message in messages)
+    _assert_accounting(toy_economy, state)
+
+
+@pytest.mark.parametrize(
+    ("objective", "units"),
+    [
+        ("gdp", "GBP/week"),
+        ("gdp_per_capita", "GBP/person/week"),
+        ("average_wealth", "wealth_tier"),
+    ],
+)
+def test_progress_uses_actual_metrics_and_units(
+    toy_economy: Economy, objective: str, units: str, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level(logging.INFO, logger="vic3_analysis.optimize.equilibrium")
+    problem = EquilibriumOptimizer(toy_economy).compile(_scenario(objective))
+    levels = np.array([0.9, 0.1])
+    expected = -problem.objective(levels)
+    search = _Search(problem, 5, log_every=1)
+    transformed = search.trial(levels)
+    message = caplog.records[-1].message
+    assert f"objective={objective} units={units}" in message
+    fields = re.search(r"current=(\S+) best=(\S+) current_feasible=True", message)
+    assert fields is not None
+    assert float(fields[1]) == pytest.approx(expected)
+    assert float(fields[2]) == pytest.approx(expected)
+    assert expected != pytest.approx(transformed)
+
+
+def test_progress_frequency_cache_and_rejection_counts(
+    toy_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level(logging.DEBUG, logger="vic3_analysis.optimize.equilibrium")
+    problem = EquilibriumOptimizer(toy_economy).compile(_scenario())
+    search = _Search(problem, 5, log_every=2)
+    search.trial(np.array([-0.1, 0.0]))
+    search.trial(np.array([1.0, 1.0]))
+    search.trial(np.array([1.0, 0.0]))
+    before = len(caplog.records)
+    search.trial(np.array([1.0, 0.0]))
+    assert len(caplog.records) == before
+    progress = [
+        record.message
+        for record in caplog.records
+        if "optimizer progress:" in record.message
+    ]
+    trials = [
+        record.message
+        for record in caplog.records
+        if "optimizer trial:" in record.message
+    ]
+    assert len(progress) == 1
+    assert "trials=2/5" in progress[0]
+    assert "physical_rejections=1" in progress[0]
+    assert "infeasible_trials=1" in progress[0]
+    assert "current_feasible=False" in progress[0]
+    assert "best=n/a" in progress[0]
+    assert len(trials) == 3
+    assert "current=n/a" in trials[0] and "status=invalid_levels" in trials[0]
+    assert "feasible_trials=1" in trials[-1]
+    assert any(
+        "optimizer new_incumbent:" in record.message for record in caplog.records
+    )
+    assert search.nfev == 3
+
+
+def test_all_fixed_and_search_phase_logging(
+    toy_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    caplog.set_level(logging.INFO, logger="vic3_analysis.optimize.equilibrium")
+    optimizer = EquilibriumOptimizer(toy_economy)
+    optimizer.solve(
+        replace(_scenario(), banned_pms=("pm_a", "pm_b")),
+        options={"maxiter": 1},
+        log_every=1,
+    )
+    assert "status=completed" in caplog.records[-1].message
+    assert "trials=1/1" in caplog.records[-1].message
+    assert "best=0" in caplog.records[-1].message
+    assert any("free_configurations=0" in record.message for record in caplog.records)
+    caplog.clear()
+    optimizer.solve(_scenario(), options={"maxiter": 100}, log_every=1)
+    assert any("phase=search" in record.message for record in caplog.records)
+
+
+@pytest.mark.parametrize("log_every", [0, -1, True, 1.5, np.nan])
+def test_invalid_progress_interval(toy_economy: Economy, log_every):
+    optimizer = EquilibriumOptimizer(toy_economy)
+    with pytest.raises(ValueError, match="log_every must be a positive integer"):
+        optimizer.solve(_scenario(), log_every=log_every)
+    problem = optimizer.compile(_scenario())
+    with pytest.raises(ValueError, match="log_every must be a positive integer"):
+        optimizer.solve_problem(problem, log_every=log_every)
+
+
+def test_logging_preserves_numerical_results_and_counts(
+    toy_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    optimizer = EquilibriumOptimizer(toy_economy)
+    start = np.array([0.9, 0.1])
+    caplog.set_level(logging.WARNING, logger="vic3_analysis.optimize.equilibrium")
+    quiet = optimizer.solve(_scenario(), x0=start, options={"maxiter": 100})
+    quiet_result = optimizer.result
+    assert quiet_result is not None
+    assert not caplog.records
+    caplog.set_level(logging.DEBUG, logger="vic3_analysis.optimize.equilibrium")
+    logged = optimizer.solve(
+        _scenario(), x0=start, options={"maxiter": 100}, log_every=1
+    )
+    logged_result = optimizer.result
+    assert logged_result is not None
+    np.testing.assert_array_equal(quiet.building_levels, logged.building_levels)
+    np.testing.assert_array_equal(quiet.pop_wealth, logged.pop_wealth)
+    np.testing.assert_array_equal(quiet.market_prices, logged.market_prices)
+    for name in (
+        "fun",
+        "nfev",
+        "equilibrium_evaluations",
+        "equilibrium_failures",
+        "success",
+        "status",
+        "message",
+    ):
+        assert logged_result[name] == quiet_result[name]
+    assert caplog.records
+
+
+def test_library_does_not_configure_handlers_or_write_console(
+    toy_economy: Economy,
+    caplog: pytest.LogCaptureFixture,
+    capsys: pytest.CaptureFixture[str],
+):
+    caplog.set_level(logging.WARNING, logger="vic3_analysis")
+    root = logging.getLogger()
+    handlers, level = tuple(root.handlers), root.level
+    EquilibriumOptimizer(toy_economy).solve(_scenario(), options={"maxiter": 1})
+    assert tuple(root.handlers) == handlers
+    assert root.level == level
+    assert not caplog.records
+    captured = capsys.readouterr()
+    assert captured.out == captured.err == ""
+
+
+def test_logging_preserves_failure_snapshots_and_exception_chaining(
+    toy_economy: Economy, caplog: pytest.LogCaptureFixture
+):
+    model = _cycling_model(toy_economy)
+    scenario = Scenario(
+        objective="gdp",
+        default_min_goods_output=None,
+        building_level_caps=(("farm_a", 2.0),),
+        goods_trade_flow=(("food", 1.0), ("output", -2.5)),
+    )
+    errors: list[ValueError] = []
+    snapshots: list[EconomyState] = []
+    for level in (logging.WARNING, logging.DEBUG):
+        caplog.set_level(level, logger="vic3_analysis")
+        optimizer = EquilibriumOptimizer(model)
+        with pytest.raises(ValueError, match="No feasible converged") as caught:
+            optimizer.solve(
+                scenario, x0=np.ones(1), options={"maxiter": 1}, log_every=1
+            )
+        errors.append(caught.value)
+        result = optimizer.result
+        assert result is not None
+        assert result.nfev == result.equilibrium_evaluations == 1
+        assert result.equilibrium_failures == {"cycle": 1}
+        cause = caught.value.__cause__
+        assert cause is result.last_equilibrium_error
+        assert isinstance(cause, EquilibriumError)
+        snapshots.append(cause.state)
+    assert str(errors[0]) == str(errors[1])
+    assert snapshots[0].equilibrium_diagnostics == snapshots[1].equilibrium_diagnostics
+    np.testing.assert_array_equal(snapshots[0].pop_wealth, snapshots[1].pop_wealth)
+    np.testing.assert_array_equal(
+        snapshots[0].market_prices, snapshots[1].market_prices
+    )
