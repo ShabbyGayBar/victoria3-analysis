@@ -2503,22 +2503,167 @@ def test_df_buildings(economy):
     levels[1] = 1.0
     state = economy.solve(levels)
     df = economy.df_buildings(state=state)
-    assert list(df.columns) == ["key", "level", "construction_cost"]
+    goods_columns = [f"goods_{good}" for good in economy.goods_index]
+    employment_columns = [
+        f"employment_{profession}" for profession in economy.pop_index
+    ]
+    assert list(df.columns) == [
+        "building",
+        "production_method",
+        "level",
+        "construction_cost",
+        "building_surplus",
+        "profit_per_capita",
+        "employment",
+        *goods_columns,
+        *employment_columns,
+    ]
     assert (df["level"] > 0).all()
     assert len(df) == 2
     assert df["level"].is_monotonic_decreasing
+    positions = df.index.to_numpy()
+    pd.testing.assert_frame_equal(
+        df[["building", "production_method"]].reset_index(drop=True),
+        economy.df_production.iloc[positions][
+            ["building", "production_method"]
+        ].reset_index(drop=True),
+    )
+    np.testing.assert_allclose(df["level"], levels[positions])
+    np.testing.assert_allclose(
+        df["construction_cost"],
+        (economy.construction_cost_vector * levels)[positions],
+    )
+    np.testing.assert_allclose(df[goods_columns], state.building_goods_flow[positions])
+    np.testing.assert_allclose(df[employment_columns], state.pops[positions])
+    np.testing.assert_allclose(df["employment"], df[employment_columns].sum(axis=1))
+    np.testing.assert_allclose(
+        df["building_surplus"], state.building_surplus[positions]
+    )
+    occupied = df["employment"].to_numpy() > 0
+    np.testing.assert_allclose(
+        df["profit_per_capita"].to_numpy()[occupied],
+        df["building_surplus"].to_numpy()[occupied]
+        / df["employment"].to_numpy()[occupied],
+    )
+    assert np.isnan(df["profit_per_capita"].to_numpy()[~occupied]).all()
+
+
+@pytest.mark.parametrize("workforce_ratio", [1.0, 0.25])
+def test_df_buildings_realized_totals(
+    coefficient_economy: Economy, workforce_ratio: float
+):
+    production = coefficient_economy.df_production.copy(deep=True)
+    production["building"] = ["mine", "mine"]
+    production["production_method"] = ["pm_mine+pm_manual", "pm_mine+pm_automated"]
+    production["employment_laborers"] = [7.5, 20.0]
+    production["employment_engineers"] = [2.5, 0.0]
+    production["goods_unused"] = 0.0
+    production.index = pd.Index([23, 7], name="source_row")
+    goods = pd.DataFrame(
+        {"key": ["ore", "unused", "tools"], "cost": [10.0, 30.0, 20.0]}
+    )
+    model = Economy(
+        df_production=production,
+        df_goods=goods,
+        df_pop_types=coefficient_economy.df_pop_types,
+    )
+    state = model.solve(
+        np.array([0.5, 2.0]),
+        throughput_multipliers=np.array([3.0, 2.0]),
+        workforce_ratio=workforce_ratio,
+    )
+    state = replace(
+        state,
+        market=replace(state.market, market_prices=np.array([20.0, 30.0, 5.0])),
+    )
+
+    actual = model.df_buildings(state)
+
     expected = pd.DataFrame(
         {
-            "key": economy.building_index,
-            "level": levels,
-            "construction_cost": economy.construction_cost_vector * levels,
-        }
+            "building": ["mine", "mine"],
+            "production_method": ["pm_mine+pm_automated", "pm_mine+pm_manual"],
+            "level": [2.0, 0.5],
+            "construction_cost": [24.0, 4.0],
+            "building_surplus": [-160.0, 135.0],
+            "profit_per_capita": [-4.0, 27.0],
+            "employment": [40.0, 5.0],
+            "goods_ore": [-12.0, 7.5],
+            "goods_unused": [0.0, 0.0],
+            "goods_tools": [16.0, -3.0],
+            "employment_laborers": [40.0, 3.75],
+            "employment_engineers": [0.0, 1.25],
+        },
+        index=[1, 0],
     )
-    expected = expected[expected["level"] > 0]
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+@pytest.mark.parametrize("surplus", [-10.0, 0.0, 10.0])
+def test_df_buildings_zero_employment(coefficient_economy: Economy, surplus: float):
+    state = coefficient_economy.solve(np.array([1.0, 0.0]))
+    context = replace(
+        state.context,
+        building_goods_flow=np.array([[surplus / 10.0, 0.0], [0.0, 0.0]]),
+        pops=np.zeros((2, 2)),
+    )
+    state = replace(
+        state, context=context, market=replace(state.market, context=context)
+    )
+
+    df = coefficient_economy.df_buildings(state)
+
+    assert len(df) == 1
+    assert df.loc[0, "building_surplus"] == surplus
+    assert df.loc[0, "employment"] == 0
+    assert np.isnan(df["profit_per_capita"].to_numpy()).all()
+
+
+def test_df_buildings_empty_report(coefficient_economy: Economy):
+    state = coefficient_economy.solve(np.zeros(2))
+
+    df = coefficient_economy.df_buildings(state)
+
+    assert df.empty
+    assert list(df.columns) == [
+        "building",
+        "production_method",
+        "level",
+        "construction_cost",
+        "building_surplus",
+        "profit_per_capita",
+        "employment",
+        "goods_ore",
+        "goods_tools",
+        "employment_laborers",
+        "employment_engineers",
+    ]
+    assert all(dtype == np.float64 for dtype in df.dtypes.iloc[2:])
+
+
+def test_df_buildings_is_independent(coefficient_economy: Economy):
+    state = coefficient_economy.solve(np.array([1.0, 2.0]))
+    original_production = coefficient_economy.df_production.copy(deep=True)
+    original_levels = state.building_levels.copy()
+    original_flows = state.building_goods_flow.copy()
+    original_pops = state.pops.copy()
+    original_surplus = state.building_surplus.copy()
+    df = coefficient_economy.df_buildings(state)
+    original_report = df.copy(deep=True)
+
+    df.iloc[:, :2] = "changed"
+    df.iloc[:, 2:] = -999.0
+
     pd.testing.assert_frame_equal(
-        df.sort_values("key").reset_index(drop=True),
-        expected.sort_values("key").reset_index(drop=True),  # pyright: ignore[reportCallIssue]
+        coefficient_economy.df_buildings(state), original_report
     )
+    pd.testing.assert_frame_equal(
+        coefficient_economy.df_production, original_production
+    )
+    np.testing.assert_array_equal(state.building_levels, original_levels)
+    np.testing.assert_array_equal(state.building_goods_flow, original_flows)
+    np.testing.assert_array_equal(state.pops, original_pops)
+    np.testing.assert_array_equal(state.building_surplus, original_surplus)
 
 
 def test_df_market(economy):

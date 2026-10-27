@@ -46,13 +46,37 @@ named `wealth`, and float64 goods-quantity columns in `goods_index` order.
 
 `Economy.df_buildings(state)` returns one row per configuration with level
 strictly greater than zero, sorted by `level` descending. It does not aggregate
-different configurations of the same building type.
+different configurations of the same building type. The returned DataFrame is
+independent and mutable; editing it does not change the economy or state.
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
-| `key` | String / configuration identifier | `building + "+" + production_method` from `Economy.building_index`. | Not just a building-type key; follows production-row identity. |
+| `building` | String / building key | Building key from the aligned production-table row. | Replaces the building portion of the former combined `key` column. |
+| `production_method` | String / PM combination | Complete production-method combination from the aligned production-table row. | Multiple PM keys remain joined by `+`; configurations are not aggregated. |
 | `level` | Float / building levels | Solved level for that configuration. | Fractional levels are allowed; zero/negative levels are filtered out. |
 | `construction_cost` | Float / construction points | Per-level construction coefficient times `level`. | Zero-cost configurations can have positive levels. |
+| `building_surplus` | Float / £ per week | `state.building_surplus`: realized goods value added before wages at state prices. | Negative values are retained. |
+| `profit_per_capita` | Float / £ per worker per week | `building_surplus / employment`. | Excludes dependents regardless of `workforce_ratio`; NaN for zero employment. |
+| `employment` | Float / workers | Row sum of `state.pops`. | Realized total across all professions. |
+| `goods_<good>` | Float / units per week | Aligned column of `state.building_goods_flow`. | Positive outputs, negative inputs; already includes levels and throughput. |
+| `employment_<profession>` | Float / workers | Aligned column of `state.pops`. | Already includes building levels; excludes dependents. |
+
+Columns follow the order above, with all `goods_<good>` columns in
+`Economy.goods_index` order, then all `employment_<profession>` columns in
+`Economy.pop_index` order. Entirely zero columns are retained, including when
+the report has no rows. Building and PM columns use game keys rather than
+localized names; the former combined `key` column is removed.
+
+## Historical building registry
+
+The committed `artifacts/analyses/optimization/equilibrium/buildings.csv`
+uses the earlier three-column schema: `key`, `level`, and `construction_cost`.
+Level and construction cost retain the meanings above. New exports use the
+expanded [building registry](#building-registry) schema.
+
+| Column | Type / unit | Meaning / calculation | Presence / edge cases |
+| --- | --- | --- | --- |
+| `key` | String / configuration identifier | `building + "+" + production_method` from `Economy.building_index`. | Historical snapshot only; current reports provide separate building and PM columns. |
 
 ## State flows and cooperative income
 

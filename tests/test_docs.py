@@ -328,7 +328,7 @@ def test_dictionary_covers_analytical_csv_headers() -> None:
         (
             "analyses/optimization/equilibrium/buildings.csv",
             "economy.md",
-            ("Building registry",),
+            ("Building registry", "Historical building registry"),
         ),
     ):
         entries = (
@@ -387,6 +387,17 @@ def test_dictionary_covers_economy_report_columns() -> None:
             for key in node.keys
             if isinstance(key, ast.Constant) and isinstance(key.value, str)
         }
+        for node in ast.walk(functions[0]):
+            if isinstance(node, ast.DictComp) and isinstance(node.key, ast.JoinedStr):
+                parts: list[str] = []
+                for part in node.key.values:
+                    if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                        parts.append(part.value)
+                    else:
+                        assert isinstance(part, ast.FormattedValue)
+                        assert isinstance(part.value, ast.Name)
+                        parts.append(f"<{part.value.id}>")
+                columns.add("".join(parts))
         assert columns
         assert _dictionary_columns("economy.md", section) == columns
 

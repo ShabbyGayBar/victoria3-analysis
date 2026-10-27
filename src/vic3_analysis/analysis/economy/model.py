@@ -896,9 +896,15 @@ class Economy:
                 `solve`).
 
         Returns:
-            A ``DataFrame`` with columns ``"key"``, ``"level"`` and
-            ``"construction_cost"``, filtered to non-zero levels and sorted by
-            ``"level"`` descending.
+            An independent, mutable ``DataFrame`` with columns ``"building"``,
+            ``"production_method"``, ``"level"``, ``"construction_cost"``,
+            ``"building_surplus"``, ``"profit_per_capita"`` and ``"employment"``,
+            followed by signed ``goods_<good>`` flows in goods-index order and
+            ``employment_<profession>`` counts in pop-index order. Flows and surplus
+            are weekly realized totals; surplus is value added before wages at state
+            prices. Profit per capita divides surplus by employed workers, excluding
+            dependents, and is NaN for zero employment. Rows have strictly positive
+            levels and are sorted by ``"level"`` descending.
         """
         return _reports.df_buildings(self, state)
 
