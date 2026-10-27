@@ -25,17 +25,23 @@ limits, and era restrictions retain their defaults. Household demand is
 endogenous, so no fixed `pop_needs` orders are supplied.
 
 The script loads the production table, goods, professions, population needs,
-and buy packages from the existing artifact datasets. Generate them first:
+and buy packages from the existing artifact datasets. It restricts production
+to the union of active building/production-method configurations in the saved
+`era_5_automation/*/processes.csv` supply-chain reports. Other configurations
+are excluded from both the initial mix and the optimizer's search. Generate
+the datasets and supply-chain reports first:
 
 ```bash
 uv run python -m examples.parse
 uv run python -m examples.production_analysis
+uv run python -m examples.supply_chain_compare
 ```
 
-The initial mix uses equal levels of every allowed configuration, scaled to
-one million workers. With the current datasets it is feasible and supplies a
-broader consumption basket than the nominal GDP LP seed. The optimizer checks
-scenario feasibility before starting its search.
+The initial mix starts with equal levels of every allowed configuration,
+reduces infrastructure suppliers as needed to satisfy the net-usage floor,
+and scales to one million workers. Missing reports, an empty active set, or
+configurations absent from the production table raise an error. The optimizer
+checks scenario feasibility before starting its search.
 
 ## Run the search
 
@@ -105,6 +111,10 @@ keys identify building and production-method combinations in the source table.
 [:material-download: Download `artifacts/analyses/optimization/equilibrium/buildings.csv`](../artifacts/analyses/optimization/equilibrium/buildings.csv)
 · [:fontawesome-brands-github: View `examples/optimize_equilibrium.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/optimize_equilibrium.py)
 
-Each run overwrites these two files. Read the recorded budget and search status
+The script also exports `market.csv`, `pop.csv`, and `goods_buy_packages.csv`
+from the other three `Economy.df_` reports for the same verified state. The
+goods buy-package export preserves the wealth index as a `wealth` column.
+
+Each run overwrites all five CSV files. Read the recorded budget and search status
 when comparing results. See the [optimization guide](../guides/optimization.md#equilibrium-optimization)
 for solver behavior and the [optimization API](../api/optimization.md).

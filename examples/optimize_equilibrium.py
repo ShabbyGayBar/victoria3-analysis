@@ -1,10 +1,11 @@
 # Copyright (C) 2026 Brian Li
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Search equilibrium GDP with up to one million workers and a 40% workforce."""
+"""Search equilibrium GDP using production units from era_5_automation chains."""
 
 import argparse
 import logging
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -16,6 +17,7 @@ if __package__:
         EQUILIBRIUM_DIR,
         PARSED_DIR,
         PRODUCTION_DIR,
+        SUPPLY_CHAINS_DIR,
     )
 else:
     from __init__ import (
@@ -24,9 +26,41 @@ else:
         EQUILIBRIUM_DIR,
         PARSED_DIR,
         PRODUCTION_DIR,
+        SUPPLY_CHAINS_DIR,
     )
 
 from vic3_analysis import Economy, EconomyState, EquilibriumOptimizer, Scenario
+
+
+def load_production_units(production_path: Path, analysis_dir: Path) -> pd.DataFrame:
+    """Keep the union of active configurations in the saved supply-chain reports."""
+    reports = sorted(analysis_dir.glob("*/processes.csv"))
+    if not reports:
+        raise FileNotFoundError(
+            f"No supply-chain process reports found in {analysis_dir}. "
+            "Run `uv run python -m examples.supply_chain_compare` first."
+        )
+    configs: set[str] = set()
+    for path in reports:
+        processes = pd.read_csv(
+            path,
+            usecols=["config", "active"],
+            dtype={"config": str, "active": bool},
+            encoding="utf-8",
+        )
+        configs.update(processes.loc[processes["active"].eq(True), "config"])
+    if not configs:
+        raise ValueError(f"No active production units found in {analysis_dir}.")
+
+    production = pd.read_csv(production_path, encoding="utf-8")
+    keys = production["building"] + "+" + production["production_method"]
+    missing = configs.difference(keys)
+    if missing:
+        raise ValueError(
+            "Supply-chain configurations missing from the production table: "
+            + ", ".join(sorted(missing))
+        )
+    return pd.DataFrame(production.loc[keys.isin(configs)]).reset_index(drop=True)
 
 
 def run(
@@ -39,14 +73,17 @@ def run(
     Callers configure logging; this function does not install handlers.
     """
     economy = Economy(
-        df_production=pd.read_csv(PRODUCTION_DIR / "production_table.csv"),
+        df_production=load_production_units(
+            PRODUCTION_DIR / "production_table.csv",
+            SUPPLY_CHAINS_DIR / "era_5_automation",
+        ),
         df_goods=pd.read_csv(PARSED_DIR / "goods.csv"),
         df_pop_types=pd.read_csv(PARSED_DIR / "pop_types.csv"),
         df_pop_needs=pd.read_csv(PARSED_DIR / "pop_needs.csv"),
         df_buy_packages=pd.read_csv(BUY_PACKAGES_DIR / "buy_packages.csv"),
     )
     scenario = Scenario(
-        objective="gdp",
+        objective="average_wealth",
         employment_cap=1_000_000,
         workforce_ratio=0.4,
         banned_building_groups=DEFAULT_BANNED_BGS,
@@ -58,9 +95,16 @@ def run(
     problem = optimizer.compile(scenario)
 
     # A broad seed supplies consumption goods as well as industrial inputs.
-    # Equal allowed levels are scaled to the worker cap, excluding dependents.
+    # Start with equal allowed levels, reducing infrastructure suppliers if
+    # needed to satisfy the net-usage floor, then scale to the worker cap.
     allowed = ~economy.df_production["building_group"].isin(DEFAULT_BANNED_BGS)
     levels = allowed.to_numpy(dtype=np.float64)
+    infrastructure = economy.infrastructure_vector
+    if float(levels @ infrastructure) < 0:
+        suppliers = infrastructure < 0
+        usage = float(levels[~suppliers] @ infrastructure[~suppliers])
+        supply = -float(levels[suppliers] @ infrastructure[suppliers])
+        levels[suppliers] *= usage / supply
     workers = float(levels @ economy.employment_vector)
     if not np.isfinite(workers) or workers <= 0:
         raise ValueError("The allowed configurations must employ workers.")
@@ -118,19 +162,24 @@ def run(
             }
         ]
     )
+    reports = {
+        "summary": summary,
+        "buildings": economy.df_buildings(state),
+        "market": economy.df_market(state),
+        "pop": economy.df_pop(state),
+        "goods_buy_packages": economy.df_goods_buy_packages(state).reset_index(),
+    }
     EQUILIBRIUM_DIR.mkdir(parents=True, exist_ok=True)
-    summary.to_csv(EQUILIBRIUM_DIR / "summary.csv", index=False, encoding="utf-8")
-    economy.df_buildings(state).to_csv(
-        EQUILIBRIUM_DIR / "buildings.csv", index=False, encoding="utf-8"
-    )
+    for name, report in reports.items():
+        report.to_csv(EQUILIBRIUM_DIR / f"{name}.csv", index=False, encoding="utf-8")
     print(f"Best annual equilibrium GDP found: {state.gdp(annual=True):,.2f}")
     print(
         f"Workers: {state.total_employment:,.2f}; population: {state.total_population:,.2f}"
     )
     print(f"Search success: {result.success}; {result.message}")
     print(f"Household equilibrium: {diagnostics.status}; trials: {result.nfev}")
-    print(f"Saved {EQUILIBRIUM_DIR / 'summary.csv'}")
-    print(f"Saved {EQUILIBRIUM_DIR / 'buildings.csv'}")
+    for name in reports:
+        print(f"Saved {EQUILIBRIUM_DIR / f'{name}.csv'}")
     return economy, state
 
 
