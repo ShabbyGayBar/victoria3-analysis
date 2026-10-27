@@ -201,7 +201,7 @@ def test_market_context_is_propagated_by_nominal_optimizer(
     np.testing.assert_array_equal(state.goods_trade_flow, [trade])
     np.testing.assert_array_equal(state.imports, [max(trade, 0)])
     np.testing.assert_array_equal(state.exports, [max(-trade, 0)])
-    np.testing.assert_array_equal(state.pop_needs, [4.0])
+    np.testing.assert_array_equal(state.pop_buy_orders, [4.0])
     np.testing.assert_array_equal(
         state.sell_orders, state.building_goods_output + max(trade, 0)
     )
@@ -227,7 +227,7 @@ def test_market_context_duplicate_goods_are_summed(
     np.testing.assert_array_equal(state.goods_trade_flow, [3 * direction])
     np.testing.assert_array_equal(state.imports, [max(3 * direction, 0)])
     np.testing.assert_array_equal(state.exports, [max(-3 * direction, 0)])
-    np.testing.assert_array_equal(state.pop_needs, [3.0])
+    np.testing.assert_array_equal(state.pop_buy_orders, [3.0])
 
 
 @pytest.mark.parametrize(

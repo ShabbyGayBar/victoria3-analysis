@@ -385,7 +385,9 @@ class SupplyChainResult:
                 if self.realized_graph.nodes[predecessor].get("kind") == "process"
             )
             sell = float(output[j] + self.state.imports[j])
-            buy = float(inputs[j] + self.state.exports[j] + self.state.pop_needs[j])
+            buy = float(
+                inputs[j] + self.state.exports[j] + self.state.pop_buy_orders[j]
+            )
             rows_out.append(
                 {
                     "good": good,
@@ -395,7 +397,7 @@ class SupplyChainResult:
                     "consumption": float(inputs[j]),
                     "imports": float(self.state.imports[j]),
                     "exports": float(self.state.exports[j]),
-                    "pop_needs": float(self.state.pop_needs[j]),
+                    "pop_needs": float(self.state.pop_buy_orders[j]),
                     "sell_orders": sell,
                     "buy_orders": buy,
                     "net_balance": sell - buy,

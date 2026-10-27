@@ -311,7 +311,7 @@ from dataclasses import replace
 
 state = economy.solve(levels)
 needs = economy.pop_buy_orders(state)
-state_with_needs = replace(state, households=replace(state.households, pop_needs=needs))
+state_with_needs = replace(state, households=replace(state.households, pop_buy_orders=needs))
 # Or explicitly include these orders in a new market-price evaluation:
 market_state = economy.solve(levels, method="market", pop_needs=needs)
 ```
@@ -490,7 +490,7 @@ values are preserved as `int64`. Wealth must match configurations × professions
 every occupied tier needs a basket, including households with zero consumption
 scales. Empty cells may use undefined nonnegative integer tiers.
 
-Total household expenses equal `households.pop_needs @ market.market_prices`
+Total household expenses equal `households.pop_buy_orders @ market.market_prices`
 within floating-point precision. Existing preparation, input validation, and
 income-allocation errors propagate. This evaluates target consumption without
 affordability limits or wealth transitions; nominal and market solve modes

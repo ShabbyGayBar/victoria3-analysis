@@ -119,7 +119,7 @@ def _solve_nominal(
         market=MarketState(context=context, market_prices=economy.base_prices),
         households=PopState(
             pop_wealth=np.broadcast_to(economy.pop_wealth_init, pops.shape),
-            pop_needs=pop_needs,
+            pop_buy_orders=pop_needs,
         ),
     )
 

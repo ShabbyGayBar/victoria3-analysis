@@ -148,7 +148,7 @@ flowchart TD
     BASE["[E] base_prices *"]:::model --> Q
     Q --> QR["[V] df_goods_buy_packages()<br/>DataFrame export"]:::variable
 
-    Q --> NEEDS["[P] pop_needs"]:::household
+    Q --> NEEDS["[P] pop_buy_orders"]:::household
     SC --> NEEDS
     W["[P] pop_wealth"]:::household --> NEEDS
 

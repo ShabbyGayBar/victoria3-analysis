@@ -107,7 +107,7 @@ def df_market(economy: Economy, state: EconomyState) -> pd.DataFrame:
             "building_goods_output": state.building_goods_output,
             "imports": state.imports,
             "exports": state.exports,
-            "pop_needs": state.pop_needs,
+            "pop_needs": state.pop_buy_orders,
         }
     )
     df = df[(df["sell_orders"] > 0) | (df["buy_orders"] > 0)].copy()

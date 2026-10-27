@@ -43,7 +43,7 @@ class _WealthEvaluation:
     """Mutable working arrays; public snapshots freeze copies only when needed."""
 
     pop_wealth: np.ndarray
-    pop_needs: np.ndarray
+    pop_buy_orders: np.ndarray
     market_prices: np.ndarray
     pop_income: np.ndarray
     pop_expenses: np.ndarray
@@ -140,7 +140,7 @@ def _evaluate_prepared_wealth(
     with np.errstate(over="ignore", invalid="ignore"):
         demand = _validate_nonnegative_values(
             _pop_demand_from_baskets(selected, inverse, cell_scales),
-            "calculated pop_needs",
+            "calculated pop_buy_orders",
         )
         prices = economy._validate_goods_vector(
             economy.market_prices(
@@ -166,7 +166,7 @@ def _freeze_wealth(
         MarketState(context, evaluation.market_prices),
         PopState(
             evaluation.pop_wealth,
-            evaluation.pop_needs,
+            evaluation.pop_buy_orders,
             evaluation.pop_income,
             evaluation.pop_expenses,
         ),
@@ -299,7 +299,9 @@ def iterate(
     economy._validate_iteration_context(context)
     wealth = economy._validate_wealth_assignment(context, households.pop_wealth)
     economy._validate_goods_vector(market.market_prices, "market.market_prices")
-    economy._validate_goods_vector(households.pop_needs, "households.pop_needs")
+    economy._validate_goods_vector(
+        households.pop_buy_orders, "households.pop_buy_orders"
+    )
     if households.pop_income is None or households.pop_expenses is None:
         raise ValueError(
             "Evaluated household income and expenses are required; use evaluate_wealth()."
@@ -388,7 +390,7 @@ def _verify_equilibrium(
         evaluation.pop_wealth, needs, prices, income, expenses, balance
     )
     for name in (
-        "pop_needs",
+        "pop_buy_orders",
         "market_prices",
         "pop_income",
         "pop_expenses",

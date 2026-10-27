@@ -446,7 +446,7 @@ def pop_buy_orders(
 
     Returns:
         A fresh writable float64 vector of shape ``(n_goods,)`` aligned
-        to `goods_index`, suitable for ``EconomyState.pop_needs`` or the
+        to `goods_index`, suitable for ``EconomyState.pop_buy_orders`` or the
         ``pop_needs`` argument to `solve`. The state is unchanged.
 
     Raises:
@@ -465,7 +465,7 @@ def pop_buy_orders(
         this model's convention. This is target consumption, without
         weekly adjustment, culture, prestige goods, local-state effects,
         demographic changes, or wealth feedback. Market prices and
-        existing ``state.pop_needs`` do not influence the result.
+        existing ``state.pop_buy_orders`` do not influence the result.
 
     References:
         - ``common/pop_needs/00_pop_needs.txt``: substitution weights,

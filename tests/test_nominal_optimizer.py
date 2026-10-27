@@ -195,7 +195,7 @@ def test_solve_propagates_fixed_market_context(economy: Economy):
     goods = economy.goods_index
     assert state.imports[goods.index("tools")] == pytest.approx(2.0)
     assert state.exports[goods.index("coal")] == pytest.approx(3.0)
-    assert state.pop_needs[goods.index("grain")] == pytest.approx(4.0)
+    assert state.pop_buy_orders[goods.index("grain")] == pytest.approx(4.0)
 
 
 def test_solve_satisfies_building_level_caps(economy: Economy):

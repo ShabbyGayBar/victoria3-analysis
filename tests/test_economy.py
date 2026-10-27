@@ -220,7 +220,7 @@ def _make_state(
     market_prices=None,
     pops=None,
     pop_wealth=None,
-    pop_needs=None,
+    pop_buy_orders=None,
 ) -> EconomyState:
     n = 3
     z = np.zeros(n, dtype=np.float64)
@@ -240,7 +240,7 @@ def _make_state(
         ),
         households=PopState(
             pop_wealth=pop_wealth if pop_wealth is not None else np.zeros((n, n)),
-            pop_needs=pop_needs if pop_needs is not None else z,
+            pop_buy_orders=pop_buy_orders if pop_buy_orders is not None else z,
         ),
     )
 
@@ -255,7 +255,7 @@ def _state_arrays(state: EconomyState) -> dict[str, np.ndarray]:
         "pops",
         "market_prices",
         "pop_wealth",
-        "pop_needs",
+        "pop_buy_orders",
         "pop_income",
         "pop_expenses",
         "consumption_scales",
@@ -322,7 +322,7 @@ def test_state_defensively_copies_and_freezes_input_arrays():
         "market_prices",
         "pops",
         "pop_wealth",
-        "pop_needs",
+        "pop_buy_orders",
     ):
         array = getattr(state, name)
         assert array.dtype == (np.int64 if name == "pop_wealth" else np.float64)
@@ -623,7 +623,7 @@ def test_buy_orders():
     state = _make_state(
         building_goods_flow=np.array([[-3.0, 0.0, -1.0], [0, 0, 0], [0, 0, 0]]),
         goods_trade_flow=np.array([0.0, -2.0, -1.0]),
-        pop_needs=np.array([1.0, 1.0, 1.0]),
+        pop_buy_orders=np.array([1.0, 1.0, 1.0]),
     )
     np.testing.assert_array_equal(state.buy_orders, np.array([4.0, 3.0, 3.0]))
 
@@ -969,7 +969,7 @@ def test_pop_consumption_scales_defaults_and_independence(
             households=replace(
                 consumption_state.households,
                 pop_wealth=np.full((2, 2), 999),
-                pop_needs=np.full(3, np.nan),
+                pop_buy_orders=np.full(3, np.nan),
             ),
         ),
         building_goods_flow=np.full((2, 3), np.nan),
@@ -1238,7 +1238,8 @@ def test_pop_expenses_supplied_baskets_skip_unused_inputs(needs_economy: Economy
     scales = needs_economy.pop_consumption_scales(state)
     changed = _replace_context(
         replace(
-            state, households=replace(state.households, pop_needs=np.full(1, np.nan))
+            state,
+            households=replace(state.households, pop_buy_orders=np.full(1, np.nan)),
         ),
         building_goods_flow=np.full((1, 1), np.nan),
         goods_trade_flow=np.full(1, np.nan),
@@ -1269,7 +1270,7 @@ def test_pop_buy_orders_exact_values_and_snapshot(needs_economy: Economy):
     np.testing.assert_allclose(result, [0.0, 5.0, 2.5])
     assert result.dtype == np.float64
     assert result.flags.owndata and result.flags.writeable
-    assert not np.shares_memory(result, state.pop_needs)
+    assert not np.shares_memory(result, state.pop_buy_orders)
     assert result @ needs_economy.base_prices == pytest.approx(200.0)
     for name, value in original.items():
         np.testing.assert_array_equal(_state_arrays(state)[name], value)
@@ -1322,7 +1323,7 @@ def test_goods_buy_packages_population_and_profession_independence(
             households=replace(
                 state.households,
                 pop_wealth=np.full((2, 2), 999, dtype=np.int64),
-                pop_needs=np.full(3, 999.0),
+                pop_buy_orders=np.full(3, 999.0),
             ),
         ),
         pops=np.zeros((2, 2)),
@@ -1493,7 +1494,7 @@ def test_pop_buy_orders_supplied_packages_skip_unused_inputs(
         replace(
             state,
             market=replace(state.market, market_prices=np.full(3, 999.0)),
-            households=replace(state.households, pop_needs=np.full(3, 999.0)),
+            households=replace(state.households, pop_buy_orders=np.full(3, 999.0)),
         ),
         building_goods_flow=np.array([[np.nan]]),
         goods_trade_flow=np.array([np.nan]),
@@ -1686,7 +1687,7 @@ def test_pop_buy_orders_ignores_prices_and_previous_demand(needs_economy: Econom
     changed = replace(
         state,
         market=replace(state.market, market_prices=100 * state.market_prices),
-        households=replace(state.households, pop_needs=np.full(3, 999.0)),
+        households=replace(state.households, pop_buy_orders=np.full(3, 999.0)),
     )
     np.testing.assert_array_equal(
         needs_economy.pop_buy_orders(changed),
@@ -1990,7 +1991,9 @@ def test_pop_buy_orders_vanilla(economy: Economy):
         replace(
             state,
             market=replace(state.market, market_prices=state.market_prices[::-1]),
-            households=replace(state.households, pop_needs=state.pop_needs[::-1]),
+            households=replace(
+                state.households, pop_buy_orders=state.pop_buy_orders[::-1]
+            ),
         ),
         building_goods_flow=state.building_goods_flow[:, ::-1],
         goods_trade_flow=state.goods_trade_flow[::-1],
@@ -2130,7 +2133,7 @@ def test_solve_nominal(economy):
     assert state.pops.shape == (n_b, n_p)
     assert state.pop_wealth.shape == (n_b, n_p)
     assert state.pop_income is state.pop_expenses is state.pop_balance is None
-    assert state.pop_needs.shape == (n_g,)
+    assert state.pop_buy_orders.shape == (n_g,)
     np.testing.assert_array_equal(state.goods_trade_flow, np.zeros(n_g))
     assert state.imports.shape == (n_g,)
     assert state.exports.shape == (n_g,)
@@ -2141,7 +2144,7 @@ def test_solve_nominal(economy):
     )
     assert np.all(state.imports == 0)
     assert np.all(state.exports == 0)
-    assert np.all(state.pop_needs == 0)
+    assert np.all(state.pop_buy_orders == 0)
     np.testing.assert_allclose(
         state.building_goods_input,
         levels @ economy.goods_input_matrix(),
@@ -2164,10 +2167,10 @@ def test_solve_nominal_pop_needs_and_default(economy: Economy):
     supplied_state = economy.solve(levels, pop_needs=needs)
 
     np.testing.assert_array_equal(
-        default_state.pop_needs, explicit_zero_state.pop_needs
+        default_state.pop_buy_orders, explicit_zero_state.pop_buy_orders
     )
     np.testing.assert_array_equal(default_state.market_prices, economy.base_prices)
-    np.testing.assert_array_equal(supplied_state.pop_needs, needs)
+    np.testing.assert_array_equal(supplied_state.pop_buy_orders, needs)
     np.testing.assert_allclose(
         supplied_state.buy_orders,
         supplied_state.building_goods_input + supplied_state.exports + needs,
@@ -2372,7 +2375,7 @@ def test_solve_market_reuses_flows_and_changes_only_prices(economy: Economy):
     np.testing.assert_allclose(market.pops, nominal.pops)
     np.testing.assert_allclose(market.pop_wealth, nominal.pop_wealth)
     assert market.pop_balance is nominal.pop_balance is None
-    np.testing.assert_allclose(market.pop_needs, nominal.pop_needs)
+    np.testing.assert_allclose(market.pop_buy_orders, nominal.pop_buy_orders)
     np.testing.assert_allclose(
         market.market_prices,
         economy.market_prices(nominal.buy_orders, nominal.sell_orders),
@@ -2743,7 +2746,7 @@ def test_workforce_ratio_consumption_and_reports(needs_economy: Economy, method:
     np.testing.assert_array_equal(
         households.building_goods_flow, workers.building_goods_flow
     )
-    np.testing.assert_array_equal(households.pop_needs, workers.pop_needs)
+    np.testing.assert_array_equal(households.pop_buy_orders, workers.pop_buy_orders)
     assert households.pop_balance is workers.pop_balance is None
     np.testing.assert_array_equal(households.market_prices, workers.market_prices)
     packages = needs_economy.goods_buy_packages(workers)
@@ -3260,7 +3263,7 @@ def test_evaluate_wealth_exact_finances_and_snapshot(
     state = EconomyState(market.context, market, households)
     assert market.context is wealth_context
     np.testing.assert_array_equal(households.pop_wealth, wealth)
-    np.testing.assert_array_equal(households.pop_needs, [0, 6, 3])
+    np.testing.assert_array_equal(households.pop_buy_orders, [0, 6, 3])
     np.testing.assert_allclose(market.market_prices, [10, 215 / 16, 40])
     np.testing.assert_allclose(market.building_surplus, [915 / 4, -435 / 8])
     np.testing.assert_allclose(market.building_deficit, [0, 435 / 8])
@@ -3277,7 +3280,7 @@ def test_evaluate_wealth_exact_finances_and_snapshot(
         households.pop_balance, households.pop_income - households.pop_expenses
     )
     assert households.pop_expenses.sum() == pytest.approx(
-        households.pop_needs @ market.market_prices
+        households.pop_buy_orders @ market.market_prices
     )
     repeated_market, repeated_households = wealth_economy.evaluate_wealth(
         wealth_context, wealth
@@ -3291,7 +3294,7 @@ def test_evaluate_wealth_exact_finances_and_snapshot(
         if name in (
             "market_prices",
             "pop_wealth",
-            "pop_needs",
+            "pop_buy_orders",
             "pop_income",
             "pop_expenses",
         ):
@@ -3350,7 +3353,7 @@ def test_evaluate_wealth_prepares_only_missing_fields(
         )
     assert households.pop_expenses is not None
     assert households.pop_expenses.sum() == pytest.approx(
-        households.pop_needs @ market.market_prices
+        households.pop_buy_orders @ market.market_prices
     )
 
 
@@ -3374,7 +3377,7 @@ def test_evaluate_wealth_zero_consumption_and_empty_population(
     wealth = np.full((2, 2), 999) if empty else np.array([[1, 2], [2, 999]])
     market, households = wealth_economy.evaluate_wealth(context, wealth)
     assert market.context is context
-    np.testing.assert_array_equal(households.pop_needs, np.zeros(3))
+    np.testing.assert_array_equal(households.pop_buy_orders, np.zeros(3))
     np.testing.assert_array_equal(households.pop_expenses, np.zeros((2, 2)))
     if empty:
         np.testing.assert_array_equal(households.pop_income, np.zeros((2, 2)))
@@ -3523,7 +3526,7 @@ def _assert_evaluated_state(model: Economy, state: EconomyState) -> None:
     assert state.pop_income is not None
     assert state.pop_expenses is not None
     assert state.pop_balance is not None
-    np.testing.assert_allclose(state.pop_needs, model.pop_buy_orders(state))
+    np.testing.assert_allclose(state.pop_buy_orders, model.pop_buy_orders(state))
     np.testing.assert_allclose(
         state.market_prices, model.market_prices(state.buy_orders, state.sell_orders)
     )
@@ -3531,7 +3534,7 @@ def _assert_evaluated_state(model: Economy, state: EconomyState) -> None:
     np.testing.assert_allclose(state.pop_expenses, model.pop_expenses(state))
     np.testing.assert_allclose(state.pop_balance, state.pop_income - state.pop_expenses)
     assert state.pop_expenses.sum() == pytest.approx(
-        state.pop_needs @ state.market_prices
+        state.pop_buy_orders @ state.market_prices
     )
     for array in _state_arrays(state).values():
         assert not array.flags.writeable
@@ -3551,7 +3554,7 @@ def test_equilibrium_known_solution_and_iteration_boundary(
     )
     np.testing.assert_array_equal(initial_wealth, initial_copy)
     np.testing.assert_array_equal(result.pop_wealth, [[2, 777]])
-    np.testing.assert_allclose(result.pop_needs, [2])
+    np.testing.assert_allclose(result.pop_buy_orders, [2])
     np.testing.assert_allclose(result.market_prices, [0.9625])
     assert result.pop_income is not None
     assert result.pop_expenses is not None
@@ -3898,7 +3901,7 @@ def test_iterate_rejects_invalid_components(equilibrium_economy: Economy, case: 
     elif case == "prices":
         market = replace(market, market_prices=np.array([np.nan]))
     elif case == "needs":
-        households = replace(households, pop_needs=np.ones(2))
+        households = replace(households, pop_buy_orders=np.ones(2))
     elif case == "empty_tiers":
         context = replace(
             context,
@@ -4067,7 +4070,7 @@ def test_evaluate_wealth_vanilla(economy: Economy):
     assert state.context.goods_buy_packages is not None
     assert state.context.consumption_scales is not None
     assert market.market_prices.shape == (len(economy.goods_index),)
-    assert households.pop_needs.shape == (len(economy.goods_index),)
+    assert households.pop_buy_orders.shape == (len(economy.goods_index),)
     np.testing.assert_array_equal(households.pop_wealth, initial.pop_wealth)
     assert households.pop_wealth.dtype == np.int64
     for values in (
@@ -4087,5 +4090,5 @@ def test_evaluate_wealth_vanilla(economy: Economy):
         households.pop_balance, households.pop_income - households.pop_expenses
     )
     assert households.pop_expenses.sum() == pytest.approx(
-        households.pop_needs @ market.market_prices
+        households.pop_buy_orders @ market.market_prices
     )

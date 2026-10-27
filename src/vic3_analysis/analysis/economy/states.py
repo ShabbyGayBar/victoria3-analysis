@@ -345,13 +345,13 @@ class PopState:
 
     Attributes:
         pop_wealth: Non-negative integer wealth tiers.
-        pop_needs: Weekly household goods demand.
+        pop_buy_orders: Weekly household goods demand.
         pop_income: Optional total household income in pounds per week.
         pop_expenses: Optional total consumption expenses in pounds per week.
     """
 
     pop_wealth: np.ndarray
-    pop_needs: np.ndarray
+    pop_buy_orders: np.ndarray
     pop_income: np.ndarray | None = None
     pop_expenses: np.ndarray | None = None
 
@@ -360,7 +360,7 @@ class PopState:
         object.__setattr__(
             self, "pop_wealth", _readonly_wealth(self.pop_wealth, "pop_wealth")
         )
-        object.__setattr__(self, "pop_needs", _readonly_array(self.pop_needs))
+        object.__setattr__(self, "pop_buy_orders", _readonly_array(self.pop_buy_orders))
         for name in ("pop_income", "pop_expenses"):
             value = getattr(self, name)
             if value is not None:
@@ -521,9 +521,9 @@ class EconomyState:
         return self.households.pop_wealth
 
     @property
-    def pop_needs(self) -> np.ndarray:
-        """Return ``households.pop_needs``."""
-        return self.households.pop_needs
+    def pop_buy_orders(self) -> np.ndarray:
+        """Return ``households.pop_buy_orders``."""
+        return self.households.pop_buy_orders
 
     @property
     def pop_income(self) -> np.ndarray | None:
@@ -545,9 +545,9 @@ class EconomyState:
         """Calculate the buy orders for each good.
 
         Returns:
-            The buy orders vector, computed as the sum of building_goods_input, exports and pop needs.
+            The buy orders vector, computed as the sum of building_goods_input, exports and population buy orders.
         """
-        result = self.context.non_pop_buy_orders + self.pop_needs
+        result = self.context.non_pop_buy_orders + self.pop_buy_orders
         result.setflags(write=False)
         return result
 

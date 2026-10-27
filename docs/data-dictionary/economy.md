@@ -24,6 +24,10 @@ or household results shares the fixed arrays.
 | `PopState` | Wealth, demand, optional weekly income/expenses | Weekly balance (`income - expenses`), or `None` when either is absent |
 | `EconomyState` | Component references, optional equilibrium diagnostics | Total buy orders, wealth summaries, per-capita reports |
 
+`EconomyState.pop_buy_orders` forwards to the read-only, goods-aligned
+`PopState.pop_buy_orders` array of weekly household demand. Total `buy_orders`
+adds these population orders to `non_pop_buy_orders`.
+
 Prepared context fields default to `None`: `goods_buy_packages` is an immutable
 `GoodsBuyPackages` object whose read-only `quantities` array is wealth-by-goods float64
 in `goods_index` column order, and whose read-only `wealth` array contains
@@ -168,7 +172,7 @@ and output totals are reconstructed from production-table net coefficients.
 | `building_goods_output` | Float / goods units per week | Sum of configuration levels times adjusted nonnegative output coefficients. | Positive production magnitude. |
 | `imports` | Float / goods units per week | Derived `maximum(goods_trade_flow, 0)` for the good. | Non-negative; zero unless the signed flow is positive. |
 | `exports` | Float / goods units per week | Derived `maximum(-goods_trade_flow, 0)` for the good. | Non-negative; zero unless the signed flow is negative. |
-| `pop_needs` | Float / goods units per week | Population-demand orders. | Exogenous and zero by default in nominal/market modes; endogenous from wealth baskets in equilibrium mode. |
+| `pop_needs` | Float / goods units per week | Population-demand orders from `state.pop_buy_orders`. | Exogenous and zero by default in nominal/market modes; endogenous from wealth baskets in equilibrium mode. |
 
 ## Population report
 
