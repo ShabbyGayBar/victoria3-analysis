@@ -99,15 +99,16 @@ class SupplyChainAnalyzer:
             inequality_marginals=_marginals(getattr(solver_result, "ineqlin", None)),
             equality_marginals=_marginals(getattr(solver_result, "eqlin", None)),
         )
+        production = self._economy.df_production
         allowed = allowed_process_mask(
-            self._economy._supply_chain_production,
+            production,
             self._scenario,
             tolerance=self._tolerance,
         )
         active = state.building_levels > self._tolerance
         prices = state.market_prices
         realized_graph = build_supply_graph(
-            production=self._economy._supply_chain_production,
+            production=production,
             goods_index=self._economy.goods_index,
             config_index=self._economy.building_index,
             input_matrix=problem.input_matrix,
@@ -120,7 +121,7 @@ class SupplyChainAnalyzer:
             tolerance=self._tolerance,
         )
         allowed_graph = build_supply_graph(
-            production=self._economy._supply_chain_production,
+            production=production,
             goods_index=self._economy.goods_index,
             config_index=self._economy.building_index,
             input_matrix=problem.input_matrix,
@@ -139,7 +140,7 @@ class SupplyChainAnalyzer:
             problem=problem,
             state=state,
             diagnostics=diagnostics,
-            production=self._economy._supply_chain_production,
+            production=production,
             goods_index=self._economy.goods_index,
             config_index=self._economy.building_index,
             profession_index=self._economy.pop_index,

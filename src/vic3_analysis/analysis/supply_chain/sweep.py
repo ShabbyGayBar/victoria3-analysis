@@ -67,7 +67,7 @@ def sweep_supply_chains(
         raise ValueError(f"Goods not found in goods index: {unknown}")
 
     prices = dict(zip(goods_index, economy.base_prices))
-    columns = sweep_columns(economy._supply_chain_production)
+    columns = sweep_columns(economy.df_production)
     rows: list[dict[str, object]] = []
     retained: dict[str, SupplyChainResult] = {}
     for good in selected_goods:

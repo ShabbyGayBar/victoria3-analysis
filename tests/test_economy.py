@@ -200,18 +200,35 @@ def test_missing_goods_columns_warn_and_cache_zero_flows(
     assert model.producible_goods == ("ore",)
 
 
-def test_normalized_production_metadata_is_cached_without_changing_source(
+def test_production_metadata_defaults_are_filled_on_init_without_changing_source(
     coefficient_economy: Economy,
 ):
-    original = coefficient_economy.df_production.copy(deep=True)
-    metadata = coefficient_economy._supply_chain_production
-    assert metadata is coefficient_economy._supply_chain_production
-    assert metadata is not coefficient_economy.df_production
+    production = coefficient_economy.df_production.drop(
+        columns=["land_usage", "discoverable_resource", "depletable_resource"]
+    )
+    production.loc[1, "parent_group"] = None
+    production["is_subsistence"] = pd.Series([True, pd.NA], dtype="boolean")
+    original = production.copy(deep=True)
+    model = Economy(
+        df_production=production,
+        df_goods=coefficient_economy.df_goods,
+        df_pop_types=coefficient_economy.df_pop_types,
+        df_pop_needs=coefficient_economy.df_pop_needs,
+        df_buy_packages=coefficient_economy.df_buy_packages,
+    )
+    metadata = model.df_production
+    assert metadata is not production
+    assert metadata["building_group"].tolist() == ["bg_mining", "bg_agriculture"]
     assert metadata["parent_group"].tolist() == ["bg_extraction", ""]
     assert metadata["land_usage"].tolist() == ["", ""]
-    for column in ("is_subsistence", "discoverable_resource", "depletable_resource"):
+    assert metadata["is_subsistence"].tolist() == [True, False]
+    for column in ("discoverable_resource", "depletable_resource"):
         assert metadata[column].tolist() == [False, False]
-    pd.testing.assert_frame_equal(coefficient_economy.df_production, original)
+    pd.testing.assert_frame_equal(
+        metadata[original.columns],
+        original.fillna({"parent_group": "", "is_subsistence": False}),
+    )
+    pd.testing.assert_frame_equal(production, original)
 
 
 def _make_state(

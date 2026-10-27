@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 
 from vic3_analysis.analysis.economy._utils import (
     _readonly_array,
@@ -261,15 +260,14 @@ def infrastructure_vector(economy: Economy) -> np.ndarray:
     )
 
 
-def _supply_chain_production(economy: Economy) -> pd.DataFrame:
-    """Cache copied production metadata with supply-chain reporting defaults."""
-    production = economy.df_production.copy(deep=True)
+def _fill_production_metadata_defaults(economy: Economy) -> None:
+    """Fill missing columns and null metadata in the owned production table."""
+    production = economy.df_production
     for column, default in _METADATA_DEFAULTS.items():
         if column not in production.columns:
             production[column] = default
         else:
             production[column] = production[column].fillna(default)
-    return production
 
 
 def construction_cost(economy: Economy, state: EconomyState) -> float:

@@ -58,7 +58,7 @@ class Economy:
     wealth uses int64; other numeric coefficients use float64.
 
     Attributes:
-        df_production: The production table DataFrame.
+        df_production: The production table with missing metadata default-filled.
         df_goods: The goods table DataFrame.
         df_pop_types: The pop-types table DataFrame.
         df_pop_needs: Per-category goods, substitution weights, shares, and defaults.
@@ -128,6 +128,7 @@ class Economy:
         object.__setattr__(self, "df_pop_types", df_pop_types.copy(deep=True))
         object.__setattr__(self, "df_pop_needs", df_pop_needs.copy(deep=True))
         object.__setattr__(self, "df_buy_packages", df_buy_packages.copy(deep=True))
+        _production._fill_production_metadata_defaults(self)
         goods_columns = [f"goods_{good}" for good in self.goods_index]
 
         missing = set(goods_columns) - set(self.df_production.columns)
@@ -749,11 +750,6 @@ class Economy:
     def infrastructure_vector(self) -> np.ndarray:
         """Cached infrastructure usage per level; missing values default to zero."""
         return _production.infrastructure_vector(self)
-
-    @cached_property
-    def _supply_chain_production(self) -> pd.DataFrame:
-        """Cache copied production metadata with supply-chain reporting defaults."""
-        return _production._supply_chain_production(self)
 
     def _validate_goods_vector(
         self,
