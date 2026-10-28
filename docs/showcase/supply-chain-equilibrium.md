@@ -36,7 +36,7 @@ The objective is GDP. The worker cap is one million, the workforce
 ratio is 0.4. Infrastructure is unconstrained (`min_net_infrastructure=None`);
 usage remains a reported diagnostic, and the summary records an empty minimum.
 The example uses
-the shared banned building groups, no domestic-output minima, fixed throughput
+the shared banned building groups, no goods-balance floor, fixed throughput
 of 1, and no level-dependent economies of scale. The initial vector assigns
 equal chain levels and scales them to one million workers. Matrix dimensions
 are derived from the surviving recipes after unused rows are filtered out.

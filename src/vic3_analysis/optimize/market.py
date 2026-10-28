@@ -4,6 +4,7 @@
 """Nonlinear market-price optimization compilation and solving."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, cast
 
 import numpy as np
@@ -27,15 +28,10 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
                 "MarketOptimizer requires objective='gdp' or "
                 "objective='gdp_per_capita'."
             )
-        if scenario.default_min_goods_output is not None:
-            raise ValueError(
-                "MarketOptimizer requires scenario.default_min_goods_output=None."
-            )
-
         data = self._compile_common(scenario)
         warm_start_objective = (
             self.model.employment_vector
-            if scenario.objective == "gdp_per_capita" and scenario.min_goods_output
+            if scenario.objective == "gdp_per_capita" and scenario.goods_export
             else -data.gdp_vector
         )
         warm_start = self._extract_fixed_zero_bounds(
@@ -129,6 +125,20 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
             if not warm_start.success:
                 raise ValueError(f"Nominal warm-start failed: {warm_start.message}")
             initial = np.asarray(warm_start.x, dtype=np.float64)
+            if (
+                problem.scenario.objective == "gdp_per_capita"
+                and problem.scenario.goods_export
+                and float(initial @ self.model.employment_vector) <= 0
+            ):
+                fallback = replace(
+                    warm_start_problem, objective_vector=-problem.gdp_vector
+                )
+                warm_start = opt.linprog(
+                    **fallback.linprog_args(), bounds=fallback.bounds, method="highs"
+                )
+                if not warm_start.success:
+                    raise ValueError(f"Nominal warm-start failed: {warm_start.message}")
+                initial = np.asarray(warm_start.x, dtype=np.float64)
         else:
             initial = self._validate_initial_point(
                 x0,

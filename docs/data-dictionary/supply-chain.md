@@ -45,17 +45,17 @@ only for an exactly zero denominator.
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
 | `scenario` | String / label | `Scenario.display_name()`. | Uses explicit scenario name or the generated display name. |
-| `terminal_good` | String / identifier | The single good being analyzed. | Matches the scenario's production target. |
+| `terminal_good` | String / identifier | The single good being analyzed. | Has positive aggregated exports in the scenario. |
 | `objective` | String / category | Nominal objective: `gdp`, `employment`, `automation`, or `construction_cost`. | `gdp_per_capita` is rejected by the analyzer. |
 | `solver_status` | Integer / status code | HiGHS result status. | Successful solves normally report 0; sweep failures use synthetic -1. |
 | `solver_message` | String / diagnostic text | HiGHS message retained from the solve. | Sweep failures instead retain the exception message. |
 | `objective_value` | Float / objective units | Whole-system attained objective: weekly GDP (£/week), employment (workers), automation (workers), or construction points. | Sign restored for maximized GDP/employment; not necessarily a chain-only metric. |
-| `target_quantity` | Float / goods units per week | Requested production target. | Strictly positive; a lower bound on net production, not realized gross output. |
-| `target_base_value` | Float / £ per week | Target quantity times terminal state price. | Equals base value in nominal analysis; sweep preserves requested value on failure. |
+| `target_quantity` | Float / goods units per week | Aggregated terminal export orders. | Strictly positive; imports may cover some or all demand. |
+| `target_base_value` | Float / £ per week | Target quantity times terminal state price. | Equals base value in nominal analysis; sweep preserves effective terminal export value on failure. |
 | `terminal_base_price` | Float / £ per goods unit | Terminal price from the state. | Base price in nominal analysis; not an annual rate. |
 | `terminal_gross_output` | Float / goods units per week | Whole-system terminal `building_goods_output`. | Before subtracting terminal consumption by processes. |
 | `terminal_net_output` | Float / goods units per week | `Q = levels @ net_matrix[:, terminal]`. | Whole-system output minus process inputs; not reduced by exports or population orders. |
-| `terminal_surplus` | Float / goods units per week | `terminal_net_output - target_quantity`. | Can be slightly negative within solver tolerance; not a market order balance. |
+| `terminal_surplus` | Float / goods units per week | `terminal_net_output + terminal imports - terminal exports - min_goods_balance`. | Slack above the household-excluding balance floor; can be slightly negative within solver tolerance. |
 | `system_gdp_weekly` | Float / £ per week | Sum of system output minus input quantities valued at state prices. | Excludes payroll; imports/exports are not separately added to GDP. |
 | `system_gdp_annual` | Float / £ per year | `52 * system_gdp_weekly`. | Annualization only, not a second solve. |
 | `chain_gdp_weekly` | Float / £ per week | `G_chain = sum(realized process value_added)`. | Includes entire coproduct values of included processes. |
@@ -233,14 +233,14 @@ profession order. It omits process/profession employment at or below tolerance.
 `result.constraints()` exposes compiled LP rows, inequalities first and
 equalities second, in their named slice order. Constraints apply to the whole
 system. Inequalities are stored in canonical form `A_ub @ levels <= b_ub`;
-for example a minimum production target is stored with negative coefficients
-and a negative bound. Interpret the **compiled** sign before converting a
+for example the goods-balance floor uses negative net-production coefficients
+and a bound of `imports - exports - min_goods_balance`. Interpret the **compiled** sign before converting a
 marginal to a gameplay change. Variable bounds are not rows in this report.
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
 | `kind` | String / category | `inequality` or `equality`. | Determines slack/residual interpretation. |
-| `family` | String / constraint identifier | Named compiled constraint slice, such as `min_goods_output`, `default_min_goods_output`, or `building_level_caps`. | Only families present in the compiled problem appear. |
+| `family` | String / constraint identifier | Named compiled constraint slice, such as `min_goods_balance` or `building_level_caps`. | Only families present in the compiled problem appear. |
 | `label` | String / row label | Good/building/group key for applicable families; PM bans use their `+`-joined keys; other rows use the family name. | If label count differs from row count, uses `family[i]`. |
 | `realized_value` | Float / compiled row units | `A_row @ solved levels`. | Signed canonical left-hand side, not always the physical quantity named by the family. |
 | `bound` | Float / compiled row units | Stored right-hand side `b_row`. | A lower-bound target can be represented as a negative bound. |
@@ -305,12 +305,13 @@ columns and a reset index, including when empty.
 | `error_type` | String / exception name | Type of caught analysis exception. | Empty on success; currently `ValueError` on recorded failures. |
 | `error_message` | String / diagnostic text | Caught exception message. | Empty on success; retained on failure. |
 
-On failure, scenario, terminal good, objective, target quantity, requested base
+On failure, scenario, terminal good, objective, effective terminal export quantity and base
 value, and terminal base price remain populated. `solver_status` becomes `-1`
 and `solver_message` becomes the exception text. All remaining summary fields
 are NaN, including counts and `objective_value`; they do **not** mean zero.
 Sweep input-validation errors raise before an applicable result rather than
-becoming failure rows. A template's `min_goods_output` basket is ignored with a warning.
+becoming failure rows. For each terminal good, exports are the higher of aggregated template exports
+and `target_value / base_price`; other exports and all imports are retained.
 
 `sweep.df_building_levels` is a float matrix with one row per production unit
 in `economy.building_index` order and one column per requested terminal good

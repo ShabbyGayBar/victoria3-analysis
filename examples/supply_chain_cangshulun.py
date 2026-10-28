@@ -137,7 +137,7 @@ def _template(
 ) -> Scenario:
     return Scenario(
         name=name,
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
         objective="automation",
         era_cap=era_cap,
         banned_building_groups=DEFAULT_BANNED_BGS,

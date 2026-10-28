@@ -182,7 +182,7 @@ def test_resume_reduces_terminal_losses_and_preserves_other_levels(
         columns=["food", "input"],
     )
     problem = SupplyChainEquilibriumOptimizer(model, recipes).compile(
-        Scenario(objective="gdp", default_min_goods_output=None, employment_cap=50_000)
+        Scenario(objective="gdp", min_goods_balance=None, employment_cap=50_000)
     )
     previous = np.array([0.5000000000000001, 0.7000000000000001])
     pd.DataFrame({"good": problem.chain_index, "level": previous}).iloc[::-1].to_csv(

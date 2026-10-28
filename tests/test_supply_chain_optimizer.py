@@ -98,6 +98,31 @@ def test_compiled_problem_snapshots_recipe_coefficients(toy_economy: Economy):
     )
 
 
+@pytest.mark.parametrize("floor", [-1.0, 0.0, 1.0])
+def test_chain_constraints_preserve_trade_balance_floor(
+    toy_economy: Economy, floor: float
+):
+    optimizer = SupplyChainEquilibriumOptimizer(toy_economy, _recipes(toy_economy))
+    scenario = replace(
+        _scenario(),
+        min_goods_balance=floor,
+        goods_import=(("food", 1.0), ("food", 0.5)),
+        goods_export=(("food", 1.0), ("food", 0.25)),
+    )
+    problem = optimizer.compile(scenario)
+    building = problem.building_problem
+    assert problem.A_ub is not None and problem.b_ub is not None
+    assert building.A_ub is not None and building.b_ub is not None
+    rows = problem.inequality_slices["min_goods_balance"]
+    np.testing.assert_allclose(
+        problem.A_ub[rows], building.A_ub[rows] @ problem.chain_matrix
+    )
+    np.testing.assert_allclose(problem.b_ub[rows], [0.25 - floor])
+    levels = np.array([0.5, 0.1])
+    state = optimizer.solve_problem(problem, x0=levels, options={"maxiter": 1})
+    assert state.sell_orders[0] - state.non_pop_buy_orders[0] >= floor - 1e-7
+
+
 def test_dataframe_skips_failed_columns_with_warning(toy_economy: Economy):
     frame = pd.DataFrame(
         {
@@ -323,7 +348,7 @@ def test_equalities_and_all_fixed_chains(toy_economy: Economy):
 def test_infeasible_unbounded_and_failed_equilibrium(toy_economy: Economy):
     optimizer = SupplyChainEquilibriumOptimizer(toy_economy, _recipes(toy_economy))
     with pytest.raises(ValueError, match="infeasible"):
-        optimizer.solve(replace(_scenario(), min_goods_output=(("food", 1000.0),)))
+        optimizer.solve(replace(_scenario(), goods_export=(("food", 1000.0),)))
     with pytest.raises(ValueError, match="bounded"):
         optimizer.solve(Scenario(objective="gdp"))
     with pytest.raises(ValueError, match="No feasible converged"):
@@ -400,7 +425,7 @@ def test_finite_building_bounds_are_transformed(
     scenario = (
         _scenario()
         if constrained
-        else Scenario(objective="gdp", default_min_goods_output=None)
+        else Scenario(objective="gdp", min_goods_balance=None)
     )
     building = EquilibriumOptimizer(toy_economy).compile(scenario)
     building = replace(building, bounds=((0.2, 0.8), (0.0, 0.9)))
@@ -446,7 +471,7 @@ def test_chain_search_recovers_from_failed_equilibria(
     state = optimizer.solve(
         Scenario(
             objective="gdp",
-            default_min_goods_output=None,
+            min_goods_balance=None,
             building_level_caps=(("farm_a", 2.0),),
             goods_import=(("food", 1.0),),
             goods_export=(("output", 2.5),),

@@ -21,7 +21,7 @@ report columns, units, formulas, and failure behavior.
 
 ## Methodology
 
-To normalize the comparison, each supply chain has a weekly target base value of **£100,000** of its corresponding terminal good, with target quantity calculated as `100_000 / base_price`. Note that this is a minimum net-production target. Surplus and coproducts are possible, so equal target value does not imply equal GDP or make goods interchangeable.
+To normalize the comparison, each supply chain has a weekly target base value of **£100,000** of its corresponding terminal good, with target quantity calculated as `100_000 / base_price`. This is fixed export demand with a zero goods-balance floor and no imports. Surplus and coproducts are possible, so equal target value does not imply equal GDP or make goods interchangeable.
 
 The following table summarizes the three scenarios used in the comparison, with their objectives and additional restrictions. The `cangshulun` preset, originating from [this video](https://www.bilibili.com/video/BV1xKiGBeEGg), bans certain oil-using production methods to represent the resource constraints. Monuments, ownership buildings and government buildings are also banned in all configurations, as they are not part of the production chain.
 

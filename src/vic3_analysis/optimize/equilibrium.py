@@ -305,7 +305,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
 
         Supports ``gdp``, ``gdp_per_capita``, and ``average_wealth``. Household
         consumption is endogenous; imports and exports are fixed external orders.
-        Goods-output minima constrain net domestic production.
+        Goods-balance floors include trade and exclude household consumption.
         """
         if scenario.objective not in ("gdp", "gdp_per_capita", "average_wealth"):
             raise ValueError(

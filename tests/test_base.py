@@ -74,7 +74,7 @@ def test_common_context_and_cumulative_bonuses(economy: Economy):
     problem = optimizer.compile(
         Scenario(
             objective="construction_cost",
-            default_min_goods_output=None,
+            min_goods_balance=None,
             throughput_multipliers=((building, 2.0), (building, 1.5)),
             goods_import=(
                 ("tools", 2.0),
@@ -166,8 +166,8 @@ def test_context_rejects_negative_trade_amounts(economy: Economy, amounts):
 
 def test_inequality_compilation_and_named_slices(economy: Economy):
     scenario = Scenario(
-        min_goods_output=(("automobiles", 1.0), ("steel", 2.0)),
-        default_min_goods_output=0.0,
+        goods_export=(("automobiles", 1.0), ("steel", 2.0)),
+        min_goods_balance=0.0,
         objective="construction_cost",
         construction_cost_cap=5000.0,
         employment_cap=1000.0,
@@ -179,25 +179,19 @@ def test_inequality_compilation_and_named_slices(economy: Economy):
     assert problem.A_ub is not None
     assert problem.b_ub is not None
     assert tuple(problem.inequality_slices) == (
-        "default_min_goods_output",
+        "min_goods_balance",
         "construction_cost_cap",
         "employment_cap",
-        "min_goods_output",
         "building_level_caps",
         "arable_land_cap",
         "min_net_infrastructure",
     )
-    default_rows = problem.inequality_slices["default_min_goods_output"]
-    default_positions = [
-        i
-        for i, good in enumerate(economy.goods_index)
-        if good not in {"automobiles", "steel"}
-    ]
-    np.testing.assert_allclose(
-        problem.A_ub[default_rows], -problem.net_matrix[:, default_positions].T
-    )
-    output_rows = problem.inequality_slices["min_goods_output"]
-    np.testing.assert_array_equal(problem.b_ub[output_rows], [-1.0, -2.0])
+    default_rows = problem.inequality_slices["min_goods_balance"]
+    np.testing.assert_allclose(problem.A_ub[default_rows], -problem.net_matrix.T)
+    expected = np.zeros(len(economy.goods_index))
+    expected[economy.goods_index.index("automobiles")] = -1.0
+    expected[economy.goods_index.index("steel")] = -2.0
+    np.testing.assert_array_equal(problem.b_ub[default_rows], expected)
     assert problem.A_ub.shape[0] == problem.b_ub.shape[0]
 
 
@@ -250,7 +244,7 @@ def test_min_net_infrastructure_feasibility(
     problem = optimizer_type(infrastructure_economy).compile(
         Scenario(
             objective="gdp",
-            default_min_goods_output=None,
+            min_goods_balance=None,
             min_net_infrastructure=minimum,
         )
     )
@@ -309,7 +303,7 @@ def test_equality_compilation_and_named_slices(economy: Economy):
 
 def test_empty_constraint_compilation(economy: Economy):
     problem = NominalOptimizer(economy).compile(
-        Scenario(objective="construction_cost", default_min_goods_output=None)
+        Scenario(objective="construction_cost", min_goods_balance=None)
     )
     assert problem.A_ub is None
     assert problem.b_ub is None
@@ -319,11 +313,29 @@ def test_empty_constraint_compilation(economy: Economy):
     assert not problem.equality_slices
 
 
-def test_unknown_min_goods_output_good_raises_during_compilation(economy: Economy):
+def test_unknown_goods_export_good_raises_during_compilation(economy: Economy):
     with pytest.raises(ValueError, match="not found in goods index"):
         NominalOptimizer(economy).compile(
-            Scenario(min_goods_output=(("not_a_real_good", 1.0),))
+            Scenario(goods_export=(("not_a_real_good", 1.0),))
         )
+
+
+@pytest.mark.parametrize("floor", [-2.0, 0.0, 3.0])
+def test_balance_rows_use_aggregated_gross_orders(economy: Economy, floor: float):
+    problem = NominalOptimizer(economy).compile(
+        Scenario(
+            min_goods_balance=floor,
+            goods_import=(("steel", 2.0), ("steel", 3.0)),
+            goods_export=(("steel", 4.0), ("steel", 2.0), ("tools", 1.0)),
+        )
+    )
+    assert problem.A_ub is not None and problem.b_ub is not None
+    rows = problem.inequality_slices["min_goods_balance"]
+    np.testing.assert_array_equal(problem.A_ub[rows], -problem.net_matrix.T)
+    expected = np.full(len(economy.goods_index), -floor)
+    expected[economy.goods_index.index("steel")] -= 1.0
+    expected[economy.goods_index.index("tools")] -= 1.0
+    np.testing.assert_array_equal(problem.b_ub[rows], expected)
 
 
 def test_named_constraint_stack_rejects_mismatched_rows():

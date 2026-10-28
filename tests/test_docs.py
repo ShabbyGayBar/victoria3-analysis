@@ -340,6 +340,12 @@ def test_dictionary_covers_analytical_csv_headers() -> None:
             encoding="utf-8", newline=""
         ) as handle:
             columns = set(next(csv.reader(handle)))
+        # Keep saved artifacts unchanged while checking the current summary schema.
+        if filename == "analyses/optimization/equilibrium/summary.csv":
+            columns = {
+                "min_goods_balance" if column == "default_min_goods_output" else column
+                for column in columns
+            }
         _assert_columns_documented(columns, entries)
 
 

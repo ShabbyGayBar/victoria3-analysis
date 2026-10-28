@@ -41,21 +41,21 @@ NORMALIZED_VALUE = 100_000.0
 TEMPLATES = (
     Scenario(
         name="era_3_construction",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
         objective="construction_cost",
         banned_building_groups=DEFAULT_BANNED_BGS,
         era_cap=3,
     ),
     Scenario(
         name="era_5_automation",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
         objective="automation",
         banned_building_groups=DEFAULT_BANNED_BGS,
         era_cap=5,
     ),
     Scenario(
         name="cangshulun",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
         objective="automation",
         banned_building_groups=DEFAULT_BANNED_BGS,
         era_cap=5,
@@ -303,7 +303,7 @@ def run_supply_chain_compare(
     }
     print(
         f"Comparing {len(selected)} goods across {len(TEMPLATES)} configurations; "
-        f"weekly target base value £{NORMALIZED_VALUE:,.0f}; autarky."
+        f"weekly export target base value £{NORMALIZED_VALUE:,.0f}; no imports."
     )
     for good in selected:
         good_frames: list[pd.DataFrame] = []

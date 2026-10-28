@@ -34,7 +34,7 @@ Objective and constraints are defined in an immutable `Scenario` dataclass. Crea
 
 | Attribute | Default | Meaning |
 | --- | --- | --- |
-| `name` | `None` | Optional label for the experiment; it does not affect the solution. `display_name()` returns this label, otherwise joins the `min_goods_output` good keys with `+`, or returns `"unnamed"` when there are no targets. |
+| `name` | `None` | Optional label for the experiment; it does not affect the solution. `display_name()` returns this label, otherwise joins the unique `goods_export` good keys in first-occurrence order with `+`, or returns `"unnamed"` when there are no exports. |
 
 ### Objectives
 
@@ -51,29 +51,29 @@ The `objective` attribute defaults to `"automation"`. Its supported values are:
 
 ### Constraints
 
-#### Production targets and market orders
+#### Goods balance and market orders
 
 | Attribute | Default | Meaning |
 | --- | --- | --- |
-| `min_goods_output` | `()` | `(good, amount)` pairs setting minimum weekly **net domestic output** after production inputs are deducted. For example, `(("steel", 100.0),)` requires at least 100 steel per week. Explicit entries override `default_min_goods_output` for those goods; negative amounts allow deficits. Imports, exports, and pop consumption are excluded from this net output. |
-| `default_min_goods_output` | `0.0` | Minimum weekly net domestic output for each good without an explicit `min_goods_output` entry. The default, `0.0`, requires nonnegative net output; `-10.0` permits net output down to −10 per unspecified good. `None` leaves unspecified goods unconstrained and is required by `MarketOptimizer`. This field does not set fixed import orders. |
-| `goods_import` | `()` | Fixed weekly non-negative `(good, amount)` pairs adding sell orders. These affect market prices and are not optimized. |
-| `goods_export` | `()` | Fixed weekly non-negative `(good, amount)` pairs adding buy orders. Add a `min_goods_output` target separately when domestic production must cover exports. |
+| `min_goods_balance` | `0.0` | Minimum weekly balance for every good: building output + imports − building inputs − exports. Household consumption is excluded. Zero prevents deficits, negative values permit bounded deficits, and `None` disables the constraint. Numeric floors must be finite. |
+| `goods_import` | `()` | Fixed weekly non-negative `(good, amount)` pairs adding sell orders. Imports allow domestic production deficits under the balance floor and affect market prices. |
+| `goods_export` | `()` | Fixed weekly non-negative `(good, amount)` pairs adding buy orders. With a zero balance floor, production plus imports must cover building inputs and exports. |
 | `workforce_ratio` | `1.0` | Uniform workers / total population in `(0, 1]`, retained in returned states. Employment caps count workers. Market GDP per capita and its gradient scale by this ratio; equilibrium also uses it for dependent consumption and earnings. |
 
 `goods_import` and `goods_export` require known good keys and finite,
 non-negative amounts. Repeated entries for the same good are summed within
 each input. A good may have both import and export orders, which are kept
-separate when calculating prices. They do not alter the nominal optimizer's
-objective or constraints, but are passed to the returned economy state.
-The market optimizer uses them to calculate prices without requiring buy
-and sell orders to balance. Fixed demand baskets can be represented as export
-orders in nominal/market studies; reports label those quantities as exports.
-Equilibrium calculates household demand in addition to the external orders.
+separate when calculating prices. Orders are fixed, rather than optimized.
+They enter the balance constraints in every optimizer when the floor is enabled.
+Market and equilibrium optimizers also use them to calculate prices.
+Household demand affects equilibrium prices but is excluded from the balance floor.
 
-For example, `min_goods_output=(("steel", -20.0),)` with
-`default_min_goods_output=0.0` allows a steel deficit of up to 20 units per
-week while requiring nonnegative net output for every other good.
+For example, with `min_goods_balance=0.0`,
+`goods_import=(("steel", 20.0),)` permits domestic steel production to fall
+20 units below building consumption each week. Conversely,
+`goods_export=(("steel", 100.0),)` requires at least 100 units of net domestic
+steel output when no steel is imported. With both orders, the net domestic
+requirement is 80 units. A floor of 5 raises that requirement to 85 units.
 
 #### Available configurations and throughput
 
@@ -104,9 +104,9 @@ All optimizers disable level-dependent economy-of-scale bonuses. Use fixed
 from vic3_analysis import NominalOptimizer, Scenario
 
 scenario = Scenario(
-    min_goods_output=(("automobiles", 100.0),),
+    goods_export=(("automobiles", 100.0),),
     objective="automation",
-    default_min_goods_output=0.0,
+    min_goods_balance=0.0,
     era_cap=5,
     banned_pms=("pm_diesel_engines",),
 )
@@ -146,9 +146,9 @@ that bound problem fails raises `ValueError`. Each report is independent and can
 extended with experiment metadata using `summary.assign(...)`.
 
 For endogenous national prices, use `MarketOptimizer`. It supports `gdp` and
-`gdp_per_capita`, requires `default_min_goods_output=None`, and treats `goods_import`
-and `goods_export` as fixed market orders that affect prices rather than goods
-balance constraints. Its SLSQP solve is local and requires a bounded scenario.
+`gdp_per_capita` and accepts numeric `min_goods_balance` floors or `None`.
+Fixed `goods_import` and `goods_export` orders affect prices and enter enabled
+goods-balance constraints. Its SLSQP solve is local and requires a bounded scenario.
 The model excludes shortages, MAPI and local prices, wealth feedback,
 endogenous demand, and economy-of-scale bonuses.
 
@@ -156,10 +156,9 @@ endogenous demand, and economy-of-scale bonuses.
 from vic3_analysis import MarketOptimizer, Scenario
 
 scenario = Scenario(
-    min_goods_output=(("automobiles", 100.0),),
-    objective="gdp_per_capita",
-    default_min_goods_output=None,
     goods_export=(("automobiles", 100.0),),
+    objective="gdp_per_capita",
+    min_goods_balance=0.0,
     employment_cap=1_000_000.0,
 )
 state = MarketOptimizer(economy).solve(scenario)
@@ -181,7 +180,7 @@ from vic3_analysis import EquilibriumOptimizer, Scenario
 
 scenario = Scenario(
     objective="average_wealth",
-    default_min_goods_output=None,
+    min_goods_balance=None,
     workforce_ratio=0.25,
     building_level_caps=tuple(
         (str(building), 100.0)
@@ -199,7 +198,7 @@ print(optimizer.result.equilibrium_failures)
 The linear scenario region must be feasible and bounded. Capping every
 building is one way to ensure boundedness. Shared constraints apply to each
 candidate's building levels, with fixed trade and throughput assumptions.
-`EquilibriumOptimizer` permits any `default_min_goods_output` setting.
+`EquilibriumOptimizer` permits any `min_goods_balance` setting.
 Household consumption is calculated
 endogenously, while `goods_import` and `goods_export` specify fixed external orders.
 
@@ -347,7 +346,7 @@ land = state_region_arable_land_limit(regions, keys)
 
 scenario = Scenario(
     objective="gdp",
-    default_min_goods_output=0.0,
+    min_goods_balance=0.0,
     building_level_caps=tuple(limits.items()),
     arable_land_cap=land,
 )

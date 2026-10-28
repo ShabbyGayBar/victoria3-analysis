@@ -33,7 +33,7 @@ COMMON_COLUMNS = [
     "workforce_ratio",
     "banned_building_groups",
     "min_net_infrastructure",
-    "default_min_goods_output",
+    "min_goods_balance",
     "configuration_count",
     "throughput_multiplier",
     "economy_of_scale_level_cap",
@@ -108,7 +108,7 @@ def test_summary_matches_returned_solution(
     optimizer = _optimizer(toy_economy, kind)
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         employment_cap=10_000.0,
         workforce_ratio=0.4,
         banned_building_groups=() if kind == "market" else ("unused_a", "unused_b"),
@@ -153,7 +153,7 @@ def test_summary_matches_returned_solution(
     for name, value in expected.items():
         assert row[name] == pytest.approx(value)
     assert row["objective"] == "gdp"
-    assert row["default_min_goods_output"] is None
+    assert row["min_goods_balance"] is None
     assert row["banned_building_groups"] == ";".join(scenario.banned_building_groups)
     assert row["search_success"] == bool(result.success)
     assert row["search_status"] == int(result.status)
@@ -186,7 +186,7 @@ def test_summary_matches_returned_solution(
 def test_summary_solution_lifecycle(toy_economy: Economy, kind: str) -> None:
     optimizer = _optimizer(toy_economy, kind)
     scenario = Scenario(
-        objective="gdp", default_min_goods_output=None, employment_cap=10_000.0
+        objective="gdp", min_goods_balance=None, employment_cap=10_000.0
     )
     with pytest.raises(ValueError, match="no returned solution"):
         optimizer.summary()
@@ -200,7 +200,10 @@ def test_summary_solution_lifecycle(toy_economy: Economy, kind: str) -> None:
         optimizer.summary()
     _solve(optimizer, scenario, compiled=True)
     impossible = replace(
-        scenario, employment_cap=0.0, min_goods_output=(("food", 1.0),)
+        scenario,
+        employment_cap=0.0,
+        min_goods_balance=0.0,
+        goods_export=(("food", 1.0),),
     )
     with pytest.raises(ValueError):
         _solve(optimizer, impossible, compiled=False)

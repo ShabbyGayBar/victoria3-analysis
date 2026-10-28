@@ -451,13 +451,8 @@ class SupplyChainResult:
         return pd.DataFrame(rows, columns=WORKFORCE_COLUMNS)
 
     def _constraint_labels(self, family: str, count: int) -> tuple[str, ...]:
-        if family == "default_min_goods_output":
-            explicit_goods = {good for good, _amount in self.scenario.min_goods_output}
-            labels = tuple(
-                good for good in self.goods_index if good not in explicit_goods
-            )
-        elif family == "min_goods_output":
-            labels = tuple(good for good, _amount in self.scenario.min_goods_output)
+        if family == "min_goods_balance":
+            labels = self.goods_index
         elif family == "building_level_caps":
             labels = tuple(
                 building for building, _limit in self.scenario.building_level_caps
@@ -668,7 +663,12 @@ class SupplyChainResult:
             "terminal_base_price": float(self.state.market_prices[terminal_position]),
             "terminal_gross_output": terminal_output,
             "terminal_net_output": terminal_net,
-            "terminal_surplus": terminal_net - self.target_quantity,
+            "terminal_surplus": (
+                terminal_net
+                + float(self.state.imports[terminal_position])
+                - float(self.state.exports[terminal_position])
+                - (self.scenario.min_goods_balance or 0.0)
+            ),
             "system_gdp_weekly": system_gdp,
             "system_gdp_annual": system_gdp * 52.0,
             "chain_gdp_weekly": chain_gdp,

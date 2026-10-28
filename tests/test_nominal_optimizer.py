@@ -1,6 +1,8 @@
 # Copyright (C) 2026 Brian Li
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -27,9 +29,9 @@ def solver(economy: Economy) -> NominalOptimizer:
 @pytest.fixture(scope="module")
 def automation_scenario() -> Scenario:
     return Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),),
+        goods_export=((TERMINAL_GOOD, 1.0),),
         objective="automation",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
     )
 
 
@@ -57,70 +59,67 @@ def goods_output_economy() -> Economy:
     )
 
 
-@pytest.mark.parametrize("default_minimum", (-3.0, None))
-def test_default_goods_output_allows_production_deficits(
-    goods_output_economy: Economy, default_minimum: float | None
+@pytest.mark.parametrize("floor", [-3.0, 0.0, 1.0])
+def test_balance_floor_with_imports_and_exports(
+    goods_output_economy: Economy, floor: float
 ):
     state = NominalOptimizer(goods_output_economy).solve(
         Scenario(
-            min_goods_output=(("widget", 2.0),),
-            default_min_goods_output=default_minimum,
+            goods_export=(("widget", 2.0 - floor),),
+            goods_import=(("ore", 3.0 + floor),),
+            min_goods_balance=floor,
         )
     )
     np.testing.assert_allclose(
         state.building_goods_output - state.building_goods_input, [-3.0, 2.0]
     )
+    np.testing.assert_allclose(
+        state.sell_orders - state.non_pop_buy_orders, [floor, floor]
+    )
 
 
-@pytest.mark.parametrize("default_minimum", (0.0, 1.0))
-def test_default_goods_output_rejects_disallowed_deficits(
-    goods_output_economy: Economy, default_minimum: float
-):
-    with pytest.raises(ValueError, match="Optimization failed"):
-        NominalOptimizer(goods_output_economy).solve(
-            Scenario(
-                min_goods_output=(("widget", 2.0),),
-                default_min_goods_output=default_minimum,
-            )
-        )
-
-
-@pytest.mark.parametrize("default_minimum", (-10.0, 0.0, 10.0))
-def test_explicit_goods_output_overrides_default(
-    goods_output_economy: Economy, default_minimum: float
-):
+def test_disabled_balance_does_not_require_production(goods_output_economy: Economy):
     optimizer = NominalOptimizer(goods_output_economy)
     state = optimizer.solve(
-        Scenario(
-            min_goods_output=(("ore", -3.0), ("widget", 2.0)),
-            default_min_goods_output=default_minimum,
-        )
+        Scenario(goods_export=(("widget", 2.0),), min_goods_balance=None)
     )
-    np.testing.assert_allclose(
-        state.building_goods_output - state.building_goods_input, [-3.0, 2.0]
-    )
+    np.testing.assert_array_equal(state.building_levels, [0.0])
     assert optimizer.problem is not None
-    assert "default_min_goods_output" not in optimizer.problem.inequality_slices
+    assert "min_goods_balance" not in optimizer.problem.inequality_slices
     assert optimizer.import_marginals() is None
 
 
-def test_import_marginals_align_after_explicit_output_override(
-    goods_output_economy: Economy,
-):
-    optimizer = NominalOptimizer(goods_output_economy)
-    state = optimizer.solve(
-        Scenario(
-            objective="gdp",
-            min_goods_output=(("widget", 1.0),),
-            default_min_goods_output=-6.0,
+@pytest.mark.parametrize("floor", [0.0, 1.0])
+def test_balance_rejects_unfunded_inputs(goods_output_economy: Economy, floor: float):
+    with pytest.raises(ValueError, match="Optimization failed"):
+        NominalOptimizer(goods_output_economy).solve(
+            Scenario(goods_export=(("widget", 2.0),), min_goods_balance=floor)
         )
+
+
+def test_import_marginals_match_objective_changes(goods_output_economy: Economy):
+    scenario = Scenario(
+        objective="gdp", goods_import=(("ore", 6.0),), goods_export=(("widget", 1.0),)
     )
+    optimizer = NominalOptimizer(goods_output_economy)
+    state = optimizer.solve(scenario)
     np.testing.assert_allclose(
         state.building_goods_output - state.building_goods_input, [-6.0, 4.0]
     )
     marginals = optimizer.import_marginals()
     assert marginals is not None
     np.testing.assert_allclose(marginals, [-17.0 / 3.0, 0.0])
+    assert optimizer.result is not None
+    baseline = float(optimizer.result.fun)
+    delta = 1e-4
+    for i, good in enumerate(goods_output_economy.goods_index):
+        optimizer.solve(
+            replace(scenario, goods_import=(*scenario.goods_import, (good, delta)))
+        )
+        assert optimizer.result is not None
+        assert (float(optimizer.result.fun) - baseline) / delta == pytest.approx(
+            marginals[i]
+        )
 
 
 def test_init_defaults(solver: NominalOptimizer, economy: Economy):
@@ -144,9 +143,7 @@ def test_solve_returns_state(
     assert hasattr(solver.result, "ineqlin")
 
 
-def test_solve_satisfies_min_goods_output(
-    economy: Economy, automation_scenario: Scenario
-):
+def test_solve_satisfies_goods_export(economy: Economy, automation_scenario: Scenario):
     optimizer = NominalOptimizer(economy)
     state = optimizer.solve(automation_scenario)
     idx = economy.goods_index.index(TERMINAL_GOOD)
@@ -156,9 +153,9 @@ def test_solve_satisfies_min_goods_output(
 
 def test_solve_satisfies_import_caps(economy: Economy):
     scenario = Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),),
+        goods_export=((TERMINAL_GOOD, 1.0),),
         objective="construction_cost",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
     )
     optimizer = NominalOptimizer(economy)
     state = optimizer.solve(scenario)
@@ -168,7 +165,7 @@ def test_solve_satisfies_import_caps(economy: Economy):
 
 def test_solve_state_reflects_throughput_multipliers(economy: Economy):
     scenario = Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),),
+        goods_export=((TERMINAL_GOOD, 1.0),),
         objective="construction_cost",
         throughput_multipliers=(("building_automotive_industry", 2.0),),
     )
@@ -187,7 +184,7 @@ def test_solve_state_reflects_throughput_multipliers(economy: Economy):
 def test_solve_propagates_fixed_market_context(economy: Economy):
     scenario = Scenario(
         objective="construction_cost",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         goods_import=(("tools", 2.0),),
         goods_export=(("grain", 4.0), ("coal", 3.0)),
     )
@@ -201,7 +198,7 @@ def test_solve_propagates_fixed_market_context(economy: Economy):
 
 def test_solve_satisfies_building_level_caps(economy: Economy):
     scenario = Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),),
+        goods_export=((TERMINAL_GOOD, 1.0),),
         objective="construction_cost",
         building_level_caps=(("building_dye_plantation", 0.0),),
     )
@@ -216,7 +213,7 @@ def test_solve_satisfies_state_region_resource_limits(economy: Economy):
     )
     limits = state_region_resource_limits(state_regions, ["STATE_TEST"])
     scenario = Scenario(
-        min_goods_output=(("coal", 1.0),),
+        goods_export=(("coal", 1.0),),
         objective="construction_cost",
         building_level_caps=tuple(limits.items()),
     )
@@ -229,7 +226,7 @@ def test_solve_satisfies_state_region_resource_limits(economy: Economy):
 
 def test_solve_satisfies_arable_land_cap(economy: Economy):
     scenario = Scenario(
-        min_goods_output=(("grain", 1.0),),
+        goods_export=(("grain", 1.0),),
         objective="construction_cost",
         arable_land_cap=1.0,
     )
@@ -241,7 +238,7 @@ def test_solve_satisfies_arable_land_cap(economy: Economy):
 
 def test_solve_satisfies_urbanization_center(economy: Economy):
     scenario = Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),),
+        goods_export=((TERMINAL_GOOD, 1.0),),
         objective="construction_cost",
         urbanization_per_center=100.0,
     )
@@ -256,13 +253,13 @@ def test_solve_satisfies_urbanization_center(economy: Economy):
 
 
 def test_solve_unbounded_raises(economy: Economy):
-    scenario = Scenario(min_goods_output=((TERMINAL_GOOD, 1.0),), objective="gdp")
+    scenario = Scenario(goods_export=((TERMINAL_GOOD, 1.0),), objective="gdp")
     with pytest.raises(ValueError, match="Optimization failed"):
         NominalOptimizer(economy).solve(scenario)
 
 
 def test_solve_rejects_gdp_per_capita(economy: Economy):
-    scenario = Scenario(objective="gdp_per_capita", default_min_goods_output=None)
+    scenario = Scenario(objective="gdp_per_capita", min_goods_balance=None)
     with pytest.raises(ValueError, match="MarketOptimizer"):
         NominalOptimizer(economy).solve(scenario)
 
@@ -280,7 +277,7 @@ def test_compile_objective_vectors(
     economy: Economy, objective: str, sign: float, vector_name: str
 ):
     problem = NominalOptimizer(economy).compile(
-        Scenario(objective=objective, default_min_goods_output=None)
+        Scenario(objective=objective, min_goods_balance=None)
     )
     if vector_name == "gdp":
         expected = problem.gdp_vector
@@ -299,8 +296,8 @@ def test_compile_defensively_rejects_unknown_objective(economy: Economy):
 
 
 def test_solve_infeasible_raises(economy: Economy):
-    # manowars has no producer configurations; autarky + minimum goods output is infeasible.
-    scenario = Scenario(min_goods_output=(("manowars", 1.0),))
+    # Manowars exports cannot be covered without imports or producer configurations.
+    scenario = Scenario(goods_export=(("manowars", 1.0),))
     with pytest.raises(ValueError, match="Optimization failed"):
         NominalOptimizer(economy).solve(scenario)
 
@@ -314,10 +311,10 @@ def test_solve_construction_cost_min_zero_levels(economy: Economy):
 
 def test_solve_overwrites_previous_result(economy: Economy):
     solver = NominalOptimizer(economy)
-    first = Scenario(min_goods_output=((TERMINAL_GOOD, 1.0),))
+    first = Scenario(goods_export=((TERMINAL_GOOD, 1.0),))
     solver.solve(first)
     assert solver.scenario is first
-    second = Scenario(min_goods_output=(("steel", 5.0),))
+    second = Scenario(goods_export=(("steel", 5.0),))
     solver.solve(second)
     assert solver.scenario is second
     assert solver.result is not None
@@ -325,9 +322,9 @@ def test_solve_overwrites_previous_result(economy: Economy):
 
 def test_import_marginals_after_solve(economy: Economy):
     scenario = Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),),
+        goods_export=((TERMINAL_GOOD, 1.0),),
         objective="construction_cost",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
     )
     solver = NominalOptimizer(economy)
     solver.solve(scenario)
@@ -337,7 +334,7 @@ def test_import_marginals_after_solve(economy: Economy):
 
 
 def test_import_marginals_without_import_constraint(economy: Economy):
-    scenario = Scenario(objective="construction_cost", default_min_goods_output=None)
+    scenario = Scenario(objective="construction_cost", min_goods_balance=None)
     solver = NominalOptimizer(economy)
     solver.solve(scenario)
     assert solver.import_marginals() is None
@@ -352,9 +349,7 @@ def test_import_marginals_requires_successful_result(economy: Economy):
 
 def test_import_marginals_handles_incomplete_solver_metadata(economy: Economy):
     solver = NominalOptimizer(economy)
-    solver.compile(
-        Scenario(objective="construction_cost", default_min_goods_output=0.0)
-    )
+    solver.compile(Scenario(objective="construction_cost", min_goods_balance=0.0))
     solver.result = OptimizeResult()
     assert solver.import_marginals() is None
     solver.result = OptimizeResult(ineqlin=OptimizeResult())
@@ -365,7 +360,7 @@ def test_import_marginals_handles_incomplete_solver_metadata(economy: Economy):
 
 def test_compile_and_solve_problem(economy: Economy):
     scenario = Scenario(
-        min_goods_output=((TERMINAL_GOOD, 1.0),), objective="construction_cost"
+        goods_export=((TERMINAL_GOOD, 1.0),), objective="construction_cost"
     )
     optimizer = NominalOptimizer(economy)
     problem = optimizer.compile(scenario)
@@ -383,7 +378,7 @@ def test_compile_and_solve_problem(economy: Economy):
 
 def test_solve_problem_rejects_other_economy(economy: Economy):
     problem = NominalOptimizer(economy).compile(
-        Scenario(objective="construction_cost", default_min_goods_output=None)
+        Scenario(objective="construction_cost", min_goods_balance=None)
     )
     other = Economy(
         df_production=economy.df_production.copy(),

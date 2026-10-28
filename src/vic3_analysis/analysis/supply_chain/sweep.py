@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Iterable
 from dataclasses import replace
 
@@ -20,6 +19,7 @@ from vic3_analysis.analysis.supply_chain.result import (
     SupplyChainSweepResult,
     resource_level_fields,
 )
+from vic3_analysis.optimize._orders import goods_order_vector
 from vic3_analysis.optimize.scenario import Scenario
 
 SWEEP_COLUMNS = ["good", "status", "error_type", "error_message", *SUMMARY_FIELDS]
@@ -39,11 +39,11 @@ def sweep_supply_chains(
     keep_results: bool = False,
     tolerance: float = 1e-9,
 ) -> SupplyChainSweepResult:
-    """Analyze every requested good at an equal base-price target value.
+    """Analyze goods with at least the requested base-price export value.
 
-    A non-empty ``scenario_template.min_goods_output`` basket is ignored with a
-    ``UserWarning`` because the sweep generates one normalized target for each
-    requested good.
+    Each terminal export amount is the higher of its aggregated template
+    exports and ``target_value / base_price``. Other exports and all imports
+    are retained. Target metadata reports the effective terminal exports.
 
     Summary columns include fixed economic metrics and per-building resource
     levels derived from the full economy, including banned and unused types.
@@ -51,13 +51,6 @@ def sweep_supply_chains(
     ``df_building_levels`` retains every production unit's solved level for
     each requested good, independently of ``keep_results``; failures use NaN.
     """
-    if scenario_template.min_goods_output:
-        warnings.warn(
-            "scenario_template.min_goods_output is ignored; sweep targets are generated "
-            "from goods and target_value.",
-            UserWarning,
-            stacklevel=2,
-        )
     if not np.isfinite(target_value) or target_value <= 0:
         raise ValueError("target_value must be a positive finite number.")
     selected_goods = list(economy.producible_goods) if goods is None else list(goods)
@@ -68,6 +61,9 @@ def sweep_supply_chains(
     if unknown:
         raise ValueError(f"Goods not found in goods index: {unknown}")
 
+    template_exports = goods_order_vector(
+        goods_index, scenario_template.goods_export, "goods_export"
+    )
     prices = dict(zip(goods_index, economy.base_prices))
     columns = sweep_columns(economy.df_production)
     rows: list[dict[str, object]] = []
@@ -82,7 +78,10 @@ def sweep_supply_chains(
         price = float(prices[good])
         if not np.isfinite(price) or price <= 0:
             raise ValueError(f"Good '{good}' must have a positive finite base price.")
-        amount = float(target_value / price)
+        amount = max(
+            float(template_exports[goods_index.index(good)]),
+            float(target_value / price),
+        )
         name = (
             f"{scenario_template.name}:{good}"
             if scenario_template.name is not None
@@ -90,7 +89,12 @@ def sweep_supply_chains(
         )
         scenario = replace(
             scenario_template,
-            min_goods_output=((good, amount),),
+            goods_export=tuple(
+                (key, value)
+                for key, value in scenario_template.goods_export
+                if key != good
+            )
+            + ((good, amount),),
             name=name,
         )
         try:
@@ -128,7 +132,7 @@ def sweep_supply_chains(
                     "solver_status": -1,
                     "solver_message": str(exc),
                     "target_quantity": amount,
-                    "target_base_value": target_value,
+                    "target_base_value": amount * price,
                     "terminal_base_price": price,
                 }
             )

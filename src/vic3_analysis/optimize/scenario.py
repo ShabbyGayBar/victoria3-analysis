@@ -24,12 +24,10 @@ class Scenario:
     compilation. This object records assumptions interpreted by the nominal,
     market, and equilibrium formulations.
 
-    ``min_goods_output`` sets minimum weekly net domestic output by good,
-    after production inputs are deducted. Explicit entries override
-    ``default_min_goods_output``, which applies to all other goods. Negative
-    minima allow production deficits. The default of ``0.0`` requires
-    nonnegative net output for unspecified goods; ``None`` leaves them
-    unconstrained.
+    ``min_goods_balance`` sets the minimum weekly balance for every good:
+    building output plus imports minus building inputs and exports. Household
+    consumption is excluded. The default of ``0.0`` requires nonnegative
+    balances; negative floors allow deficits, and ``None`` disables the floor.
 
     ``min_net_infrastructure`` sets minimum infrastructure generation minus
     consumption, weighted by building levels. ``0.0`` prevents a deficit;
@@ -39,15 +37,14 @@ class Scenario:
     ``goods_import`` and ``goods_export`` record fixed weekly ``(good, amount)``
     pairs with non-negative amounts. Imports add sell orders; exports add buy
     orders. Repeated entries are summed, and a good may be both imported and
-    exported. These orders do not set domestic production requirements.
+    exported. These orders enter the goods-balance constraint when enabled.
 
     ``workforce_ratio`` is the uniform worker share of total population.
     It defaults to ``1.0``; employment constraints still count only workers.
     """
 
-    min_goods_output: tuple[tuple[str, float], ...] = ()
     objective: str = "automation"
-    default_min_goods_output: float | None = 0.0
+    min_goods_balance: float | None = 0.0
     banned_pms: tuple[str, ...] = ()
     building_level_caps: tuple[tuple[str, float], ...] = ()
     banned_building_groups: tuple[str, ...] = ()
@@ -67,13 +64,15 @@ class Scenario:
         """Validate values that are independent of an economy or optimizer."""
         if self.objective not in _OBJECTIVES:
             raise ValueError(f"Unknown objective: {self.objective!r}")
+        if self.min_goods_balance is not None and not isfinite(self.min_goods_balance):
+            raise ValueError("min_goods_balance must be finite or None.")
         if not isfinite(self.workforce_ratio) or not 0 < self.workforce_ratio <= 1:
             raise ValueError("workforce_ratio must be finite and in (0, 1].")
 
     def display_name(self) -> str:
-        """Return the explicit name or one derived from the minimum goods output basket."""
+        """Return the explicit name or one derived from the export goods basket."""
         if self.name is not None:
             return self.name
-        if self.min_goods_output:
-            return "+".join(good for good, _amount in self.min_goods_output)
+        if self.goods_export:
+            return "+".join(dict.fromkeys(good for good, _amount in self.goods_export))
         return "unnamed"

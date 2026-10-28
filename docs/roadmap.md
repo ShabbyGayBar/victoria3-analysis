@@ -73,12 +73,12 @@ The nominal supply-chain toolkit is implemented as the
 per solve.
 
 - [x] `Scenario` dataclass (now in `optimize/scenario.py`): an optimisation
-  recipe as data (per-good and default output minima, objective,
+  recipe as data (goods-balance floor and fixed import/export orders, objective,
   banned PMs / buildings / building groups, per-building level caps,
   throughput multipliers, era / construction-cost / employment caps,
   minimum net infrastructure surplus, urban-center tie).
-- [x] `SupplyChainAnalyzer` validates a single matching positive target and
-  performs exactly one nominal solve.
+- [x] `SupplyChainAnalyzer` validates positive terminal exports and an enabled
+  balance floor, then performs exactly one nominal solve.
 - [x] Immutable `SupplyChainResult` snapshots matrices, state arrays,
   production metadata, graphs, and solver diagnostics.
 - [x] Cyclic bipartite NetworkX graphs provide `realized` and scenario-static
@@ -89,9 +89,9 @@ per solve.
   allocation policy is applied.
 - [x] Mermaid and Matplotlib renderers return in-memory objects and prune large
   allowed views deterministically.
-- [x] `sweep_supply_chains()` normalizes all producible goods to equal
-  base-price value, retains economy order, and records failures while
-  continuing sequentially.
+- [x] `sweep_supply_chains()` sets minimum base-price export targets for all
+  producible goods, retains economy order, and records failures while continuing
+  sequentially.
 - [x] Synthetic tests cover cycles, coproducts, alternatives, imports,
   resources, throughput bonuses, infeasible/unbounded cases, stable schemas,
   visualization objects, and sweeps without requiring a game installation.

@@ -257,8 +257,8 @@ def test_shared_constraints_and_nonzero_equality(toy_economy: Economy):
     model = replace(toy_economy, df_production=production)
     scenario = replace(
         _scenario(),
-        min_goods_output=(("food", 1.0),),
-        default_min_goods_output=-1.0,
+        goods_export=(("food", 2.0),),
+        min_goods_balance=-1.0,
         construction_cost_cap=1.5,
         arable_land_cap=0.5,
         min_net_infrastructure=1.0,
@@ -328,7 +328,7 @@ def test_failed_trials_are_counted_and_search_recovers(
     optimizer = EquilibriumOptimizer(model)
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("farm_a", 2.0),),
         goods_import=(("food", 1.0),),
         goods_export=(("output", 2.5),),
@@ -367,7 +367,7 @@ def test_no_valid_equilibrium_preserves_failure_diagnostics(
     optimizer = EquilibriumOptimizer(_cycling_model(toy_economy))
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("farm_a", 2.0),),
         goods_import=(("food", 1.0),),
         goods_export=(("output", 2.5),),
@@ -407,7 +407,7 @@ def test_financial_flags_are_accepted(toy_economy: Economy):
     state = optimizer.solve(
         Scenario(
             objective="gdp",
-            default_min_goods_output=None,
+            min_goods_balance=None,
             building_level_caps=(("farm_a", 1.0),),
             goods_import=(("food", 10.0),),
         ),
@@ -444,6 +444,20 @@ def test_gross_trade_is_preserved_in_equilibrium(toy_economy: Economy):
     np.testing.assert_allclose(
         state.buy_orders, state.non_pop_buy_orders + state.pop_buy_orders
     )
+
+
+def test_balance_floor_excludes_household_demand(toy_economy: Economy):
+    scenario = replace(
+        _scenario(),
+        goods_export=(("food", 2.1),),
+        building_level_caps=(("farm_a", 1.0), ("farm_b", 0.0)),
+    )
+    state = EquilibriumOptimizer(toy_economy).solve(
+        scenario, x0=np.array([1.0, 0.0]), options={"maxiter": 1}
+    )
+    np.testing.assert_allclose(state.sell_orders - state.non_pop_buy_orders, [0.0])
+    assert state.pop_buy_orders[0] > 0
+    assert state.sell_orders[0] - state.buy_orders[0] < 0
 
 
 @pytest.mark.parametrize("iterations", [0, -1, True, 1.5])
@@ -519,7 +533,7 @@ def test_rejects_invalid_or_infeasible_start(toy_economy: Economy, levels: np.nd
 def test_rejects_infeasible_and_unbounded_regions(toy_economy: Economy):
     optimizer = EquilibriumOptimizer(toy_economy)
     with pytest.raises(ValueError, match="infeasible"):
-        optimizer.solve(replace(_scenario(), min_goods_output=(("food", 100.0),)))
+        optimizer.solve(replace(_scenario(), goods_export=(("food", 100.0),)))
     with pytest.raises(ValueError, match="bounded feasible region"):
         optimizer.solve(Scenario(objective="gdp"))
 
@@ -676,9 +690,7 @@ def test_full_vanilla_table_with_hard_budget(vanilla_economy: Economy):
     optimizer = EquilibriumOptimizer(vanilla_economy)
     initial = np.ones(len(vanilla_economy.building_index))
     state = optimizer.solve(
-        Scenario(
-            objective="gdp", default_min_goods_output=None, building_level_caps=caps
-        ),
+        Scenario(objective="gdp", min_goods_balance=None, building_level_caps=caps),
         x0=initial,
         options={"maxiter": 2},
     )
@@ -875,7 +887,7 @@ def test_logging_preserves_failure_snapshots_and_exception_chaining(
     model = _cycling_model(toy_economy)
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("farm_a", 2.0),),
         goods_import=(("food", 1.0),),
         goods_export=(("output", 2.5),),

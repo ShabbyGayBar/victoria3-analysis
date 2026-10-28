@@ -153,11 +153,13 @@ or expose a `pyradox.Tree` subclass with helper methods.
 ### `src/vic3_analysis/optimize/` — Optimisation
 
 - `scenario.py` — `Scenario`, a frozen dataclass that captures an
-  optimisation recipe as data (per-good and default output minima, objective,
+  optimisation recipe as data (goods-balance floor, fixed import/export orders, objective,
   banned PMs / buildings / building groups, per-building level caps, throughput
   multipliers, era / construction-cost / employment caps, minimum net
   infrastructure surplus, urban-center tie). It has no economy- or
   solver-dependent methods.
+- `_orders.py` — Shared validation and goods-aligned aggregation of fixed
+  import and export orders for optimizers and supply-chain helpers.
 - `base.py` — public abstract `BaseOptimizer` plus immutable `LinearProblem`
   and `MarketProblem` compiled types. The base compiles fixed market context,
   throughput-adjusted matrices, shared constraints with named row slices,
@@ -165,8 +167,8 @@ or expose a `pyradox.Tree` subclass with helper methods.
 - `nominal.py` — `NominalOptimizer.compile()` attaches the fixed-price linear
   objective; `solve()` and `solve_problem()` call HiGHS through
   `scipy.optimize.linprog`. `import_marginals()` maps LP duals through the
-  compiled problem's named default goods-output constraint slice, returning
-  goods-aligned values with zero for explicitly overridden goods.
+  compiled problem's named goods-balance constraint slice, returning
+  goods-aligned objective sensitivities to additional imports.
 - `market.py` — `MarketOptimizer.compile()` builds the nonlinear objective,
   Jacobian, linear feasible region, bounds, and nominal warm-start problem;
   `solve()` and `solve_problem()` use SLSQP for endogenous-price GDP or GDP per
@@ -244,7 +246,7 @@ game directory.
   throughput-adjusted matrices, constraint families and named row slices),
   lifecycle bookkeeping, and pre-compilation access guards.
 - `test_nominal_optimizer.py` — exercises `NominalOptimizer` compilation and solving
-  (`solve` returns a state satisfying goods-output / building-level-cap /
+  (`solve` returns a state satisfying goods-balance / building-level-cap /
   urbanization constraints, unbounded and infeasible scenarios raise, the
   retained problem/result/scenario state, cross-economy rejection, and import
   marginals after solve).

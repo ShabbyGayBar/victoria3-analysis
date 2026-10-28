@@ -249,7 +249,7 @@ writing new files. The companion `buildings.csv` uses the
 | `banned_building_groups` | String / identifiers | Semicolon-separated `DEFAULT_BANNED_BGS`. | Excluded configurations have zero levels. |
 | `min_net_infrastructure` | Float or empty / infrastructure units | Scenario minimum infrastructure generation minus consumption. | Empty in both equilibrium examples: infrastructure is unconstrained. If configured elsewhere, zero prevents deficits; positive values require surplus; negative values allow a bounded deficit. |
 | `min_net_infrastructure_usage` | Float / infrastructure units | Historical minimum consumption minus generation. | Present only in older snapshots. Replaced by `min_net_infrastructure`, which uses the opposite sign convention; the old name is no longer a scenario parameter. |
-| `default_min_goods_output` | Float or empty / weekly goods units | Default minimum net domestic output. | Empty means `None`, leaving unspecified goods unconstrained. |
+| `min_goods_balance` | Float or empty / weekly goods units | Minimum building output + imports − building inputs − exports, for every good. | Excludes household consumption; empty means `None`, disabling the floor. |
 | `throughput_multiplier` | Float / multiplier | Common fixed multiplier, 1.0. | No throughput bonus. |
 | `economy_of_scale_level_cap` | Float / building levels | Economy-of-scale cap, zero. | Level-dependent bonuses are disabled. |
 | `configuration_count` | Integer / configurations | Number of configurations in the selected production basis. | Includes configurations with zero returned levels. |
@@ -361,7 +361,7 @@ column order.
 | `chain_matrix.csv`: `config` | Building plus production-method key; rows follow the selected production table. |
 | `chain_matrix.csv`: terminal-good columns | Building-level coefficients for one saved chain recipe. Columns follow the example's `ALLOWED_CHAIN_GOODS` order. |
 | `chains.csv`: `good` | Terminal good identifying a matrix column. |
-| `chains.csv`: `target_quantity` | Weekly terminal-output minimum used to generate one recipe. Coproducts may cause actual output to exceed it. |
+| `chains.csv`: `target_quantity` | Weekly terminal export orders used to generate one recipe. Imports and coproducts affect the required domestic output. |
 | `chains.csv`: `target_base_value` | Terminal target quantity times base price; £100,000 per saved recipe. |
 | `chains.csv`: `initial_level` | Starting multiplier of the saved recipe for the invocation, after any resume reduction. |
 | `chains.csv`: `level` | Best verified chain multiplier across local searches and the eligible saved baseline. |

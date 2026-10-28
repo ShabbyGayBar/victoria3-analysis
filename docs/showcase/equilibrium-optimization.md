@@ -15,7 +15,7 @@ establish a global maximum.
 The worker cap is **1,000,000**, and the workforce ratio is **0.4**, allowing
 up to **2,500,000** people including dependents. Actual employment may be lower.
 The scenario excludes `DEFAULT_BANNED_BGS` from `examples/__init__.py`, and uses
-`default_min_goods_output=None`.
+`min_goods_balance=None`.
 Infrastructure is unconstrained (`min_net_infrastructure=None`); usage remains
 visible in reports as a diagnostic, and the summary records an empty minimum.
 

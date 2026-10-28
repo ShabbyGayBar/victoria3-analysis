@@ -182,8 +182,8 @@ def economy() -> Economy:
 @pytest.fixture
 def scenario() -> Scenario:
     return Scenario(
-        min_goods_output=(("widget", 100.0),),
-        default_min_goods_output=0.0,
+        goods_export=(("widget", 100.0),),
+        min_goods_balance=0.0,
         objective="construction_cost",
         name="widgets",
     )
@@ -194,37 +194,27 @@ def result(economy: Economy, scenario: Scenario) -> SupplyChainResult:
     return SupplyChainAnalyzer(economy, scenario, "widget").run()
 
 
-def test_analyzer_validates_single_matching_positive_target(economy: Economy):
+def test_analyzer_validates_terminal_exports_and_balance(economy: Economy):
     with pytest.raises(ValueError, match="not found"):
         SupplyChainAnalyzer(
-            economy, Scenario(min_goods_output=(("widget", 1.0),)), "missing"
+            economy, Scenario(goods_export=(("widget", 1.0),)), "missing"
         )
-    with pytest.raises(ValueError, match="exactly one"):
-        SupplyChainAnalyzer(economy, Scenario(), "widget")
-    with pytest.raises(ValueError, match="exactly one"):
+    for exports in ((), (("metal", 1.0),), (("widget", 0.0),)):
+        with pytest.raises(ValueError, match="positive finite"):
+            SupplyChainAnalyzer(economy, Scenario(goods_export=exports), "widget")
+    with pytest.raises(ValueError, match="finite non-negative"):
+        SupplyChainAnalyzer(
+            economy, Scenario(goods_export=(("widget", np.inf),)), "widget"
+        )
+    with pytest.raises(ValueError, match="min_goods_balance"):
         SupplyChainAnalyzer(
             economy,
-            Scenario(min_goods_output=(("widget", 1.0), ("metal", 1.0))),
+            Scenario(min_goods_balance=None, goods_export=(("widget", 1.0),)),
             "widget",
         )
-    with pytest.raises(ValueError, match="must match"):
-        SupplyChainAnalyzer(
-            economy, Scenario(min_goods_output=(("metal", 1.0),)), "widget"
-        )
     with pytest.raises(ValueError, match="positive finite"):
         SupplyChainAnalyzer(
-            economy, Scenario(min_goods_output=(("widget", 0.0),)), "widget"
-        )
-    with pytest.raises(ValueError, match="positive finite"):
-        SupplyChainAnalyzer(
-            economy, Scenario(min_goods_output=(("widget", np.inf),)), "widget"
-        )
-    with pytest.raises(ValueError, match="positive finite"):
-        SupplyChainAnalyzer(
-            economy,
-            Scenario(min_goods_output=(("widget", 1.0),)),
-            "widget",
-            tolerance=0,
+            economy, Scenario(goods_export=(("widget", 1.0),)), "widget", tolerance=0
         )
 
 
@@ -232,7 +222,7 @@ def test_analyzer_rejects_unsupported_nominal_objective(economy: Economy):
     with pytest.raises(ValueError, match="nominal objectives"):
         SupplyChainAnalyzer(
             economy,
-            Scenario(min_goods_output=(("widget", 1.0),), objective="gdp_per_capita"),
+            Scenario(goods_export=(("widget", 1.0),), objective="gdp_per_capita"),
             "widget",
         )
 
@@ -408,8 +398,8 @@ def test_resource_levels_group_configurations_and_normalize_workers(
 ):
     economy = _resource_economy()
     scenario = Scenario(
-        min_goods_output=(("widget", 25.0),),
-        default_min_goods_output=0.0,
+        goods_export=(("widget", 25.0),),
+        min_goods_balance=0.0,
         objective="construction_cost",
         throughput_multipliers=(("building_coal_mine", multiplier),),
         workforce_ratio=workforce_ratio,
@@ -482,7 +472,7 @@ def test_efficiency_metrics_keep_chain_and_system_scopes(
     bounded = replace(
         scenario,
         objective="gdp",
-        default_min_goods_output=0.0,
+        min_goods_balance=0.0,
         building_level_caps=tuple(
             (str(building), 100.0) for building in production["building"]
         ),
@@ -535,9 +525,9 @@ def test_missing_wage_metrics_are_unavailable(missing: str):
         SupplyChainAnalyzer(
             economy,
             Scenario(
-                min_goods_output=(("widget", 25.0),),
+                goods_export=(("widget", 25.0),),
                 objective="construction_cost",
-                default_min_goods_output=0.0,
+                min_goods_balance=0.0,
             ),
             "widget",
         )
@@ -593,7 +583,7 @@ def test_resource_columns_survive_empty_and_failed_sweeps(economy: Economy):
 
 def test_allowed_graph_respects_static_scenario_exclusions(economy: Economy):
     restricted = Scenario(
-        min_goods_output=(("widget", 10.0),),
+        goods_export=(("widget", 10.0),),
         objective="construction_cost",
         era_cap=1,
         banned_pms=("pm_widget_manual",),
@@ -632,13 +622,13 @@ def test_alternatives_report_selected_and_resource_attributes(
 def test_throughput_bonus_is_reflected_in_levels_and_edges(economy: Economy):
     base = SupplyChainAnalyzer(
         economy,
-        Scenario(min_goods_output=(("widget", 100.0),), objective="construction_cost"),
+        Scenario(goods_export=(("widget", 100.0),), objective="construction_cost"),
         "widget",
     ).run()
     bonus = SupplyChainAnalyzer(
         economy,
         Scenario(
-            min_goods_output=(("widget", 100.0),),
+            goods_export=(("widget", 100.0),),
             objective="construction_cost",
             throughput_multipliers=(("building_widget_fast", 2.0),),
         ),
@@ -658,11 +648,10 @@ def test_fixed_imports_exports_and_needs_are_reported(economy: Economy):
     result = SupplyChainAnalyzer(
         economy,
         Scenario(
-            min_goods_output=(("widget", 1.0),),
             objective="construction_cost",
-            default_min_goods_output=0.0,
+            min_goods_balance=0.0,
             goods_import=(("ore", 3.0),),
-            goods_export=(("tools", 1.0), ("byproduct", 2.0)),
+            goods_export=(("widget", 1.0), ("tools", 1.0), ("byproduct", 2.0)),
         ),
         "widget",
     ).run()
@@ -675,13 +664,13 @@ def test_fixed_imports_exports_and_needs_are_reported(economy: Economy):
 
 def test_constraints_have_labels_slacks_and_marginals(result: SupplyChainResult):
     constraints = result.constraints()
-    default_rows = constraints.query("family == 'default_min_goods_output'")
-    assert set(default_rows["label"]) == set(result.goods_index) - {"widget"}
-    min_goods_output = constraints.query("family == 'min_goods_output'").iloc[0]
-    assert min_goods_output["label"] == "widget"
-    assert min_goods_output["binding"]
-    assert min_goods_output["slack"] == pytest.approx(0.0, abs=1e-8)
-    assert np.isfinite(min_goods_output["solver_marginal"])
+    default_rows = constraints.query("family == 'min_goods_balance'")
+    assert set(default_rows["label"]) == set(result.goods_index)
+    goods_export = default_rows.query("label == 'widget'").iloc[0]
+    assert goods_export["label"] == "widget"
+    assert goods_export["binding"]
+    assert goods_export["slack"] == pytest.approx(0.0, abs=1e-8)
+    assert np.isfinite(goods_export["solver_marginal"])
     bottlenecks = result.bottlenecks()
     assert (bottlenecks["binding"] == True).all()
     assert (bottlenecks["improvement_per_unit"] > 0).all()
@@ -690,7 +679,7 @@ def test_constraints_have_labels_slacks_and_marginals(result: SupplyChainResult)
 def test_empty_table_schemas_are_stable(economy: Economy):
     result = SupplyChainAnalyzer(
         economy,
-        Scenario(min_goods_output=(("luxury", 1.0),), objective="construction_cost"),
+        Scenario(goods_export=(("luxury", 1.0),), objective="construction_cost"),
         "luxury",
     ).run()
     assert list(result.workforce().columns) == WORKFORCE_COLUMNS
@@ -701,7 +690,7 @@ def test_empty_table_schemas_are_stable(economy: Economy):
 def test_acyclic_chain_has_deterministic_condensation_depth(economy: Economy):
     result = SupplyChainAnalyzer(
         economy,
-        Scenario(min_goods_output=(("luxury", 1.0),), objective="construction_cost"),
+        Scenario(goods_export=(("luxury", 1.0),), objective="construction_cost"),
         "luxury",
     ).run()
     summary = result.summary()
@@ -715,13 +704,13 @@ def test_infeasible_and_unbounded_analyses_raise(economy: Economy):
     with pytest.raises(ValueError, match="Optimization failed"):
         SupplyChainAnalyzer(
             economy,
-            Scenario(min_goods_output=(("dead", 1.0),), objective="construction_cost"),
+            Scenario(goods_export=(("dead", 1.0),), objective="construction_cost"),
             "dead",
         ).run()
     with pytest.raises(ValueError, match="Optimization failed"):
         SupplyChainAnalyzer(
             economy,
-            Scenario(min_goods_output=(("widget", 1.0),), objective="gdp"),
+            Scenario(goods_export=(("widget", 1.0),), objective="gdp"),
             "widget",
         ).run()
 
@@ -882,7 +871,7 @@ def test_sweep_reuses_economy_and_matches_standalone_results(economy: Economy):
         retained = sweep.result_for(good)
         scenario = replace(
             template,
-            min_goods_output=(
+            goods_export=(
                 (good, 1_000.0 / economy.base_prices[economy.goods_index.index(good)]),
             ),
             name=f"comparison:{good}",
@@ -945,16 +934,12 @@ def test_sweep_building_levels_empty_and_all_failure_schema(
 
 
 def test_sweep_validates_template_and_selection(economy: Economy):
-    with pytest.warns(UserWarning, match="min_goods_output is ignored"):
-        sweep = sweep_supply_chains(
-            economy,
-            Scenario(
-                min_goods_output=(("ore", 1.0),),
-                objective="construction_cost",
-            ),
-            goods=["widget"],
-            target_value=1_000.0,
-        )
+    sweep = sweep_supply_chains(
+        economy,
+        Scenario(goods_export=(("ore", 1.0),), objective="construction_cost"),
+        goods=["widget"],
+        target_value=1_000.0,
+    )
     assert sweep.summary.loc[0, "terminal_good"] == "widget"
     assert sweep.summary.loc[0, "target_quantity"] == 20.0
     with pytest.raises(ValueError, match="positive finite"):
@@ -963,3 +948,65 @@ def test_sweep_validates_template_and_selection(economy: Economy):
         sweep_supply_chains(economy, Scenario(), goods=["ore", "ore"])
     with pytest.raises(ValueError, match="not found"):
         sweep_supply_chains(economy, Scenario(), goods=["unknown"])
+
+
+@pytest.mark.parametrize("good", ["widget", "dead"])
+@pytest.mark.parametrize("factor", [0.5, 1.0, 1.5])
+def test_sweep_uses_higher_aggregated_exports_and_preserves_orders(
+    economy: Economy, good: str, factor: float
+):
+    price = float(economy.base_prices[economy.goods_index.index(good)])
+    generated = 1000.0 / price
+    template_quantity = factor * generated
+    template = Scenario(
+        objective="construction_cost",
+        goods_export=(
+            (good, template_quantity / 2),
+            ("ore", 1.0),
+            (good, template_quantity / 2),
+        ),
+        goods_import=(("ore", 1.5), (good, 2.0)),
+    )
+    sweep = sweep_supply_chains(
+        economy, template, goods=[good], target_value=1000.0, keep_results=True
+    )
+    expected = max(template_quantity, generated)
+    row = sweep.summary.iloc[0]
+    assert row["target_quantity"] == pytest.approx(expected)
+    assert row["target_base_value"] == pytest.approx(expected * price)
+    if good == "dead":
+        assert row["status"] == "failure"
+        assert len(sweep.failures) == 1
+    else:
+        assert row["status"] == "success"
+        result = sweep.result_for(good)
+        assert result.scenario.goods_export == (("ore", 1.0), (good, expected))
+        assert result.scenario.goods_import == template.goods_import
+        assert result.summary()["terminal_net_output"] == pytest.approx(expected - 2)
+        assert result.summary()["terminal_surplus"] == pytest.approx(0.0, abs=1e-7)
+
+
+@pytest.mark.parametrize("floor", [-1.0, 0.0, 1.0])
+def test_terminal_exports_can_be_covered_entirely_by_imports(
+    economy: Economy, floor: float
+):
+    scenario = Scenario(
+        objective="construction_cost",
+        min_goods_balance=floor,
+        goods_export=(("widget", 1.0), ("widget", 2.0)),
+        goods_import=tuple((good, 10.0) for good in economy.goods_index),
+    )
+    result = SupplyChainAnalyzer(economy, scenario, "widget").run()
+    assert result.target_quantity == 3.0
+    np.testing.assert_array_equal(result.state.building_levels, 0.0)
+    summary = result.summary()
+    assert summary["terminal_net_output"] == 0.0
+    assert summary["terminal_surplus"] == pytest.approx(7.0 - floor)
+    assert result.processes().empty
+
+
+def test_sweep_rejects_invalid_template_export_totals(economy: Economy):
+    with pytest.raises(ValueError, match="finite non-negative"):
+        sweep_supply_chains(
+            economy, Scenario(goods_export=(("widget", -1.0),)), goods=["widget"]
+        )

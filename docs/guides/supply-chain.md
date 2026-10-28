@@ -9,8 +9,10 @@ The [supply-chain data dictionary](../data-dictionary/supply-chain.md) defines
 every report column, its scope, units, formulas, and failure behavior.
 
 `SupplyChainAnalyzer` runs one nominal optimization for one terminal good and
-returns an immutable result. The scenario must contain exactly one positive
-production target, and that target must match `terminal_good`.
+returns an immutable result. The scenario must have positive exports of
+`terminal_good` and an enabled `min_goods_balance`. Other exports are allowed as background demand; imports
+may cover some or all terminal exports. Graphs focus on the terminal chain,
+while system metrics include all solved configurations.
 
 ```python
 from vic3_analysis import Economy, Scenario, SupplyChainAnalyzer
@@ -18,8 +20,8 @@ from vic3_analysis import Economy, Scenario, SupplyChainAnalyzer
 economy = Economy()
 scenario = Scenario(
     name="automobiles",
-    default_min_goods_output=0.0,
-    min_goods_output=(("automobiles", 1.0),),
+    min_goods_balance=0.0,
+    goods_export=(("automobiles", 1.0),),
     objective="automation",
 )
 result = SupplyChainAnalyzer(economy, scenario, "automobiles").run()
@@ -121,7 +123,7 @@ from vic3_analysis import Scenario, sweep_supply_chains
 
 template = Scenario(
     name="era_3",
-    default_min_goods_output=0.0,
+    min_goods_balance=0.0,
     objective="construction_cost",
     era_cap=3,
 )
@@ -137,11 +139,15 @@ failures = sweep.failures
 automobiles = sweep.result_for("automobiles")
 ```
 
-The sweep ignores a non-empty template `min_goods_output` basket and emits a
-`UserWarning`, because each target is derived from `goods` and `target_value`.
-By default, it follows `economy.producible_goods` order and targets an equal
-base-price value for each good. Infeasible or unbounded goods become failure
-rows and do not abort later runs. Version 1 executes sequentially.
+For each good, the sweep uses the higher of its aggregated template exports
+and `target_value / base_price`. It retains all other exports and all imports.
+For a generated quantity of 100, template exports of 20 become 100, while
+exports of 150 remain 150. `target_quantity` and `target_base_value` report
+the effective terminal exports, including on failure rows.
+
+By default, the sweep follows `economy.producible_goods` order. Infeasible or
+unbounded goods become failure rows and do not abort later runs. Execution is
+sequential.
 
 Open the [supply-chain showcase](../showcase/supply-chains.md) for committed
 outputs and regeneration commands. The [supply-chain API](../api/supply-chain.md)

@@ -16,6 +16,7 @@ from vic3_analysis.analysis.supply_chain.result import (
     SolverDiagnostics,
     SupplyChainResult,
 )
+from vic3_analysis.optimize._orders import goods_order_vector
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
 
@@ -42,8 +43,8 @@ class SupplyChainAnalyzer:
 
         Args:
             economy: Economy containing production, goods, and workforce data.
-            scenario: Scenario with exactly one positive production target.
-            terminal_good: Good key matching the scenario target.
+            scenario: Scenario with positive terminal exports and an enabled balance floor.
+            terminal_good: Good key used to focus the graph and reports.
             tolerance: Positive numerical threshold for active levels and edges.
 
         Raises:
@@ -55,19 +56,14 @@ class SupplyChainAnalyzer:
         goods_index = economy.goods_index
         if terminal_good not in goods_index:
             raise ValueError(f"Good '{terminal_good}' not found in goods index.")
-        if len(scenario.min_goods_output) != 1:
-            raise ValueError("Scenario must contain exactly one production target.")
-        target_good, target_amount = scenario.min_goods_output[0]
-        if target_good != terminal_good:
-            raise ValueError("terminal_good must match the Scenario production target.")
-        try:
-            amount = float(target_amount)
-        except (TypeError, ValueError) as exc:
+        if scenario.min_goods_balance is None:
             raise ValueError(
-                "Production target must be a positive finite number."
-            ) from exc
-        if not np.isfinite(amount) or amount <= 0:
-            raise ValueError("Production target must be a positive finite number.")
+                "SupplyChainAnalyzer requires an enabled min_goods_balance."
+            )
+        exports = goods_order_vector(goods_index, scenario.goods_export, "goods_export")
+        amount = float(exports[goods_index.index(terminal_good)])
+        if amount <= 0:
+            raise ValueError("Terminal exports must be a positive finite number.")
         if scenario.objective == "gdp_per_capita":
             raise ValueError(
                 "SupplyChainAnalyzer v1 supports nominal objectives only; "

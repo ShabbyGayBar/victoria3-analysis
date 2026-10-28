@@ -59,7 +59,7 @@ def test_market_optimizer_finds_closed_form_interior_optimum(
 ):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -88,7 +88,7 @@ def test_market_optimizer_finds_closed_form_interior_optimum(
 def test_market_optimizer_honors_fixed_throughput_bonus(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 0.75),),
         throughput_multipliers=(("building_test", 2.0),),
         goods_export=(("test_good", 1.0),),
@@ -103,7 +103,7 @@ def test_market_optimizer_honors_fixed_throughput_bonus(toy_economy: Economy):
 def test_market_optimizer_maximizes_gdp_per_capita(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp_per_capita",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -117,7 +117,7 @@ def test_market_optimizer_maximizes_gdp_per_capita(toy_economy: Economy):
 def test_workforce_ratio_scales_compiled_per_capita_objective(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp_per_capita",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
         employment_cap=1.5,
@@ -154,7 +154,7 @@ def test_workforce_ratio_scales_compiled_per_capita_objective(toy_economy: Econo
 def test_workforce_ratio_does_not_scale_gdp_objective(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -171,8 +171,7 @@ def test_market_optimizer_preserves_scenario_constraints(
 ):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
-        min_goods_output=(("test_good", 1.0),),
+        min_goods_balance=0.0,
         building_level_caps=(("building_test", 1.25),),
         goods_export=(("test_good", 1.0),),
     )
@@ -190,7 +189,7 @@ def test_market_context_is_propagated_by_nominal_optimizer(
 ):
     scenario = Scenario(
         objective="construction_cost",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         goods_import=(("test_good", max(trade, 0)),),
         goods_export=(("test_good", max(-trade, 0) + 4.0),),
     )
@@ -212,7 +211,7 @@ def test_market_context_duplicate_goods_are_summed(
 ):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_import=(("test_good", direction), ("test_good", 2 * direction)),
         goods_export=(("test_good", 1.0), ("test_good", 2.0)),
@@ -231,8 +230,7 @@ def test_market_prices_and_objective_use_both_gross_trade_orders(toy_economy: Ec
     problem = optimizer.compile(
         Scenario(
             objective="gdp",
-            default_min_goods_output=None,
-            min_goods_output=(("test_good", 100.0),),
+            min_goods_balance=0.0,
             building_level_caps=(("building_test", 100.0),),
             goods_import=(("test_good", 100.0),),
             goods_export=(("test_good", 150.0),),
@@ -263,24 +261,70 @@ def test_market_context_rejects_invalid_values(
 ):
     scenario_kwargs = {
         "objective": "gdp",
-        "default_min_goods_output": None,
+        "min_goods_balance": None,
         field: value,
     }
     with pytest.raises(ValueError):
         MarketOptimizer(toy_economy).solve(Scenario(**scenario_kwargs))
 
 
-def test_market_optimizer_requires_unbounded_import_policy(toy_economy: Economy):
-    with pytest.raises(ValueError, match="default_min_goods_output"):
-        MarketOptimizer(toy_economy).solve(
-            Scenario(objective="gdp", default_min_goods_output=0.0)
+@pytest.mark.parametrize("floor", [-0.25, 0.0, 0.25])
+def test_market_optimizer_accepts_balance_floors(toy_economy: Economy, floor: float):
+    state = MarketOptimizer(toy_economy).solve(
+        Scenario(
+            objective="gdp",
+            min_goods_balance=floor,
+            goods_export=(("test_good", 1.0),),
+            building_level_caps=(("building_test", 1.5),),
         )
+    )
+    assert state.building_goods_output[0] - state.exports[0] >= floor - 1e-7
+
+
+def test_per_capita_warm_start_handles_import_covered_exports(toy_economy: Economy):
+    state = MarketOptimizer(toy_economy).solve(
+        Scenario(
+            objective="gdp_per_capita",
+            goods_export=(("test_good", 1.0),),
+            goods_import=(("test_good", 1.0),),
+            building_level_caps=(("building_test", 1.5),),
+        )
+    )
+    assert state.total_employment > 0
+    assert state.gdp_per_capita() > 0
+    assert state.sell_orders[0] >= state.non_pop_buy_orders[0] - 1e-7
+
+
+def test_per_capita_fallback_reports_warm_start_failure(
+    toy_economy: Economy, monkeypatch: pytest.MonkeyPatch
+):
+    optimizer = MarketOptimizer(toy_economy)
+    problem = optimizer.compile(
+        Scenario(
+            objective="gdp_per_capita",
+            goods_export=(("test_good", 1.0),),
+            goods_import=(("test_good", 1.0),),
+            building_level_caps=(("building_test", 1.5),),
+        )
+    )
+    calls = 0
+
+    def fake_linprog(*args: object, **kwargs: object) -> OptimizeResult:
+        nonlocal calls
+        calls += 1
+        if calls <= 2:
+            return OptimizeResult(success=True, x=np.zeros(1))
+        return OptimizeResult(success=False, message="fallback failed")
+
+    monkeypatch.setattr("vic3_analysis.optimize.market.opt.linprog", fake_linprog)
+    with pytest.raises(ValueError, match="Nominal warm-start failed: fallback failed"):
+        optimizer.solve_problem(problem)
 
 
 def test_market_optimizer_rejects_non_gdp_objective(toy_economy: Economy):
     with pytest.raises(ValueError, match="gdp"):
         MarketOptimizer(toy_economy).solve(
-            Scenario(objective="automation", default_min_goods_output=None)
+            Scenario(objective="automation", min_goods_balance=None)
         )
 
 
@@ -289,8 +333,8 @@ def test_market_optimizer_rejects_infeasible_and_unbounded_regions(
 ):
     infeasible = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
-        min_goods_output=(("test_good", 2.0),),
+        min_goods_balance=0.0,
+        goods_export=(("test_good", 2.0),),
         building_level_caps=(("building_test", 1.0),),
     )
     with pytest.raises(ValueError, match="infeasible"):
@@ -298,7 +342,7 @@ def test_market_optimizer_rejects_infeasible_and_unbounded_regions(
 
     with pytest.raises(ValueError, match="bounded"):
         MarketOptimizer(toy_economy).solve(
-            Scenario(objective="gdp", default_min_goods_output=None)
+            Scenario(objective="gdp", min_goods_balance=None)
         )
 
 
@@ -413,8 +457,7 @@ def test_market_optimizer_rejects_invalid_initial_points(
 ):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
-        min_goods_output=(("test_good", 1.0),),
+        min_goods_balance=0.0,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -425,7 +468,7 @@ def test_market_optimizer_rejects_invalid_initial_points(
 def test_market_optimizer_accepts_feasible_x0_and_options(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -461,7 +504,7 @@ def test_market_optimizer_rejects_x0_for_fixed_zero_configuration():
     )
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         banned_building_groups=("bg_banned",),
         building_level_caps=(("building_allowed", 1.5),),
         goods_export=(("test_good", 1.0),),
@@ -474,7 +517,7 @@ def test_market_optimizer_rejects_x0_for_fixed_zero_configuration():
 def test_market_optimizer_compile_clears_stale_result(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -491,7 +534,7 @@ def test_market_optimizer_compile_clears_stale_result(toy_economy: Economy):
 def test_market_compile_and_solve_problem(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -511,7 +554,7 @@ def test_market_compile_and_solve_problem(toy_economy: Economy):
 def test_market_solve_problem_rejects_other_economy(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
         goods_export=(("test_good", 1.0),),
     )
@@ -532,7 +575,7 @@ def test_market_solve_problem_applies_remaining_equalities(
     problem = optimizer.compile(
         Scenario(
             objective="gdp",
-            default_min_goods_output=None,
+            min_goods_balance=None,
             building_level_caps=(("building_test", 1.5),),
             goods_export=(("test_good", 1.0),),
         )
@@ -565,7 +608,7 @@ def test_market_preflight_reports_other_solver_failures(
         .compile(
             Scenario(
                 objective="gdp",
-                default_min_goods_output=None,
+                min_goods_balance=None,
                 building_level_caps=(("building_test", 1.5),),
             )
         )
@@ -588,7 +631,7 @@ def test_market_reports_warm_start_failure(
     problem = optimizer.compile(
         Scenario(
             objective="gdp",
-            default_min_goods_output=None,
+            min_goods_balance=None,
             building_level_caps=(("building_test", 1.5),),
         )
     )
@@ -609,7 +652,7 @@ def test_market_reports_warm_start_failure(
 def test_market_rejects_misaligned_initial_point(toy_economy: Economy):
     scenario = Scenario(
         objective="gdp",
-        default_min_goods_output=None,
+        min_goods_balance=None,
         building_level_caps=(("building_test", 1.5),),
     )
     with pytest.raises(ValueError, match="1-D vector"):

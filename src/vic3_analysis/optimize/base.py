@@ -18,6 +18,7 @@ import scipy.optimize as opt
 from scipy.optimize import OptimizeResult
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
+from vic3_analysis.optimize._orders import goods_order_vector
 from vic3_analysis.optimize.scenario import Scenario
 
 Bounds = tuple[tuple[float, float | None], ...]
@@ -202,7 +203,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             "workforce_ratio": scenario.workforce_ratio,
             "banned_building_groups": ";".join(scenario.banned_building_groups),
             "min_net_infrastructure": scenario.min_net_infrastructure,
-            "default_min_goods_output": scenario.default_min_goods_output,
+            "min_goods_balance": scenario.min_goods_balance,
             "configuration_count": len(self.model.building_index),
             "throughput_multiplier": (
                 float(multipliers[0])
@@ -284,9 +285,15 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             throughput_multipliers=multipliers
         )
         net_matrix = output_matrix - input_matrix
-        goods_import = self._goods_context_vector(scenario.goods_import, "goods_import")
-        goods_export = self._goods_context_vector(scenario.goods_export, "goods_export")
-        A_ub, b_ub, inequality_slices = self._compile_inequalities(scenario, net_matrix)
+        goods_import = goods_order_vector(
+            self.model.goods_index, scenario.goods_import, "goods_import"
+        )
+        goods_export = goods_order_vector(
+            self.model.goods_index, scenario.goods_export, "goods_export"
+        )
+        A_ub, b_ub, inequality_slices = self._compile_inequalities(
+            scenario, net_matrix, goods_import, goods_export
+        )
         A_eq, b_eq, equality_slices = self._compile_equalities(scenario)
         n_buildings = len(self.model.building_index)
         return _CompilationData(
@@ -352,36 +359,6 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             workforce_ratio=problem.scenario.workforce_ratio,
         )
 
-    def _goods_context_vector(
-        self, entries: tuple[tuple[str, float], ...], name: str
-    ) -> np.ndarray:
-        """Translate named fixed market context into a goods-aligned vector."""
-        positions = {good: i for i, good in enumerate(self.model.goods_index)}
-        vector = np.zeros(len(positions), dtype=np.float64)
-        amount_rule = "finite non-negative numbers"
-        for entry in entries:
-            if not isinstance(entry, tuple) or len(entry) != 2:
-                raise ValueError(f"{name} entries must be (good, amount) pairs.")
-            good, amount = entry
-            if not isinstance(good, str):
-                raise TypeError(f"{name} good keys must be strings.")
-            if good not in positions:
-                raise ValueError(
-                    f"Good '{good}' in {name} was not found in goods index."
-                )
-            try:
-                value = float(amount)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"{name} amounts must be {amount_rule}.") from exc
-            if not np.isfinite(value) or value < 0:
-                raise ValueError(f"{name} amounts must be {amount_rule}.")
-            position = positions[good]
-            previous = float(vector[position])
-            if abs(value) > np.finfo(np.float64).max - abs(previous):
-                raise ValueError(f"{name} totals must remain finite.")
-            vector[position] += value
-        return vector
-
     def _throughput_multipliers(self, scenario: Scenario) -> np.ndarray:
         multipliers = np.ones(len(self.model.df_production), dtype=np.float64)
         buildings = self.model.df_production["building"].to_numpy()
@@ -390,25 +367,19 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         return multipliers
 
     def _compile_inequalities(
-        self, scenario: Scenario, net_matrix: np.ndarray
+        self,
+        scenario: Scenario,
+        net_matrix: np.ndarray,
+        goods_import: np.ndarray,
+        goods_export: np.ndarray,
     ) -> tuple[np.ndarray | None, np.ndarray | None, ConstraintSlices]:
         blocks: list[tuple[str, np.ndarray, np.ndarray]] = []
-        explicit_goods = {good for good, _amount in scenario.min_goods_output}
-        default_positions = [
-            i
-            for i, good in enumerate(self.model.goods_index)
-            if good not in explicit_goods
-        ]
-        if scenario.default_min_goods_output is not None and default_positions:
+        if scenario.min_goods_balance is not None:
             blocks.append(
                 (
-                    "default_min_goods_output",
-                    -net_matrix[:, default_positions].T,
-                    np.full(
-                        len(default_positions),
-                        -scenario.default_min_goods_output,
-                        dtype=np.float64,
-                    ),
+                    "min_goods_balance",
+                    -net_matrix.T,
+                    goods_import - goods_export - scenario.min_goods_balance,
                 )
             )
         if scenario.construction_cost_cap is not None:
@@ -425,22 +396,6 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
                     "employment_cap",
                     self.model.employment_vector,
                     np.array([scenario.employment_cap], dtype=np.float64),
-                )
-            )
-        if scenario.min_goods_output:
-            positions = {good: i for i, good in enumerate(self.model.goods_index)}
-            rows: list[np.ndarray] = []
-            amounts: list[float] = []
-            for good, amount in scenario.min_goods_output:
-                if good not in positions:
-                    raise ValueError(f"Good '{good}' not found in goods index.")
-                rows.append(-net_matrix[:, positions[good]])
-                amounts.append(-amount)
-            blocks.append(
-                (
-                    "min_goods_output",
-                    np.vstack(rows),
-                    np.asarray(amounts, dtype=np.float64),
                 )
             )
         if scenario.building_level_caps:

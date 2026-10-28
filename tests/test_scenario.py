@@ -10,9 +10,8 @@ from vic3_analysis import Scenario
 
 def test_defaults():
     scenario = Scenario()
-    assert scenario.min_goods_output == ()
     assert scenario.objective == "automation"
-    assert scenario.default_min_goods_output == 0.0
+    assert scenario.min_goods_balance == 0.0
     assert scenario.banned_pms == ()
     assert scenario.building_level_caps == ()
     assert scenario.banned_building_groups == ()
@@ -43,16 +42,32 @@ def test_invalid_workforce_ratio(ratio: float):
 
 
 def test_frozen():
-    scenario = Scenario(min_goods_output=(("steel", 1.0),))
+    scenario = Scenario(goods_export=(("steel", 1.0),))
     with pytest.raises(FrozenInstanceError):
         setattr(scenario, "objective", "gdp")  # noqa: B010
 
 
 def test_display_name():
     assert Scenario(name="recipe-a").display_name() == "recipe-a"
-    assert Scenario(min_goods_output=(("steel", 5.0),)).display_name() == "steel"
+    assert Scenario(goods_export=(("steel", 5.0),)).display_name() == "steel"
     assert (
-        Scenario(min_goods_output=(("steel", 5.0), ("tools", 2.0))).display_name()
+        Scenario(goods_export=(("steel", 5.0), ("tools", 2.0))).display_name()
         == "steel+tools"
     )
     assert Scenario().display_name() == "unnamed"
+
+
+@pytest.mark.parametrize("floor", [float("nan"), float("inf"), -float("inf")])
+def test_invalid_balance_floor(floor: float):
+    with pytest.raises(ValueError, match="min_goods_balance"):
+        Scenario(min_goods_balance=floor)
+
+
+def test_display_name_deduplicates_exports_and_ignores_imports():
+    assert (
+        Scenario(
+            goods_export=(("steel", 2.0), ("tools", 3.0), ("steel", 4.0))
+        ).display_name()
+        == "steel+tools"
+    )
+    assert Scenario(goods_import=(("steel", 2.0),)).display_name() == "unnamed"

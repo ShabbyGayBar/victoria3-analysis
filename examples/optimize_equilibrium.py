@@ -228,7 +228,7 @@ def run(
         workforce_ratio=0.4,
         banned_building_groups=DEFAULT_BANNED_BGS,
         min_net_infrastructure=None,
-        default_min_goods_output=None,
+        min_goods_balance=None,
         throughput_multipliers=(),
     )
     optimizer = EquilibriumOptimizer(economy)
