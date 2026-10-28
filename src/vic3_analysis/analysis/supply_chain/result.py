@@ -32,7 +32,6 @@ from vic3_analysis.optimize.base import ConstraintSlices, LinearProblem
 from vic3_analysis.optimize.scenario import Scenario
 
 PROCESS_COLUMNS = [
-    "config",
     "building",
     "production_method",
     "building_group",
@@ -306,7 +305,6 @@ class SupplyChainResult:
             unit_output = float(self.problem.output_matrix[i] @ prices)
             result.append(
                 {
-                    "config": self.config_index[i],
                     "building": str(source["building"]),
                     "production_method": str(source["production_method"]),
                     "building_group": str(source.get("building_group", "")),

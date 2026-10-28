@@ -50,7 +50,8 @@ def _reports(root: Path) -> Path:
         directory.mkdir()
         pd.DataFrame(
             {
-                "config": ["mine+pump", "mill+automatic", "unused+manual"],
+                "building": ["mine", "mill", "unused"],
+                "production_method": ["pump", "automatic", "manual"],
                 "active": [True, True, False],
                 "in_terminal_chain": [False, True, False],
                 "level": [*levels, 0.0],
@@ -98,11 +99,14 @@ def test_invalid_process_reports(tmp_path: Path, failure: str):
         return
     report = pd.read_csv(path, encoding="utf-8")
     if failure == "unknown_config":
-        report.loc[0, "config"] = "unknown+pm"
+        report.loc[0, "building"] = "unknown"
+        report.loc[0, "production_method"] = "pm"
     elif failure == "negative_level":
         report.loc[0, "level"] = -1.0
     elif failure == "duplicate_config":
-        report.loc[0, "config"] = report.loc[1, "config"]
+        report.loc[0, ["building", "production_method"]] = report.loc[
+            1, ["building", "production_method"]
+        ]
     elif failure == "throughput":
         report.loc[0, "throughput_multiplier"] = 2.0
     elif failure == "invalid_active":

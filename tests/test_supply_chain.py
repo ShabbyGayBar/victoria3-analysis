@@ -312,6 +312,8 @@ def test_tables_have_stable_schemas_and_reconcile(result: SupplyChainResult):
     goods = result.goods()
     workforce = result.workforce()
     assert list(processes.columns) == PROCESS_COLUMNS
+    assert "config" not in processes.columns
+    assert "config" not in result.processes("allowed").columns
     assert list(goods.columns) == GOOD_COLUMNS
     assert list(workforce.columns) == WORKFORCE_COLUMNS
     assert list(result.constraints().columns) == CONSTRAINT_COLUMNS
@@ -557,6 +559,10 @@ def test_zero_denominators_and_empty_realized_chain(result: SupplyChainResult):
         production=result.production.assign(wage_normalized_employment=0.0),
     )
     summary = empty.summary()
+    processes = empty.processes()
+    assert processes.empty
+    assert list(processes.columns) == PROCESS_COLUMNS
+    assert "config" not in processes.columns
     for scope in ("chain", "system"):
         for metric in (
             "gdp_per_capita",

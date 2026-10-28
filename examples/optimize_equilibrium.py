@@ -44,11 +44,12 @@ def load_production_units(production_path: Path, analysis_dir: Path) -> pd.DataF
     for path in reports:
         processes = pd.read_csv(
             path,
-            usecols=["config", "active"],
-            dtype={"config": str, "active": bool},
+            usecols=["building", "production_method", "active"],
+            dtype={"building": str, "production_method": str, "active": bool},
             encoding="utf-8",
         )
-        configs.update(processes.loc[processes["active"].eq(True), "config"])
+        keys = processes["building"] + "+" + processes["production_method"]
+        configs.update(keys.loc[processes["active"].eq(True)])
     if not configs:
         raise ValueError(f"No active production units found in {analysis_dir}.")
 

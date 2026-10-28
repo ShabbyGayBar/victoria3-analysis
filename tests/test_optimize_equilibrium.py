@@ -96,14 +96,18 @@ def test_production_units_are_union_of_active_chain_configurations(
     ):
         directory = analysis_dir / good
         directory.mkdir(parents=True)
-        pd.DataFrame({"config": configs, "active": active}).to_csv(
-            directory / "processes.csv", index=False, encoding="utf-8"
-        )
+        pd.DataFrame(
+            {
+                "building": [config.split("+", 1)[0] for config in configs],
+                "production_method": [config.split("+", 1)[1] for config in configs],
+                "active": active,
+            }
+        ).to_csv(directory / "processes.csv", index=False, encoding="utf-8")
     other = tmp_path / "era_3_construction" / "grain"
     other.mkdir(parents=True)
-    pd.DataFrame({"config": ["farm+tractor"], "active": [True]}).to_csv(
-        other / "processes.csv", index=False, encoding="utf-8"
-    )
+    pd.DataFrame(
+        {"building": ["farm"], "production_method": ["tractor"], "active": [True]}
+    ).to_csv(other / "processes.csv", index=False, encoding="utf-8")
 
     selected = load_production_units(production_path, analysis_dir)
 
@@ -120,9 +124,9 @@ def test_missing_process_reports(tmp_path: Path) -> None:
 def test_no_active_production_units(tmp_path: Path) -> None:
     directory = tmp_path / "paper"
     directory.mkdir()
-    pd.DataFrame({"config": ["mill+manual"], "active": [False]}).to_csv(
-        directory / "processes.csv", index=False, encoding="utf-8"
-    )
+    pd.DataFrame(
+        {"building": ["mill"], "production_method": ["manual"], "active": [False]}
+    ).to_csv(directory / "processes.csv", index=False, encoding="utf-8")
     with pytest.raises(ValueError, match="No active production units"):
         load_production_units(tmp_path / "production.csv", tmp_path)
 
@@ -130,9 +134,9 @@ def test_no_active_production_units(tmp_path: Path) -> None:
 def test_stale_supply_chain_configuration(tmp_path: Path) -> None:
     directory = tmp_path / "paper"
     directory.mkdir()
-    pd.DataFrame({"config": ["mill+obsolete"], "active": [True]}).to_csv(
-        directory / "processes.csv", index=False, encoding="utf-8"
-    )
+    pd.DataFrame(
+        {"building": ["mill"], "production_method": ["obsolete"], "active": [True]}
+    ).to_csv(directory / "processes.csv", index=False, encoding="utf-8")
     production_path = tmp_path / "production.csv"
     pd.DataFrame({"building": ["mill"], "production_method": ["automatic"]}).to_csv(
         production_path, index=False, encoding="utf-8"

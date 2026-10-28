@@ -142,7 +142,6 @@ than the building type alone. The guide explains the
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
-| `config` | String / configuration identifier | `Economy.building_index` key for the row. | Joins to `flows.process` and workforce/alternatives `config`. |
 | `building` | String / identifier | Source building key. | Multiple configurations may share it. |
 | `production_method` | String / compound identifiers | Complete chosen method combination. | Methods are joined by `+`. |
 | `building_group` | String / identifier | Immediate source building group. | Missing metadata defaults to empty string. |
@@ -224,7 +223,7 @@ profession order. It omits process/profession employment at or below tolerance.
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
-| `config` | String / configuration identifier | Configuration employing the profession. | Joins to processes. |
+| `config` | String / configuration identifier | Configuration employing the profession. | Matches process `building + "+" + production_method`. |
 | `building` | String / identifier | Configuration's source building. | Multiple rows can share it. |
 | `profession` | String / identifier | Profession key from the economy's profession index. | No row for employment at or below tolerance. |
 | `employment` | Float / workers | State employment cell for this configuration/profession. | Per-level profession coefficient times solved level; throughput does not change it. |

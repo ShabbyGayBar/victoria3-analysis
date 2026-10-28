@@ -122,9 +122,13 @@ def load_recipes(
                 f"Missing recipe report: {path}; run examples.supply_chain_compare."
             )
         processes = pd.read_csv(path, encoding="utf-8")
-        if not {"config", "active", "level", "throughput_multiplier"}.issubset(
-            processes.columns
-        ):
+        if not {
+            "building",
+            "production_method",
+            "active",
+            "level",
+            "throughput_multiplier",
+        }.issubset(processes.columns):
             raise ValueError(
                 f"Recipe report is missing required process columns: {path}"
             )
@@ -143,6 +147,7 @@ def load_recipes(
             active["throughput_multiplier"].to_numpy(dtype=float), 1.0
         ).all():
             raise ValueError(f"Recipe throughput multipliers must equal 1: {path}")
+        active["config"] = active["building"] + "+" + active["production_method"]
         keys = active["config"].tolist()
         if any(not isinstance(key, str) or not key for key in keys) or len(
             set(keys)
