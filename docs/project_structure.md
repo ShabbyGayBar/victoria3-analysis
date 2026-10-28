@@ -128,7 +128,7 @@ or expose a `pyradox.Tree` subclass with helper methods.
   `GoodsBuyPackages` objects holding aligned wealth labels and goods quantities.
   Basket calculations and consumption inputs use `GoodsBuyPackages` throughout;
   raw parser tables remain DataFrames.
-  `EconomyContext` owns fixed production, trade, worker counts, workforce ratio,
+  `EconomyContext` owns fixed production, gross import and export orders, worker counts, workforce ratio,
   and optional prepared baskets/scales. `MarketState` references that context
   and owns prices, deriving building finances and GDP. `PopState` owns wealth,
   demand, and optional income/expenses, deriving balance when evaluated.

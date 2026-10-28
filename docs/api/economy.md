@@ -55,7 +55,8 @@ for affordability thresholds and numerical comparisons.
 `Economy.solve(..., method="equilibrium", initial_wealth=None,
 max_iterations=1000, rtol=1e-9, atol=1e-8)` calculates endogenous household
 demand and returns a complete, verified state with `equilibrium_diagnostics`.
-Explicit `pop_needs` is rejected. The optional initial wealth is a full
+Fixed `goods_import` and `goods_export` orders are added independently to
+supply and demand. The optional initial wealth is a full
 configuration/profession integer matrix. Nominal/market modes ignore these
 controls and leave diagnostics as `None`.
 

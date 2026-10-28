@@ -75,26 +75,24 @@ def market_prices(
 def _solve_nominal(
     economy: Economy,
     building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-    goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
+    goods_import: np.ndarray[tuple[int], np.dtype[np.float64]],
+    goods_export: np.ndarray[tuple[int], np.dtype[np.float64]],
     throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
-    pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
     *,
     workforce_ratio: float = 1.0,
 ) -> EconomyState:
     """Derive a nominal `EconomyState` from a building-level vector.
 
-    Uses base (nominal) goods prices, gross goods output for supply, gross
-    goods input plus supplied population needs for demand, per-profession
-    employment, and per-profession
-    ``start_quality_of_life`` for wealth.
+    Uses base (nominal) goods prices, gross goods output plus imports for supply,
+    gross goods input plus exports for demand, per-profession employment, and
+    per-profession ``start_quality_of_life`` for wealth. Household demand is zero.
 
     Args:
         building_levels: 1-D array of shape ``(n_buildings,)``.
-        goods_trade_flow: Signed 1-D array of shape ``(n_goods,)``;
-            positive values import goods, negative values export goods.
+        goods_import: Non-negative weekly sell orders of shape ``(n_goods,)``.
+        goods_export: Non-negative weekly buy orders of shape ``(n_goods,)``.
         throughput_multipliers: Optional per-configuration multipliers for
             gross goods inputs and outputs.
-        pop_needs: 1-D array of goods-aligned population needs demand.
         workforce_ratio: Economy-wide workers / total population.
 
     Returns:
@@ -111,7 +109,8 @@ def _solve_nominal(
     context = EconomyContext(
         building_levels=building_levels,
         building_goods_flow=building_goods_flow,
-        goods_trade_flow=goods_trade_flow,
+        goods_import=goods_import,
+        goods_export=goods_export,
         pops=pops,
         workforce_ratio=workforce_ratio,
     )
@@ -120,7 +119,7 @@ def _solve_nominal(
         market=MarketState(context=context, market_prices=economy.base_prices),
         households=PopState(
             pop_wealth=np.broadcast_to(economy.pop_wealth_init, pops.shape),
-            pop_buy_orders=pop_needs,
+            pop_buy_orders=np.zeros(len(economy.goods_index), dtype=np.float64),
         ),
     )
 
@@ -128,9 +127,9 @@ def _solve_nominal(
 def _solve_market(
     economy: Economy,
     building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
-    goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]],
+    goods_import: np.ndarray[tuple[int], np.dtype[np.float64]],
+    goods_export: np.ndarray[tuple[int], np.dtype[np.float64]],
     throughput_multipliers: (np.ndarray[tuple[int], np.dtype[np.float64]] | None),
-    pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]],
     *,
     workforce_ratio: float = 1.0,
 ) -> EconomyState:
@@ -138,9 +137,9 @@ def _solve_market(
     state = _solve_nominal(
         economy,
         building_levels,
-        goods_trade_flow,
+        goods_import,
+        goods_export,
         throughput_multipliers,
-        pop_needs,
         workforce_ratio=workforce_ratio,
     )
     return replace(

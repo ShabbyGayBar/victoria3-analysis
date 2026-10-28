@@ -31,9 +31,10 @@ class Scenario:
     nonnegative net output for unspecified goods; ``None`` leaves them
     unconstrained.
 
-    ``goods_trade_flow`` records fixed weekly ``(good, amount)`` pairs.
-    Positive amounts import goods; negative amounts export goods. Each good
-    trades in one direction; repeated entries must have compatible signs.
+    ``goods_import`` and ``goods_export`` record fixed weekly ``(good, amount)``
+    pairs with non-negative amounts. Imports add sell orders; exports add buy
+    orders. Repeated entries are summed, and a good may be both imported and
+    exported. These orders do not set domestic production requirements.
 
     ``workforce_ratio`` is the uniform worker share of total population.
     It defaults to ``1.0``; employment constraints still count only workers.
@@ -53,8 +54,8 @@ class Scenario:
     min_net_infrastructure_usage: float | None = None
     urbanization_per_center: float | None = None
     name: str | None = None
-    goods_trade_flow: tuple[tuple[str, float], ...] = ()
-    pop_needs: tuple[tuple[str, float], ...] = ()
+    goods_import: tuple[tuple[str, float], ...] = ()
+    goods_export: tuple[tuple[str, float], ...] = ()
     workforce_ratio: float = 1.0
 
     def __post_init__(self) -> None:

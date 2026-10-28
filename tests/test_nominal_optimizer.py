@@ -188,14 +188,15 @@ def test_solve_propagates_fixed_market_context(economy: Economy):
     scenario = Scenario(
         objective="construction_cost",
         default_min_goods_output=None,
-        goods_trade_flow=(("tools", 2.0), ("coal", -3.0)),
-        pop_needs=(("grain", 4.0),),
+        goods_import=(("tools", 2.0),),
+        goods_export=(("grain", 4.0), ("coal", 3.0)),
     )
     state = NominalOptimizer(economy).solve(scenario)
     goods = economy.goods_index
     assert state.imports[goods.index("tools")] == pytest.approx(2.0)
     assert state.exports[goods.index("coal")] == pytest.approx(3.0)
-    assert state.pop_buy_orders[goods.index("grain")] == pytest.approx(4.0)
+    assert state.exports[goods.index("grain")] == pytest.approx(4.0)
+    np.testing.assert_array_equal(state.pop_buy_orders, np.zeros(len(goods)))
 
 
 def test_solve_satisfies_building_level_caps(economy: Economy):

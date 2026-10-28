@@ -108,9 +108,8 @@ def evaluate_wealth(
         assignment without affordability limits or wealth transitions.
     """
     _validate_building_goods_flow(economy, context)
-    _validate_goods_vector(
-        economy, context.goods_trade_flow, "context.goods_trade_flow", nonnegative=False
-    )
+    for name in ("goods_import", "goods_export"):
+        _validate_goods_vector(economy, getattr(context, name), f"context.{name}")
     context = economy.prepare_context(context)
     wealth = _validate_wealth_assignment(economy, context, pop_wealth)
     evaluation = _evaluate_prepared_wealth(
@@ -203,9 +202,8 @@ def _validate_equilibrium_tolerances(rtol: float, atol: float) -> None:
 def _validate_iteration_context(economy: Economy, context: EconomyContext) -> None:
     """Check prepared axes and consecutive tiers without restricting evaluation."""
     _validate_building_goods_flow(economy, context)
-    _validate_goods_vector(
-        economy, context.goods_trade_flow, "context.goods_trade_flow", nonnegative=False
-    )
+    for name in ("goods_import", "goods_export"):
+        _validate_goods_vector(economy, getattr(context, name), f"context.{name}")
     pops = _validate_worker_counts(economy, context)
     _validate_nonnegative_values(context.building_levels, "building_levels")
     if context.building_levels.shape != (len(economy.building_index),):

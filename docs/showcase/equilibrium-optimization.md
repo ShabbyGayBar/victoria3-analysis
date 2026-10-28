@@ -22,7 +22,7 @@ scenario's existing lower-bound semantics.
 Fixed throughput multipliers are all **1.0**, and level-dependent
 economy-of-scale bonuses are disabled. Trade, resource limits, arable-land
 limits, and era restrictions retain their defaults. Household demand is
-endogenous, so no fixed `pop_needs` orders are supplied.
+endogenous, calculated from household wealth and population composition.
 
 The script loads the production table, goods, professions, population needs,
 and buy packages from the existing artifact datasets. It restricts production

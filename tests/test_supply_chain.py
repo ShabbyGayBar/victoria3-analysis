@@ -655,15 +655,16 @@ def test_fixed_imports_exports_and_needs_are_reported(economy: Economy):
             min_goods_output=(("widget", 1.0),),
             objective="construction_cost",
             default_min_goods_output=0.0,
-            goods_trade_flow=(("ore", 3.0), ("byproduct", -2.0)),
-            pop_needs=(("tools", 1.0),),
+            goods_import=(("ore", 3.0),),
+            goods_export=(("tools", 1.0), ("byproduct", 2.0)),
         ),
         "widget",
     ).run()
     goods = result.goods().set_index("good")
     assert goods.loc["ore", "imports"] == 3.0
     assert goods.loc["byproduct", "exports"] == 2.0
-    assert goods.loc["tools", "pop_needs"] == 1.0
+    assert goods.loc["tools", "exports"] == 1.0
+    assert goods.loc["tools", "pop_needs"] == 0.0
 
 
 def test_constraints_have_labels_slacks_and_marginals(result: SupplyChainResult):

@@ -145,10 +145,12 @@ class EconomyContext:
         building_levels: Levels per production configuration.
         building_goods_flow: Realized weekly signed quantities by configuration
             and good, including throughput and economy-of-scale bonuses.
-        goods_trade_flow: Weekly signed trade quantities by good: positive for
-            imports, negative for exports. Each good trades in one direction.
-        imports: Derived non-negative weekly import quantities by good.
-        exports: Derived non-negative weekly export quantities by good.
+        goods_import: Non-negative weekly import quantities by good.
+        goods_export: Non-negative weekly export quantities by good. The same
+            good may have both import and export orders.
+        goods_trade_flow: Derived net imports (imports minus exports).
+        imports: Read-only alias for goods_import.
+        exports: Read-only alias for goods_export.
         pops: Employed-worker counts by configuration and profession.
         workforce_ratio: Workers / total population, in ``(0, 1]``.
         goods_buy_packages: Optional immutable goods baskets with their wealth labels,
@@ -159,7 +161,8 @@ class EconomyContext:
 
     building_levels: np.ndarray
     building_goods_flow: np.ndarray
-    goods_trade_flow: np.ndarray
+    goods_import: np.ndarray
+    goods_export: np.ndarray
     pops: np.ndarray
     workforce_ratio: float = field(default=1.0, kw_only=True)
     goods_buy_packages: GoodsBuyPackages | None = field(default=None, kw_only=True)
@@ -172,7 +175,8 @@ class EconomyContext:
         for name in (
             "building_levels",
             "building_goods_flow",
-            "goods_trade_flow",
+            "goods_import",
+            "goods_export",
             "pops",
         ):
             object.__setattr__(self, name, _readonly_array(getattr(self, name)))
@@ -182,8 +186,10 @@ class EconomyContext:
                     "goods_buy_packages must be a GoodsBuyPackages instance or None."
                 )
             quantities = self.goods_buy_packages.quantities
-            if self.goods_trade_flow.ndim != 1 or quantities.shape[1] != len(
-                self.goods_trade_flow
+            if (
+                self.goods_import.ndim != 1
+                or quantities.shape[1] != len(self.goods_import)
+                or self.goods_export.shape != self.goods_import.shape
             ):
                 raise ValueError(
                     "goods_buy_packages.quantities shape must match context goods."
@@ -200,14 +206,19 @@ class EconomyContext:
             object.__setattr__(self, "consumption_scales", _readonly_array(scales))
 
     @cached_property
-    def imports(self) -> np.ndarray:
-        """Return positive trade flows as read-only weekly import quantities."""
-        return _readonly_array(np.maximum(self.goods_trade_flow, 0))
+    def goods_trade_flow(self) -> np.ndarray:
+        """Return read-only net imports, preserving gross orders separately."""
+        return _readonly_array(self.goods_import - self.goods_export)
 
-    @cached_property
+    @property
+    def imports(self) -> np.ndarray:
+        """Return read-only weekly import quantities."""
+        return self.goods_import
+
+    @property
     def exports(self) -> np.ndarray:
-        """Return negative trade flows as read-only weekly export quantities."""
-        return _readonly_array(np.maximum(-self.goods_trade_flow, 0))
+        """Return read-only weekly export quantities."""
+        return self.goods_export
 
     @cached_property
     def building_goods_input(self) -> np.ndarray:
@@ -416,8 +427,18 @@ class EconomyState:
         return self.context.building_goods_flow
 
     @property
+    def goods_import(self) -> np.ndarray:
+        """Return ``context.goods_import``."""
+        return self.context.goods_import
+
+    @property
+    def goods_export(self) -> np.ndarray:
+        """Return ``context.goods_export``."""
+        return self.context.goods_export
+
+    @property
     def goods_trade_flow(self) -> np.ndarray:
-        """Return ``context.goods_trade_flow`` (positive imports, negative exports)."""
+        """Return net imports from ``context.goods_trade_flow``."""
         return self.context.goods_trade_flow
 
     @property

@@ -61,7 +61,7 @@ def test_market_optimizer_finds_closed_form_interior_optimum(
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
 
     optimizer = MarketOptimizer(toy_economy)
@@ -91,7 +91,7 @@ def test_market_optimizer_honors_fixed_throughput_bonus(toy_economy: Economy):
         default_min_goods_output=None,
         building_level_caps=(("building_test", 0.75),),
         throughput_multipliers=(("building_test", 2.0),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
 
     state = MarketOptimizer(toy_economy).solve(scenario)
@@ -105,7 +105,7 @@ def test_market_optimizer_maximizes_gdp_per_capita(toy_economy: Economy):
         objective="gdp_per_capita",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
 
     state = MarketOptimizer(toy_economy).solve(scenario)
@@ -119,7 +119,7 @@ def test_workforce_ratio_scales_compiled_per_capita_objective(toy_economy: Econo
         objective="gdp_per_capita",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
         employment_cap=1.5,
     )
     optimizer = MarketOptimizer(toy_economy)
@@ -156,7 +156,7 @@ def test_workforce_ratio_does_not_scale_gdp_objective(toy_economy: Economy):
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
     optimizer = MarketOptimizer(toy_economy)
     workers = optimizer.compile(scenario)
@@ -174,7 +174,7 @@ def test_market_optimizer_preserves_scenario_constraints(
         default_min_goods_output=None,
         min_goods_output=(("test_good", 1.0),),
         building_level_caps=(("building_test", 1.25),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
 
     state = MarketOptimizer(toy_economy).solve(scenario)
@@ -186,31 +186,27 @@ def test_market_optimizer_preserves_scenario_constraints(
 
 @pytest.mark.parametrize("trade", [2.0, -3.0, 0.0])
 def test_market_context_is_propagated_by_nominal_optimizer(
-    toy_economy: Economy,
-    trade: float,
+    toy_economy: Economy, trade: float
 ):
     scenario = Scenario(
         objective="construction_cost",
         default_min_goods_output=None,
-        goods_trade_flow=(("test_good", trade),),
-        pop_needs=(("test_good", 4.0),),
+        goods_import=(("test_good", max(trade, 0)),),
+        goods_export=(("test_good", max(-trade, 0) + 4.0),),
     )
-
     state = NominalOptimizer(toy_economy).solve(scenario)
-
-    np.testing.assert_array_equal(state.goods_trade_flow, [trade])
-    np.testing.assert_array_equal(state.imports, [max(trade, 0)])
-    np.testing.assert_array_equal(state.exports, [max(-trade, 0)])
-    np.testing.assert_array_equal(state.pop_buy_orders, [4.0])
+    np.testing.assert_array_equal(state.goods_import, [max(trade, 0)])
+    np.testing.assert_array_equal(state.goods_export, [max(-trade, 0) + 4.0])
+    np.testing.assert_array_equal(state.pop_buy_orders, [0.0])
     np.testing.assert_array_equal(
-        state.sell_orders, state.building_goods_output + max(trade, 0)
+        state.sell_orders, state.building_goods_output + state.goods_import
     )
     np.testing.assert_array_equal(
-        state.buy_orders, state.building_goods_input + max(-trade, 0) + 4.0
+        state.buy_orders, state.building_goods_input + state.goods_export
     )
 
 
-@pytest.mark.parametrize("direction", [1.0, -1.0])
+@pytest.mark.parametrize("direction", [1.0, 2.0])
 def test_market_context_duplicate_goods_are_summed(
     toy_economy: Economy, direction: float
 ):
@@ -218,26 +214,48 @@ def test_market_context_duplicate_goods_are_summed(
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        goods_trade_flow=(("test_good", direction), ("test_good", 2 * direction)),
-        pop_needs=(("test_good", 1.0), ("test_good", 2.0)),
+        goods_import=(("test_good", direction), ("test_good", 2 * direction)),
+        goods_export=(("test_good", 1.0), ("test_good", 2.0)),
     )
 
     state = MarketOptimizer(toy_economy).solve(scenario)
 
-    np.testing.assert_array_equal(state.goods_trade_flow, [3 * direction])
+    np.testing.assert_array_equal(state.goods_import, [3 * direction])
     np.testing.assert_array_equal(state.imports, [max(3 * direction, 0)])
-    np.testing.assert_array_equal(state.exports, [max(-3 * direction, 0)])
-    np.testing.assert_array_equal(state.pop_buy_orders, [3.0])
+    np.testing.assert_array_equal(state.exports, [3.0])
+    np.testing.assert_array_equal(state.pop_buy_orders, [0.0])
+
+
+def test_market_prices_and_objective_use_both_gross_trade_orders(toy_economy: Economy):
+    optimizer = MarketOptimizer(toy_economy)
+    problem = optimizer.compile(
+        Scenario(
+            objective="gdp",
+            default_min_goods_output=None,
+            min_goods_output=(("test_good", 100.0),),
+            building_level_caps=(("building_test", 100.0),),
+            goods_import=(("test_good", 100.0),),
+            goods_export=(("test_good", 150.0),),
+        )
+    )
+    state = optimizer.solve_problem(problem)
+    np.testing.assert_allclose(state.sell_orders, [200.0])
+    np.testing.assert_allclose(state.buy_orders, [150.0])
+    np.testing.assert_allclose(state.market_prices, [0.75])
+    np.testing.assert_array_equal(state.goods_trade_flow, [-50.0])
+    np.testing.assert_array_equal(state.pop_buy_orders, [0.0])
+    assert state.gdp() == pytest.approx(75.0)
+    assert problem.objective(state.building_levels) == pytest.approx(-state.gdp())
 
 
 @pytest.mark.parametrize(
     ("field", "value"),
     (
-        ("goods_trade_flow", (("not_a_good", 1.0),)),
-        ("pop_needs", (("not_a_good", 1.0),)),
-        ("pop_needs", (("test_good", -1.0),)),
-        ("goods_trade_flow", (("test_good", np.nan),)),
-        ("pop_needs", (("test_good", np.inf),)),
+        ("goods_import", (("not_a_good", 1.0),)),
+        ("goods_export", (("not_a_good", 1.0),)),
+        ("goods_export", (("test_good", -1.0),)),
+        ("goods_import", (("test_good", np.nan),)),
+        ("goods_export", (("test_good", np.inf),)),
     ),
 )
 def test_market_context_rejects_invalid_values(
@@ -300,8 +318,8 @@ def test_market_objective_gradient_matches_finite_difference(
         inputs,
         outputs,
         outputs - inputs,
-        np.array([trade]),
-        np.array([1.0]),
+        np.array([max(trade, 0)]),
+        np.array([1.0 + max(-trade, 0)]),
         base,
     )
     del value
@@ -313,8 +331,8 @@ def test_market_objective_gradient_matches_finite_difference(
         inputs,
         outputs,
         outputs - inputs,
-        np.array([trade]),
-        np.array([1.0]),
+        np.array([max(trade, 0)]),
+        np.array([1.0 + max(-trade, 0)]),
         base,
     )[0]
     minus = optimizer._value_and_gradient(
@@ -323,8 +341,8 @@ def test_market_objective_gradient_matches_finite_difference(
         inputs,
         outputs,
         outputs - inputs,
-        np.array([trade]),
-        np.array([1.0]),
+        np.array([max(trade, 0)]),
+        np.array([1.0 + max(-trade, 0)]),
         base,
     )[0]
     np.testing.assert_allclose(gradient, [(plus - minus) / (2 * epsilon)], rtol=1e-5)
@@ -336,8 +354,8 @@ def test_gdp_per_capita_gradient_matches_finite_difference(
     optimizer = MarketOptimizer(toy_economy)
     inputs = np.array([[0.25]])
     outputs = np.array([[1.0]])
-    trade = np.array([-0.3])
-    pop_needs = np.array([1.0])
+    trade = np.array([0.3])
+    goods_export = np.array([1.0])
     base_prices = np.array([1.0])
     employment = np.array([2.0])
 
@@ -349,7 +367,7 @@ def test_gdp_per_capita_gradient_matches_finite_difference(
             outputs,
             outputs - inputs,
             trade,
-            pop_needs,
+            goods_export,
             base_prices,
         )
         return optimizer._per_capita_value_and_gradient(
@@ -398,7 +416,7 @@ def test_market_optimizer_rejects_invalid_initial_points(
         default_min_goods_output=None,
         min_goods_output=(("test_good", 1.0),),
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
     with pytest.raises(ValueError, match="x0|feasib"):
         MarketOptimizer(toy_economy).solve(scenario, x0=x0)
@@ -409,7 +427,7 @@ def test_market_optimizer_accepts_feasible_x0_and_options(toy_economy: Economy):
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
 
     state = MarketOptimizer(toy_economy).solve(
@@ -446,7 +464,7 @@ def test_market_optimizer_rejects_x0_for_fixed_zero_configuration():
         default_min_goods_output=None,
         banned_building_groups=("bg_banned",),
         building_level_caps=(("building_allowed", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
 
     with pytest.raises(ValueError, match="variable bounds"):
@@ -458,7 +476,7 @@ def test_market_optimizer_compile_clears_stale_result(toy_economy: Economy):
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
     optimizer = MarketOptimizer(toy_economy)
     optimizer.solve(scenario)
@@ -475,7 +493,7 @@ def test_market_compile_and_solve_problem(toy_economy: Economy):
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
     optimizer = MarketOptimizer(toy_economy)
     problem = optimizer.compile(scenario)
@@ -495,7 +513,7 @@ def test_market_solve_problem_rejects_other_economy(toy_economy: Economy):
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("building_test", 1.5),),
-        pop_needs=(("test_good", 1.0),),
+        goods_export=(("test_good", 1.0),),
     )
     problem = MarketOptimizer(toy_economy).compile(scenario)
     other = Economy(
@@ -516,7 +534,7 @@ def test_market_solve_problem_applies_remaining_equalities(
             objective="gdp",
             default_min_goods_output=None,
             building_level_caps=(("building_test", 1.5),),
-            pop_needs=(("test_good", 1.0),),
+            goods_export=(("test_good", 1.0),),
         )
     )
     constrained = replace(

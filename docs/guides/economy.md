@@ -86,25 +86,29 @@ print("Workers and dependents: ", state.total_population)
 
 You can also use `market` mode, which derives national prices from buy and sell orders, just like the game does (still no local prices though).
 
-Pass fixed weekly trade quantities with `goods_trade_flow`, a finite 1-D
-array aligned to `economy.goods_index`. Positive values import goods and add
-sell orders; negative values export goods and add buy orders. Omission means
-zero trade. The aggregate model assumes each good trades in one direction.
+Pass fixed weekly trade quantities with `goods_import` and `goods_export`.
+Both are non-negative finite 1-D arrays aligned to `economy.goods_index`,
+and default to zeros. Imports add sell orders; exports add buy orders. A good
+may have imports and exports simultaneously; both gross quantities affect prices.
 
 ```python
-trade = np.zeros(len(economy.goods_index), dtype=np.float64)
-trade[economy.goods_index.index("tools")] = 5.0  # Import 5 tools per week.
-trade[economy.goods_index.index("coal")] = -3.0  # Export 3 coal per week.
-state = economy.solve(levels, method="market", goods_trade_flow=trade)
+imports = np.zeros(len(economy.goods_index), dtype=np.float64)
+exports = np.zeros(len(economy.goods_index), dtype=np.float64)
+imports[economy.goods_index.index("tools")] = 5.0
+exports[economy.goods_index.index("tools")] = 2.0
+state = economy.solve(
+    levels, method="market", goods_import=imports, goods_export=exports
+)
 ```
 
-`EconomyContext` stores this vector, and `state.goods_trade_flow` forwards to
-it. Both context and state expose read-only derived `imports` and `exports`
-quantities. When migrating existing callers, replace the old `imports=` and
-`exports=` inputs with `goods_trade_flow=`; for inputs with disjoint trade
-directions, this is `imports - exports`. Inputs with both directions for the
-same good cannot be represented without changing the model's buy/sell orders.
-Optimization scenarios use the same sign convention with named pairs.
+`EconomyContext` owns read-only `goods_import` and `goods_export` arrays.
+The state forwards these arrays and exposes `imports` and `exports` as aliases.
+`goods_trade_flow` is a read-only derived vector of net imports,
+`goods_import - goods_export`; market orders use the gross arrays.
+Optimization scenarios express each trade input as named `(good, amount)` pairs.
+Fixed demand assumptions in nominal/market studies can be supplied as export
+orders. Such orders appear as exports in reports and are separate from calculated
+household consumption. In equilibrium, exports are additional external demand.
 
 `Economy.solve()` also supports throughput bonuses via economy of scale and parameterized `throughput_multipliers`. The two are applied additively to the raw throughput of each building, which is then used to compute goods flows.
 
@@ -308,15 +312,19 @@ the model's `df_buy_packages`, and the goods substitution definitions in
 
 ```python
 from dataclasses import replace
+from vic3_analysis import EconomyState
 
 state = economy.solve(levels)
 needs = economy.pop_buy_orders(state)
 state_with_needs = replace(state, households=replace(state.households, pop_buy_orders=needs))
-# Or explicitly include these orders in a new market-price evaluation:
-market_state = economy.solve(levels, method="market", pop_needs=needs)
+# Evaluate demand, prices, and household finances at the state's fixed wealth:
+market, households = economy.evaluate_wealth(state.context, state.pop_wealth)
+market_state = EconomyState(market.context, market, households)
 ```
 
-`solve()` does not automatically calculate population demand or iterate wealth.
+`solve()` in nominal/market mode leaves household demand at zero.
+`evaluate_wealth()` calculates demand and prices at fixed wealth; equilibrium
+solving also iterates wealth.
 The calculation leaves the supplied state unchanged. `pop_wealth` and
 `pop_wealth_init` are read-only `int64` arrays; integer-valued floating inputs
 are accepted, while fractional, negative, non-finite, or overflowing wealth is
@@ -371,7 +379,9 @@ Pass the basket object to `pop_buy_orders` to reuse its goods quantities:
 ```python
 packages = economy.goods_buy_packages(state)
 needs = economy.pop_buy_orders(state, goods_buy_packages=packages)
-next_state = economy.solve(levels, method="market", pop_needs=needs)
+next_state = economy.solve(
+    levels, method="market", throughput_multipliers=np.full(len(levels), 1.1)
+)
 next_needs = economy.pop_buy_orders(next_state, goods_buy_packages=packages)
 ```
 
@@ -557,8 +567,8 @@ cooperative allocation shares, and dependent earnings once. The solver then
 iterates wealth, demand, prices, income, and expenses. `initial_wealth` defaults
 to profession starting tiers, or accepts a nonnegative integer matrix matching
 configurations × professions. Unsupported occupied tiers are rejected rather
-than clipped. Explicit `pop_needs`, including a zero vector, is rejected:
-household demand is calculated endogenously.
+than clipped. Household demand is calculated endogenously, alongside any
+fixed import and export orders.
 
 Success requires no permitted wealth changes and a fresh final verification
 through the accounting calculators. An initially stable assignment reports

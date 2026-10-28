@@ -91,7 +91,8 @@ class EquilibriumProblem(_CompiledProblem):
         return self.economy.solve(
             levels,
             method="equilibrium",
-            goods_trade_flow=self.goods_trade_flow,
+            goods_import=self.goods_import,
+            goods_export=self.goods_export,
             throughput_multipliers=self.throughput_multipliers,
             workforce_ratio=self.scenario.workforce_ratio,
             initial_wealth=self.initial_wealth,
@@ -275,17 +276,15 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
     ) -> EquilibriumProblem:
         """Compile shared constraints and freeze the equilibrium evaluation seed.
 
-        Supports ``gdp``, ``gdp_per_capita``, and ``average_wealth``. Fixed
-        ``scenario.pop_needs`` is rejected because consumption is endogenous.
-        Goods-output minima retain their existing domestic-output semantics.
+        Supports ``gdp``, ``gdp_per_capita``, and ``average_wealth``. Household
+        consumption is endogenous; imports and exports are fixed external orders.
+        Goods-output minima constrain net domestic production.
         """
         if scenario.objective not in ("gdp", "gdp_per_capita", "average_wealth"):
             raise ValueError(
                 "EquilibriumOptimizer requires objective='gdp', "
                 "'gdp_per_capita', or 'average_wealth'."
             )
-        if scenario.pop_needs:
-            raise ValueError("EquilibriumOptimizer requires empty scenario.pop_needs.")
         data = self._compile_common(scenario)
         warm_start = self._extract_fixed_zero_bounds(
             self._linear_problem(data, -data.gdp_vector)
@@ -312,8 +311,8 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             output_matrix=data.output_matrix,
             net_matrix=data.net_matrix,
             gdp_vector=data.gdp_vector,
-            goods_trade_flow=data.goods_trade_flow,
-            pop_needs=data.pop_needs,
+            goods_import=data.goods_import,
+            goods_export=data.goods_export,
             A_ub=warm_start.A_ub,
             b_ub=warm_start.b_ub,
             A_eq=warm_start.A_eq,

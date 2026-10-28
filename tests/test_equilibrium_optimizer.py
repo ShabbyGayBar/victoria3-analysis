@@ -138,7 +138,12 @@ def test_immutable_compilation_and_fixed_seed(toy_economy: Economy):
     np.testing.assert_array_equal(problem.initial_wealth, [[2, 999], [3, 999]])
     with pytest.raises(FrozenInstanceError):
         setattr(problem, "max_iterations", 10)  # noqa: B010
-    for array in (problem.initial_wealth, problem.net_matrix, problem.goods_trade_flow):
+    for array in (
+        problem.initial_wealth,
+        problem.net_matrix,
+        problem.goods_import,
+        problem.goods_export,
+    ):
         with pytest.raises(ValueError, match="read-only"):
             array.flat[0] = 10
     first = problem.evaluate(np.array([0.9, 0.1]))
@@ -183,7 +188,7 @@ def test_trade_throughput_and_dependents(toy_economy: Economy):
     scenario = replace(
         _scenario("gdp_per_capita"),
         throughput_multipliers=(("farm_a", 1.5),),
-        goods_trade_flow=(("food", 0.25),),
+        goods_import=(("food", 0.25),),
         workforce_ratio=0.25,
     )
     optimizer = EquilibriumOptimizer(toy_economy)
@@ -192,7 +197,7 @@ def test_trade_throughput_and_dependents(toy_economy: Economy):
         state.building_goods_flow,
         state.building_levels[:, None] * optimizer.goods_matrix,
     )
-    np.testing.assert_allclose(state.goods_trade_flow, [0.25])
+    np.testing.assert_allclose(state.goods_import, [0.25])
     assert state.total_population == pytest.approx(4 * state.total_employment)
     assert optimizer.result is not None
     assert optimizer.result.fun == pytest.approx(-state.gdp_per_capita())
@@ -319,7 +324,8 @@ def test_failed_trials_are_counted_and_search_recovers(
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("farm_a", 2.0),),
-        goods_trade_flow=(("food", 1.0), ("output", -2.5)),
+        goods_import=(("food", 1.0),),
+        goods_export=(("output", 2.5),),
     )
     state = optimizer.solve(
         scenario,
@@ -354,7 +360,8 @@ def test_no_valid_equilibrium_preserves_failure_diagnostics(
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("farm_a", 2.0),),
-        goods_trade_flow=(("food", 1.0), ("output", -2.5)),
+        goods_import=(("food", 1.0),),
+        goods_export=(("output", 2.5),),
     )
     with pytest.raises(ValueError, match="No feasible converged") as caught:
         optimizer.solve(scenario, x0=np.ones(1), options={"maxiter": 1})
@@ -393,7 +400,7 @@ def test_financial_flags_are_accepted(toy_economy: Economy):
             objective="gdp",
             default_min_goods_output=None,
             building_level_caps=(("farm_a", 1.0),),
-            goods_trade_flow=(("food", 10.0),),
+            goods_import=(("food", 10.0),),
         ),
         x0=np.ones(1),
         options={"maxiter": 1},
@@ -416,11 +423,18 @@ def test_other_optimizers_reject_wealth(toy_economy: Economy):
             optimizer.compile(Scenario(objective="average_wealth"))
 
 
-def test_rejects_exogenous_needs_even_when_zero(toy_economy: Economy):
-    with pytest.raises(ValueError, match="pop_needs"):
-        EquilibriumOptimizer(toy_economy).compile(
-            replace(_scenario(), pop_needs=(("food", 0.0),))
-        )
+def test_gross_trade_is_preserved_in_equilibrium(toy_economy: Economy):
+    scenario = replace(
+        _scenario(), goods_import=(("food", 0.5),), goods_export=(("food", 0.25),)
+    )
+    problem = EquilibriumOptimizer(toy_economy).compile(scenario)
+    state = problem.evaluate(np.array([1.0, 0.0]))
+    np.testing.assert_array_equal(state.goods_import, [0.5])
+    np.testing.assert_array_equal(state.goods_export, [0.25])
+    assert state.pop_buy_orders[0] > 0
+    np.testing.assert_allclose(
+        state.buy_orders, state.non_pop_buy_orders + state.pop_buy_orders
+    )
 
 
 @pytest.mark.parametrize("iterations", [0, -1, True, 1.5])
@@ -849,7 +863,8 @@ def test_logging_preserves_failure_snapshots_and_exception_chaining(
         objective="gdp",
         default_min_goods_output=None,
         building_level_caps=(("farm_a", 2.0),),
-        goods_trade_flow=(("food", 1.0), ("output", -2.5)),
+        goods_import=(("food", 1.0),),
+        goods_export=(("output", 2.5),),
     )
     errors: list[ValueError] = []
     snapshots: list[EconomyState] = []

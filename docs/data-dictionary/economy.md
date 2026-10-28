@@ -19,7 +19,7 @@ or household results shares the fixed arrays.
 
 | Owner | Stored quantities | Derived quantities |
 | --- | --- | --- |
-| `EconomyContext` | Building levels, realized flows, signed trade flows, worker counts, workforce ratio | Imports/exports, input/output totals, sell orders, industrial/export orders, population totals |
+| `EconomyContext` | Building levels, realized flows, gross imports and exports, worker counts, workforce ratio | Net trade, input/output totals, sell orders, industrial/export orders, population totals |
 | `MarketState` | Shared context and prices | Building surplus/deficit, GDP |
 | `PopState` | Wealth, demand, optional weekly income/expenses | Weekly balance (`income - expenses`), or `None` when either is absent |
 | `EconomyState` | Component references, optional equilibrium diagnostics | Total buy orders, wealth summaries, per-capita reports |
@@ -80,18 +80,18 @@ expanded [building registry](#building-registry) schema.
 
 ## State flows and cooperative income
 
-`EconomyContext.goods_trade_flow` is a read-only float64 vector aligned to
-`goods_index`, with positive imports and negative exports. Each good trades
-in one direction. `EconomyState.goods_trade_flow` forwards to the same array;
-`imports = maximum(goods_trade_flow, 0)` and
-`exports = maximum(-goods_trade_flow, 0)` are cached, read-only context properties.
+`EconomyContext.goods_import` and `goods_export` are read-only float64 vectors
+aligned to `goods_index`, holding non-negative weekly gross trade quantities.
+A good may have both import and export orders. `EconomyState` forwards both
+arrays; `imports` and `exports` alias the respective arrays on context and state.
+The cached read-only `goods_trade_flow` vector is `goods_import - goods_export`.
+Market orders use the gross quantities independently.
 
 `EconomyState.building_goods_flow` is a read-only float64 matrix with rows
 aligned to `building_index` and columns to `goods_index`. Values are realized
 weekly signed quantities after building levels, throughput, and economy of
-scale: positive for outputs and negative for inputs. It replaces the former
-aggregate constructor fields. Existing aggregate input/output attribute access
-is preserved through forwarding properties. The flow matrix is owned by
+scale: positive for outputs and negative for inputs. Aggregate input/output
+attributes are derived from this matrix. The flow matrix is owned by
 `EconomyContext`; aggregate inputs/outputs are cached there, while financial
 aggregates are cached on `MarketState`.
 
@@ -194,9 +194,9 @@ and output totals are reconstructed from production-table net coefficients.
 | `buy_orders` | Float / goods units per week | `building_goods_input + exports + pop_needs`. | Zero is valid when only sell orders are positive. |
 | `building_goods_input` | Float / goods units per week | Sum of configuration levels times adjusted nonnegative input coefficients. | Positive consumption magnitude, unlike signed production-table goods columns. |
 | `building_goods_output` | Float / goods units per week | Sum of configuration levels times adjusted nonnegative output coefficients. | Positive production magnitude. |
-| `imports` | Float / goods units per week | Derived `maximum(goods_trade_flow, 0)` for the good. | Non-negative; zero unless the signed flow is positive. |
-| `exports` | Float / goods units per week | Derived `maximum(-goods_trade_flow, 0)` for the good. | Non-negative; zero unless the signed flow is negative. |
-| `pop_needs` | Float / goods units per week | Population-demand orders from `state.pop_buy_orders`. | Exogenous and zero by default in nominal/market modes; endogenous from wealth baskets in equilibrium mode. |
+| `imports` | Float / goods units per week | The good's `state.goods_import` quantity. | Non-negative; may coexist with exports. |
+| `exports` | Float / goods units per week | The good's `state.goods_export` quantity. | Non-negative; may coexist with imports. |
+| `pop_needs` | Float / goods units per week | Population-demand orders from `state.pop_buy_orders`. | Zero in nominal/market solves; calculated from wealth baskets by household evaluation and equilibrium solving. |
 
 ## Population report
 

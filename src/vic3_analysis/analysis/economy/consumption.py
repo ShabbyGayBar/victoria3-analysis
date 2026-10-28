@@ -156,9 +156,8 @@ def _pop_need_purchase_shares(
         "building_goods_output",
     ):
         _validate_goods_vector(economy, getattr(state, name), f"state.{name}")
-    _validate_goods_vector(
-        economy, state.goods_trade_flow, "state.goods_trade_flow", nonnegative=False
-    )
+    for name in ("goods_import", "goods_export"):
+        _validate_goods_vector(economy, getattr(state, name), f"state.{name}")
     supply = _validate_goods_vector(economy, state.sell_orders, "state.sell_orders")
     prices = _validate_nonnegative_values(economy.base_prices, "base_prices")
     if (prices == 0).any():
@@ -449,8 +448,8 @@ def pop_buy_orders(
 
     Returns:
         A fresh writable float64 vector of shape ``(n_goods,)`` aligned
-        to `goods_index`, suitable for ``EconomyState.pop_buy_orders`` or the
-        ``pop_needs`` argument to `solve`. The state is unchanged.
+        to `goods_index`, suitable for ``PopState.pop_buy_orders``.
+        The state is unchanged.
 
     Raises:
         TypeError: If supplied baskets are not a `GoodsBuyPackages` instance.

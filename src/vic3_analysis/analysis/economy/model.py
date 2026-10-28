@@ -470,8 +470,8 @@ class Economy:
 
         Returns:
             A fresh writable float64 vector of shape ``(n_goods,)`` aligned
-            to `goods_index`, suitable for ``EconomyState.pop_buy_orders`` or the
-            ``pop_needs`` argument to `solve`. The state is unchanged.
+            to `goods_index`, suitable for ``PopState.pop_buy_orders``.
+            The state is unchanged.
 
         Raises:
             TypeError: If supplied baskets are not a `GoodsBuyPackages` instance.
@@ -728,11 +728,11 @@ class Economy:
         self,
         building_levels: np.ndarray[tuple[int], np.dtype[np.float64]],
         method: str = "nominal",
-        goods_trade_flow: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
+        goods_import: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
+        goods_export: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
         throughput_multipliers: (
             np.ndarray[tuple[int], np.dtype[np.float64]] | None
         ) = None,
-        pop_needs: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
         economy_of_scale_level_cap: float = 0.0,
         *,
         workforce_ratio: float = 1.0,
@@ -750,14 +750,15 @@ class Economy:
             method: The solving method to use. ``"nominal"`` uses base prices;
                 ``"market"`` derives prices from supplied orders; ``"equilibrium"``
                 iterates household wealth and endogenous consumption demand.
-            goods_trade_flow: Signed 1-D array of shape ``(n_goods,)``;
-                positive values import goods, negative values export goods.
-                Defaults to zeros. Each good trades in one direction.
+                Nominal and market modes leave household demand at zero.
+            goods_import: Non-negative finite 1-D array of shape ``(n_goods,)``
+                adding sell orders. Defaults to zeros.
+            goods_export: Non-negative finite 1-D array of shape ``(n_goods,)``
+                adding buy orders. Defaults to zeros. A good may have both
+                import and export orders.
             throughput_multipliers: Optional 1-D array of shape
                 ``(n_buildings,)`` scaling each configuration's gross goods
                 inputs and outputs. Defaults to no scaling.
-            pop_needs: Optional 1-D array of shape ``(n_goods,)`` specifying
-                population needs demand. Defaults to zeros.
             economy_of_scale_level_cap: Maximum building level contributing to
                 economy of scale. The default ``0.0`` disables the effect; use
                 ``20.0`` to cap the throughput bonus at +20%.
@@ -781,23 +782,18 @@ class Economy:
         Raises:
             ValueError: If *method* is unsupported, if
                 *building_levels* is not 1-D or its length does not match the
-                number of rows in the production table, if *goods_trade_flow*
-                is not a finite goods-aligned vector, or if
+                number of rows in the production table, if *goods_import* or
+                *goods_export* is not a non-negative finite goods-aligned vector, or if
                 *throughput_multipliers* is not aligned to the production
-                table, if *pop_needs* is not a non-negative finite
-                goods-aligned vector, or if the economy-of-scale cap is
+                table, or if the economy-of-scale cap is
                 negative or non-finite, or if *workforce_ratio* is outside ``(0, 1]``
-                or non-finite. Equilibrium rejects explicit ``pop_needs`` and
-                invalid controls, initial wealth, prepared tiers, or initial evaluation.
+                or non-finite. Equilibrium rejects invalid controls, initial wealth,
+                prepared tiers, or initial evaluation.
             EquilibriumError: On cycles, exhausted iterations, subsequent calculation
                 failures, or failed final verification; retains the last evaluated state.
         """
 
         if method == "equilibrium":
-            if pop_needs is not None:
-                raise ValueError(
-                    "pop_needs must be omitted for equilibrium; household demand is endogenous."
-                )
             _equilibrium._validate_equilibrium_tolerances(rtol, atol)
             if (
                 isinstance(max_iterations, (bool, np.bool_))
@@ -812,16 +808,18 @@ class Economy:
                 "building_levels length must match the number of rows in the "
                 "production table."
             )
-        if goods_trade_flow is None:
-            goods_trade_flow = np.zeros(len(self.goods_index), dtype=np.float64)
+        if goods_import is None:
+            goods_import = np.zeros(len(self.goods_index), dtype=np.float64)
         else:
-            goods_trade_flow = _validation._validate_goods_vector(
-                self, goods_trade_flow, "goods_trade_flow", nonnegative=False
+            goods_import = _validation._validate_goods_vector(
+                self, goods_import, "goods_import"
             )
-        if pop_needs is None:
-            pop_needs = np.zeros(len(self.goods_index), dtype=np.float64)
+        if goods_export is None:
+            goods_export = np.zeros(len(self.goods_index), dtype=np.float64)
         else:
-            pop_needs = _validation._validate_goods_vector(self, pop_needs, "pop_needs")
+            goods_export = _validation._validate_goods_vector(
+                self, goods_export, "goods_export"
+            )
         bonuses = self.economy_of_scale_bonuses(
             building_levels, economy_of_scale_level_cap
         )
@@ -834,27 +832,27 @@ class Economy:
             return _market._solve_nominal(
                 self,
                 building_levels,
-                goods_trade_flow,
+                goods_import,
+                goods_export,
                 throughput_multipliers,
-                pop_needs,
                 workforce_ratio=workforce_ratio,
             )
         if method == "market":
             return _market._solve_market(
                 self,
                 building_levels,
-                goods_trade_flow,
+                goods_import,
+                goods_export,
                 throughput_multipliers,
-                pop_needs,
                 workforce_ratio=workforce_ratio,
             )
         if method == "equilibrium":
             initial = _market._solve_nominal(
                 self,
                 building_levels,
-                goods_trade_flow,
+                goods_import,
+                goods_export,
                 throughput_multipliers,
-                pop_needs,
                 workforce_ratio=workforce_ratio,
             )
             return _equilibrium._solve_equilibrium(

@@ -23,8 +23,8 @@ def test_defaults():
     assert scenario.arable_land_cap is None
     assert scenario.min_net_infrastructure_usage is None
     assert scenario.urbanization_per_center is None
-    assert scenario.goods_trade_flow == ()
-    assert scenario.pop_needs == ()
+    assert scenario.goods_import == ()
+    assert scenario.goods_export == ()
     assert scenario.workforce_ratio == 1.0
     assert scenario.name is None
 

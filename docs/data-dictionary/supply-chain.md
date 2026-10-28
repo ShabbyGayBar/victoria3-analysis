@@ -187,7 +187,7 @@ the requested view.
 | `consumption` | Float / goods units per week | View-process levels times adjusted input coefficients. | Positive magnitude, not a negative signed flow. |
 | `imports` | Float / goods units per week | Whole-state imported orders. | Zero when no imports supplied. |
 | `exports` | Float / goods units per week | Whole-state exported orders. | Zero when no exports supplied. |
-| `pop_needs` | Float / goods units per week | Whole-state exogenous population orders. | Zero when no population orders supplied. |
+| `pop_needs` | Float / goods units per week | Whole-state calculated household demand. | Zero for nominal supply-chain solves. |
 | `sell_orders` | Float / goods units per week | View `production + imports`. | Combines view and state scope. |
 | `buy_orders` | Float / goods units per week | View `consumption + exports + pop_needs`. | Combines view and state scope. |
 | `net_balance` | Float / goods units per week | `sell_orders - buy_orders`. | Signed; differs from terminal net production. |

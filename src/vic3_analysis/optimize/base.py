@@ -53,8 +53,8 @@ class _CompiledProblem:
     output_matrix: np.ndarray = field(repr=False, compare=False)
     net_matrix: np.ndarray = field(repr=False, compare=False)
     gdp_vector: np.ndarray = field(repr=False, compare=False)
-    goods_trade_flow: np.ndarray = field(repr=False, compare=False)
-    pop_needs: np.ndarray = field(repr=False, compare=False)
+    goods_import: np.ndarray = field(repr=False, compare=False)
+    goods_export: np.ndarray = field(repr=False, compare=False)
     A_ub: np.ndarray | None = field(repr=False, compare=False)
     b_ub: np.ndarray | None = field(repr=False, compare=False)
     A_eq: np.ndarray | None = field(repr=False, compare=False)
@@ -71,8 +71,8 @@ class _CompiledProblem:
             "output_matrix",
             "net_matrix",
             "gdp_vector",
-            "goods_trade_flow",
-            "pop_needs",
+            "goods_import",
+            "goods_export",
             "A_ub",
             "b_ub",
             "A_eq",
@@ -138,8 +138,8 @@ class _CompilationData:
     output_matrix: np.ndarray
     net_matrix: np.ndarray
     gdp_vector: np.ndarray
-    goods_trade_flow: np.ndarray
-    pop_needs: np.ndarray
+    goods_import: np.ndarray
+    goods_export: np.ndarray
     A_ub: np.ndarray | None
     b_ub: np.ndarray | None
     A_eq: np.ndarray | None
@@ -217,10 +217,8 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             throughput_multipliers=multipliers
         )
         net_matrix = output_matrix - input_matrix
-        goods_trade_flow = self._goods_context_vector(
-            scenario.goods_trade_flow, "goods_trade_flow", signed=True
-        )
-        pop_needs = self._goods_context_vector(scenario.pop_needs, "pop_needs")
+        goods_import = self._goods_context_vector(scenario.goods_import, "goods_import")
+        goods_export = self._goods_context_vector(scenario.goods_export, "goods_export")
         A_ub, b_ub, inequality_slices = self._compile_inequalities(scenario, net_matrix)
         A_eq, b_eq, equality_slices = self._compile_equalities(scenario)
         n_buildings = len(self.model.building_index)
@@ -232,8 +230,8 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             output_matrix=output_matrix,
             net_matrix=net_matrix,
             gdp_vector=net_matrix @ self.model.base_prices,
-            goods_trade_flow=goods_trade_flow,
-            pop_needs=pop_needs,
+            goods_import=goods_import,
+            goods_export=goods_export,
             A_ub=A_ub,
             b_ub=b_ub,
             A_eq=A_eq,
@@ -257,8 +255,8 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             output_matrix=data.output_matrix,
             net_matrix=data.net_matrix,
             gdp_vector=data.gdp_vector,
-            goods_trade_flow=data.goods_trade_flow,
-            pop_needs=data.pop_needs,
+            goods_import=data.goods_import,
+            goods_export=data.goods_export,
             A_ub=data.A_ub,
             b_ub=data.b_ub,
             A_eq=data.A_eq,
@@ -280,20 +278,20 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         return self.model.solve(
             levels,
             method=method,
-            goods_trade_flow=problem.goods_trade_flow,
+            goods_import=problem.goods_import,
             throughput_multipliers=problem.throughput_multipliers,
-            pop_needs=problem.pop_needs,
+            goods_export=problem.goods_export,
             economy_of_scale_level_cap=0.0,
             workforce_ratio=problem.scenario.workforce_ratio,
         )
 
     def _goods_context_vector(
-        self, entries: tuple[tuple[str, float], ...], name: str, *, signed: bool = False
+        self, entries: tuple[tuple[str, float], ...], name: str
     ) -> np.ndarray:
         """Translate named fixed market context into a goods-aligned vector."""
         positions = {good: i for i, good in enumerate(self.model.goods_index)}
         vector = np.zeros(len(positions), dtype=np.float64)
-        amount_rule = "finite numbers" if signed else "finite non-negative numbers"
+        amount_rule = "finite non-negative numbers"
         for entry in entries:
             if not isinstance(entry, tuple) or len(entry) != 2:
                 raise ValueError(f"{name} entries must be (good, amount) pairs.")
@@ -308,16 +306,10 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
                 value = float(amount)
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"{name} amounts must be {amount_rule}.") from exc
-            if not np.isfinite(value) or (not signed and value < 0):
+            if not np.isfinite(value) or value < 0:
                 raise ValueError(f"{name} amounts must be {amount_rule}.")
             position = positions[good]
             previous = float(vector[position])
-            if signed and (
-                (previous > 0 and value < 0) or (previous < 0 and value > 0)
-            ):
-                raise ValueError(
-                    f"{name} cannot import and export the same good: {good}."
-                )
             if abs(value) > np.finfo(np.float64).max - abs(previous):
                 raise ValueError(f"{name} totals must remain finite.")
             vector[position] += value
