@@ -64,79 +64,27 @@ ALLOWED_CHAIN_GOODS = (
 def load_recipes(
     production_path: Path,
     analysis_dir: Path,
-    *,
-    allowed_goods: tuple[str, ...] | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Load successful recipes in requested order, or otherwise summary order.
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Load trusted recipes in ALLOWED_CHAIN_GOODS order.
 
     The saved building-level matrix includes supporting processes outside the
-    terminal graph. Units unused by all surviving recipes are filtered out.
+    terminal graph. Units unused by all selected recipes are filtered out.
     Production-table order defines the matrix rows. Each saved recipe is one
     chain level; no coefficients are renormalized or inferred from graph edges.
     """
-    summary = pd.read_csv(analysis_dir / "summary.csv", encoding="utf-8")
-    required = {"good", "status", "target_quantity", "target_base_value"}
-    if not required.issubset(summary.columns):
-        raise ValueError("Recipe summary is missing required normalization columns.")
-    successful = pd.DataFrame(summary.loc[summary["status"].eq("success")]).copy()
-    if successful.empty:
-        raise ValueError("No successful supply-chain recipes found.")
-    goods = successful["good"].tolist()
-    if any(not isinstance(good, str) or not good for good in goods):
-        raise ValueError("Recipe goods must be nonempty strings.")
-    if len(set(goods)) != len(goods):
-        raise ValueError("Recipe summary must contain unique goods.")
-    if allowed_goods is not None:
-        if not allowed_goods or len(set(allowed_goods)) != len(allowed_goods):
-            raise ValueError(
-                "allowed_goods must contain distinct goods and be nonempty."
-            )
-        missing_goods = [good for good in allowed_goods if good not in goods]
-        if missing_goods:
-            raise ValueError(
-                "Requested goods have no successful recipe: " + ", ".join(missing_goods)
-            )
-        successful = pd.DataFrame(
-            successful.set_index("good", drop=False).loc[list(allowed_goods)]
-        ).reset_index(drop=True)
-        goods = list(allowed_goods)
-    targets = successful[["target_quantity", "target_base_value"]].to_numpy(dtype=float)
-    if not np.isfinite(targets).all() or (targets <= 0).any():
-        raise ValueError("Recipe normalization targets must be finite and positive.")
-    if not np.allclose(targets[:, 1], 100_000.0, rtol=1e-12, atol=1e-8):
-        raise ValueError(
-            "era_5_automation recipes must target 100000 base-price value."
-        )
     production = pd.read_csv(production_path, encoding="utf-8")
     keys = production["building"] + "+" + production["production_method"]
-    if keys.duplicated().any():
-        raise ValueError("Production table has duplicate configuration keys.")
-    path = analysis_dir / "building_levels.csv"
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"Missing recipe matrix: {path}; run "
-            "uv run python -m examples.supply_chain_compare to regenerate it."
-        )
     levels = pd.read_csv(
-        path, encoding="utf-8", float_precision="round_trip", index_col="config"
+        analysis_dir / "building_levels.csv",
+        encoding="utf-8",
+        float_precision="round_trip",
+        index_col="config",
     )
-    missing = [good for good in goods if good not in levels.columns]
-    if missing:
-        raise ValueError(
-            "Recipe matrix is missing requested goods: " + ", ".join(missing)
-        )
-    matrix = SupplyChainEquilibriumOptimizer.validate_building_levels(
-        pd.DataFrame(levels.loc[:, goods]), building_index=tuple(keys)
-    )
+    matrix = levels.loc[keys, list(ALLOWED_CHAIN_GOODS)]
     used = (matrix > 0).any(axis=1).to_numpy()
     selected = pd.DataFrame(production.loc[used]).reset_index(drop=True)
     matrix = pd.DataFrame(matrix.loc[used])
-    metadata = pd.DataFrame(
-        successful.set_index("good").loc[
-            list(matrix.columns), ["target_quantity", "target_base_value"]
-        ]
-    ).reset_index()
-    return selected, matrix, metadata
+    return selected, matrix
 
 
 def _initial_levels(optimizer: SupplyChainEquilibriumOptimizer) -> np.ndarray:
@@ -233,10 +181,9 @@ def run(
     loss_reduction: float = 0.5,
 ) -> tuple[Economy, EconomyState]:
     """Search saved chain recipes and export the best verified equilibrium."""
-    production, df_building_levels, chains = load_recipes(
+    production, df_building_levels = load_recipes(
         PRODUCTION_DIR / "production_table.csv",
         SUPPLY_CHAINS_DIR / "era_5_automation",
-        allowed_goods=ALLOWED_CHAIN_GOODS,
     )
     economy = Economy(
         df_production=production,
@@ -257,6 +204,15 @@ def run(
         throughput_multipliers=(),
     )
     optimizer = SupplyChainEquilibriumOptimizer(economy, df_building_levels)
+    base_prices = pd.Series(economy.base_prices, index=economy.goods_index)
+    chains = pd.DataFrame(
+        {
+            "good": optimizer.chain_index,
+            "target_quantity": 100_000.0
+            / base_prices.loc[list(optimizer.chain_index)].to_numpy(),
+            "target_base_value": 100_000.0,
+        }
+    )
     problem = optimizer.compile(scenario)
     if resume:
         initial, previous = _resume_levels(

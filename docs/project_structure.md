@@ -318,9 +318,11 @@ to building configurations. Compiled problems retain immutable mappings;
 the optimizer transforms scenario constraints and reuses the existing
 equilibrium search and physical solver.
 
-`examples/optimize_supply_chain_equilibrium.py` loads successful
-`era_5_automation/building_levels.csv` and its summary, filters unused production
-units, passes the labeled DataFrame to the optimizer, and writes a separate
+`examples/optimize_supply_chain_equilibrium.py` directly loads the hard-coded
+chains from trusted `era_5_automation/building_levels.csv`, filters unused
+production units, and passes the labeled DataFrame to the optimizer. It derives
+target metadata from the £100,000 target and goods base prices without reading
+the source summary, and writes a separate
 `analyses/optimization/supply_chain_equilibrium/` collection containing
 `chain_matrix.csv`, `chains.csv`, `buildings.csv`, `market.csv`, `pop.csv`,
 `goods_buy_packages.csv`, and `summary.csv`.

@@ -325,9 +325,11 @@ The separate `examples/optimize_supply_chain_equilibrium.py` example exports:
 Its input recipes come from `era_5_automation/building_levels.csv`, exported by
 the supply-chain comparison example. Rows are aligned to the full production
 table before units unused by all selected recipes are removed. Each retained
-coefficient is used without normalization; normalization metadata comes from
-the adjacent `summary.csv`. Entirely NaN recipe columns are skipped with a
-warning, and chain metadata follows the surviving column order.
+coefficient is used without normalization. The example trusts the saved input
+and selects its hard-coded `ALLOWED_CHAIN_GOODS` without reading the adjacent
+`summary.csv`. Target metadata assumes £100,000 per recipe and derives target
+quantities from goods base prices. Chain metadata follows the optimizer's
+column order.
 
 | File / column | Meaning |
 | --- | --- |

@@ -253,14 +253,6 @@ def test_example_summary_exports(
         {"food": [1.0, 2.0]},
         index=pd.Index(toy_economy.building_index, name="config"),
     ).to_csv(recipe_dir / "building_levels.csv", encoding="utf-8")
-    pd.DataFrame(
-        {
-            "good": ["food"],
-            "status": ["success"],
-            "target_quantity": [100_000.0],
-            "target_base_value": [100_000.0],
-        }
-    ).to_csv(recipe_dir / "summary.csv", index=False, encoding="utf-8")
     example = (
         optimize_equilibrium
         if kind == "equilibrium"
@@ -309,6 +301,20 @@ def test_example_summary_exports(
     )
     assert row["net_infrastructure_usage"] < 0
     if kind != "equilibrium":
+        chains = pd.read_csv(output / "chains.csv", encoding="utf-8")
+        assert chains["good"].tolist() == ["food"]
+        assert chains["target_base_value"].tolist() == [100_000.0]
+        np.testing.assert_allclose(
+            chains["target_quantity"].to_numpy(), 100_000.0 / model.base_prices
+        )
+        matrix = pd.read_csv(
+            output / "chain_matrix.csv", index_col="config", encoding="utf-8"
+        )
+        np.testing.assert_allclose(
+            matrix.loc[list(model.building_index), chains["good"].tolist()].to_numpy()
+            @ chains["level"].to_numpy(),
+            state.building_levels,
+        )
         assert row["recipe_configuration"] == "era_5_automation"
         assert row["initialization"] == (
             "saved_solution" if kind == "resume" else "equal_chains"

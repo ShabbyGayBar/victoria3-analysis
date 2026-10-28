@@ -6,14 +6,15 @@ description: Search GDP by scaling complete era-5 production recipes.
 # Equilibrium search over era-5 supply chains
 
 `examples/optimize_supply_chain_equilibrium.py` loads the transformation matrix
-from `era_5_automation/building_levels.csv`, selecting successful recipes using
+directly from `era_5_automation/building_levels.csv`, trusting the saved input
+and selecting the hard-coded `ALLOWED_CHAIN_GOODS` columns. It does not read
 the adjacent `summary.csv`. One chain level reproduces a
 saved recipe targeting £100,000/week of terminal output at base prices.
 Each trial transforms chain levels into building levels, then solves household
 wealth, demand, and market prices using the existing equilibrium solver.
 
 Generate inputs with `examples/parse.py`, `examples/production_analysis.py`, and
-`examples/supply_chain_compare.py` first. The example selects successful recipes
+`examples/supply_chain_compare.py` first. The example selects recipes
 in `ALLOWED_CHAIN_GOODS` order and includes every configuration used by a
 selected recipe, including supporting infrastructure outside the terminal
 graph. It filters unused matrix rows and retains the recipes' production ratios.
@@ -22,6 +23,8 @@ If an older artifact collection lacks `building_levels.csv`, rerun
 process reports are no longer used to reconstruct recipes. The example assumes
 the source recipes use the preset's throughput multiplier of 1; the matrix
 does not carry throughput metadata.
+Exported target metadata assumes the preset's £100,000 base-price target;
+target quantities are derived by dividing that value by each good's base price.
 
 The 20 allowed chains, in vector order, are `clothes`, `furniture`, `groceries`,
 `coal`, `oil`, `electricity`, `glass`, `services`, `liquor`, `tobacco`, `opium`,
