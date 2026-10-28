@@ -280,8 +280,15 @@ Progress messages contain these scalar fields:
 DEBUG adds individual uncached trial outcomes and new-incumbent messages.
 The solver logger `vic3_analysis.analysis.economy.equilibrium` emits DEBUG
 start, completion, and failure summaries, including completed transitions,
-cycle information on failure, and financial-flag counts on success. It does
-not emit per-transition or household-level traces. Enable that logger
+cycle information on failure, and financial-flag counts on success. It also
+emits an iteration summary after initialization (`inner_iterations=0`) and
+each completed wealth transition, with counts of cells eligible to increase or
+decrease wealth, unaffordable floor cells, and loss-making building configurations.
+Increase/decrease counts describe changes permitted from the current assignment,
+rather than changes already applied. Verification-started and
+verification-completed events bracket successful final verification; verification
+errors appear in the solver failure summary. All of these events remain at DEBUG
+inside optimizer trials, and household arrays are not logged. Enable that logger
 independently when using `Economy.solve(..., method="equilibrium")` directly:
 
 ```python

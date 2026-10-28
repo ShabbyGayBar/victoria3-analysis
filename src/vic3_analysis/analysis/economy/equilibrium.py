@@ -484,6 +484,19 @@ def _solve_equilibrium(
     return state
 
 
+def _log_equilibrium_iteration(diagnostics: EquilibriumDiagnostics) -> None:
+    """Report the current assignment's permitted changes from existing diagnostics."""
+    _LOGGER.debug(
+        "Equilibrium solver iteration: inner_iterations=%d increasing_cells=%d "
+        "decreasing_cells=%d unaffordable_floor_cells=%d loss_buildings=%d",
+        diagnostics.iterations,
+        len(diagnostics.increasing_cells),
+        len(diagnostics.decreasing_cells),
+        len(diagnostics.unaffordable_floor_cells),
+        len(diagnostics.loss_buildings),
+    )
+
+
 def _iterate_equilibrium(
     economy: Economy,
     context: EconomyContext,
@@ -511,10 +524,15 @@ def _iterate_equilibrium(
     diagnostics = _equilibrium_diagnostics(
         economy, context, evaluation, transition, 0, rtol, atol
     )
+    _log_equilibrium_iteration(diagnostics)
     occupied = context.pops > 0
     seen: dict[bytes, int] = {}
     while True:
         if np.array_equal(transition.wealth, evaluation.pop_wealth):
+            _LOGGER.debug(
+                "Equilibrium solver verification started: inner_iterations=%d",
+                diagnostics.iterations,
+            )
             try:
                 verified, final_transition = _verify_equilibrium(
                     economy, context, evaluation, rtol, atol
@@ -537,6 +555,10 @@ def _iterate_equilibrium(
                     f"Equilibrium final verification failed: {exc}",
                     _equilibrium_snapshot(economy, context, evaluation, failure),
                 ) from exc
+            _LOGGER.debug(
+                "Equilibrium solver verification completed: inner_iterations=%d",
+                final_diagnostics.iterations,
+            )
             return _equilibrium_snapshot(economy, context, verified, final_diagnostics)
         key = evaluation.pop_wealth[occupied].tobytes()
         if key in seen:
@@ -590,3 +612,4 @@ def _iterate_equilibrium(
             candidate_transition,
             candidate_diagnostics,
         )
+        _log_equilibrium_iteration(diagnostics)

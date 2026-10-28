@@ -3743,15 +3743,45 @@ def test_equilibrium_known_solution_and_iteration_boundary(
     assert new_households is result.households
 
 
+@pytest.mark.parametrize("starting_tier", [1, 2, 3])
 def test_equilibrium_debug_lifecycle(
-    equilibrium_economy: Economy, caplog: pytest.LogCaptureFixture
+    equilibrium_economy: Economy,
+    starting_tier: int,
+    caplog: pytest.LogCaptureFixture,
 ):
+    caplog.set_level("INFO", logger="vic3_analysis.analysis.economy.equilibrium")
+    initial_wealth = np.array([[starting_tier, 999]])
+    quiet = equilibrium_economy.solve(
+        np.ones(1), method="equilibrium", initial_wealth=initial_wealth
+    )
+    assert not caplog.records
     caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
-    result = equilibrium_economy.solve(np.ones(1), method="equilibrium")
+    result = equilibrium_economy.solve(
+        np.ones(1), method="equilibrium", initial_wealth=initial_wealth
+    )
     diagnostics = result.equilibrium_diagnostics
     assert diagnostics is not None
-    assert len(caplog.records) == 2
+    assert diagnostics == quiet.equilibrium_diagnostics
+    for name, array in _state_arrays(quiet).items():
+        np.testing.assert_array_equal(array, _state_arrays(result)[name])
+    assert len(caplog.records) == diagnostics.iterations + 5
+    assert all(record.levelname == "DEBUG" for record in caplog.records)
     assert "Equilibrium solver started:" in caplog.records[0].message
+    for iteration, record in enumerate(caplog.records[1:-3]):
+        assert record.message == (
+            f"Equilibrium solver iteration: inner_iterations={iteration} "
+            f"increasing_cells={int(iteration == 0 and starting_tier == 1)} "
+            f"decreasing_cells={int(iteration == 0 and starting_tier == 3)} "
+            "unaffordable_floor_cells=0 loss_buildings=0"
+        )
+    assert caplog.records[-3].message == (
+        "Equilibrium solver verification started: "
+        f"inner_iterations={diagnostics.iterations}"
+    )
+    assert caplog.records[-2].message == (
+        "Equilibrium solver verification completed: "
+        f"inner_iterations={diagnostics.iterations}"
+    )
     final = caplog.records[-1].message
     assert "Equilibrium solver finished: status=converged" in final
     assert f"inner_iterations={diagnostics.iterations}" in final
@@ -3772,7 +3802,12 @@ def test_equilibrium_debug_failure_summary(
             goods_export=np.array([2.5, 0.0]),
             max_iterations=budget,
         )
-    assert len(caplog.records) == 2
+    assert len(caplog.records) == caught.value.diagnostics.iterations + 3
+    assert "Equilibrium solver started:" in caplog.records[0].message
+    for iteration, record in enumerate(caplog.records[1:-1]):
+        assert record.message.startswith(
+            f"Equilibrium solver iteration: inner_iterations={iteration} "
+        )
     final = caplog.records[-1].message
     assert f"Equilibrium solver failed: status={status}" in final
     assert f"inner_iterations={caught.value.diagnostics.iterations}" in final
@@ -3791,6 +3826,7 @@ def test_equilibrium_debug_setup_error_preserves_exception(
         )
     assert "Equilibrium solver failed: status=ValueError" in caplog.records[-1].message
     assert "inner_iterations=n/a" in caplog.records[-1].message
+    assert len(caplog.records) == 2
 
 
 def test_equilibrium_default_wealth_and_legacy_modes(equilibrium_economy: Economy):
@@ -3924,7 +3960,9 @@ def test_iterate_zero_consumption_and_empty_population(equilibrium_economy: Econ
     _assert_evaluated_state(equilibrium_economy, result)
 
 
-def test_equilibrium_dependents_and_financial_flags(equilibrium_economy: Economy):
+def test_equilibrium_dependents_and_financial_flags(
+    equilibrium_economy: Economy, caplog: pytest.LogCaptureFixture
+):
     professions = equilibrium_economy.df_pop_types.copy()
     professions["dependent_wage"] = [52 / 10_000, 0.0]
     model = replace(equilibrium_economy, df_pop_types=professions)
@@ -3939,6 +3977,7 @@ def test_equilibrium_dependents_and_financial_flags(equilibrium_economy: Economy
     production = equilibrium_economy.df_production.copy()
     production["goods_food"] = [-1.0]
     loss_model = replace(equilibrium_economy, df_production=production)
+    caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
     flagged = loss_model.solve(
         np.ones(1), method="equilibrium", goods_import=np.array([10.0])
     )
@@ -3947,6 +3986,10 @@ def test_equilibrium_dependents_and_financial_flags(equilibrium_economy: Economy
         0,
         unaffordable_floor_cells=((0, 0),),
         loss_buildings=(0,),
+    )
+    assert caplog.records[1].message == (
+        "Equilibrium solver iteration: inner_iterations=0 increasing_cells=0 "
+        "decreasing_cells=0 unaffordable_floor_cells=1 loss_buildings=1"
     )
     _assert_evaluated_state(loss_model, flagged)
     no_material_loss = loss_model.solve(
@@ -3997,6 +4040,7 @@ def test_equilibrium_cycle_and_exhaustion(
 
 def test_equilibrium_evaluation_failure_preserves_preceding_state(
     cycling_economy: Economy,
+    caplog: pytest.LogCaptureFixture,
 ):
     production = pd.DataFrame(
         {
@@ -4008,6 +4052,7 @@ def test_equilibrium_evaluation_failure_preserves_preceding_state(
         }
     )
     model = replace(cycling_economy, df_production=production)
+    caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
     with pytest.raises(
         EquilibriumError, match="no positive recipient weight"
     ) as caught:
@@ -4018,6 +4063,15 @@ def test_equilibrium_evaluation_failure_preserves_preceding_state(
     assert error.diagnostics.increasing_cells == ((0, 0),)
     assert error.diagnostics.loss_buildings == (1,)
     assert isinstance(error.__cause__, ValueError)
+    assert len(caplog.records) == 3
+    assert caplog.records[1].message == (
+        "Equilibrium solver iteration: inner_iterations=0 increasing_cells=1 "
+        "decreasing_cells=0 unaffordable_floor_cells=0 loss_buildings=1"
+    )
+    assert (
+        "Equilibrium solver failed: status=evaluation_failed"
+        in caplog.records[-1].message
+    )
     np.testing.assert_array_equal(error.state.pop_wealth, [[1, 999], [1, 999]])
     _assert_evaluated_state(model, error.state)
 
@@ -4132,6 +4186,7 @@ def test_iterate_rejects_invalid_components(equilibrium_economy: Economy, case: 
 
 def test_equilibrium_verification_rejects_inconsistent_public_accounting(
     equilibrium_economy: Economy,
+    caplog: pytest.LogCaptureFixture,
 ):
     class InconsistentDemandEconomy(Economy):
         """An extension whose reporting disagrees with the solver's demand."""
@@ -4159,11 +4214,20 @@ def test_equilibrium_verification_rejects_inconsistent_public_accounting(
         df_pop_needs=equilibrium_economy.df_pop_needs,
         df_buy_packages=equilibrium_economy.df_buy_packages,
     )
+    caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
     with pytest.raises(EquilibriumError, match="verification disagrees") as caught:
         model.solve(np.ones(1), method="equilibrium")
     assert caught.value.diagnostics.status == "verification_failed"
     assert caught.value.diagnostics.iterations == 1
     assert isinstance(caught.value.__cause__, ValueError)
+    assert len(caplog.records) == 5
+    assert caplog.records[-2].message == (
+        "Equilibrium solver verification started: inner_iterations=1"
+    )
+    assert (
+        "Equilibrium solver failed: status=verification_failed"
+        in caplog.records[-1].message
+    )
     # The retained state remains the last complete evaluation, not the inconsistent report.
     _assert_evaluated_state(equilibrium_economy, caught.value.state)
 

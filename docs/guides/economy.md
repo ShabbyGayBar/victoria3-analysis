@@ -601,9 +601,15 @@ diagnostics as `None`; equilibrium controls are ignored in those modes.
 For concise live diagnostics, enable the standard logger
 `vic3_analysis.analysis.economy.equilibrium` at DEBUG. It reports solver start,
 completed wealth transitions, elapsed seconds, success/failure status, cycle
-information on failure, and financial-flag counts on success. It emits lifecycle
-summaries rather than a per-transition trace. Library code does not configure
-handlers; see [logging configuration and optimizer progress](optimization.md#live-progress-logging).
+information on failure, and financial-flag counts on success. An iteration
+summary appears after initialization (`inner_iterations=0`) and after each
+completed wealth transition. It counts cells eligible to increase or decrease
+wealth, unaffordable floor cells, and loss-making building configurations.
+The increase/decrease counts describe changes permitted from the current
+assignment, rather than changes already applied. Verification-started and
+verification-completed events bracket successful final verification; failure
+is reported by the existing solver failure summary. Library code does not
+configure handlers; see [logging configuration and optimizer progress](optimization.md#live-progress-logging).
 
 ### Exporting standard packages
 

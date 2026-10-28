@@ -818,12 +818,12 @@ def test_logging_preserves_numerical_results_and_counts(
 ):
     optimizer = EquilibriumOptimizer(toy_economy)
     start = np.array([0.9, 0.1])
-    caplog.set_level(logging.WARNING, logger="vic3_analysis.optimize.equilibrium")
+    caplog.set_level(logging.WARNING, logger="vic3_analysis")
     quiet = optimizer.solve(_scenario(), x0=start, options={"maxiter": 100})
     quiet_result = optimizer.result
     assert quiet_result is not None
     assert not caplog.records
-    caplog.set_level(logging.DEBUG, logger="vic3_analysis.optimize.equilibrium")
+    caplog.set_level(logging.DEBUG, logger="vic3_analysis")
     logged = optimizer.solve(
         _scenario(), x0=start, options={"maxiter": 100}, log_every=1
     )
@@ -843,6 +843,9 @@ def test_logging_preserves_numerical_results_and_counts(
     ):
         assert logged_result[name] == quiet_result[name]
     assert caplog.records
+    assert any(
+        "Equilibrium solver iteration:" in record.message for record in caplog.records
+    )
 
 
 def test_library_does_not_configure_handlers_or_write_console(
