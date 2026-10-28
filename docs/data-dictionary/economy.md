@@ -229,34 +229,42 @@ population.
 
 ## Equilibrium optimization summary
 
-`examples/optimize_equilibrium.py` writes one row to
-`artifacts/analyses/optimization/equilibrium/summary.csv` for the best feasible,
-verified state found by its GDP search. A budget-limited search saves that state
-with an unsuccessful search status. Errors before a verified result propagate
-without writing new files. The companion `buildings.csv` uses the
+`examples/optimize_equilibrium.py` writes one row per completed local search to
+`artifacts/analyses/optimization/equilibrium/summary.csv`, including the worse
+attempt that ends iteration. The current objective is average wealth. A resumed
+invocation includes iteration zero for the re-evaluated saved solution, with
+empty search diagnostics. `is_best` identifies the earliest highest-objective
+state exported in the solution files. Each local search gets a fresh trial
+budget; equal objectives continue until a strict decrease or the optional
+iteration cap. A budget-limited search may return a verified state with an
+unsuccessful search status. Validation and equilibrium errors propagate without
+writing new files. The companion `buildings.csv` uses the
 [building registry](#building-registry) schema above.
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
-| `objective` | String / category | Scenario objective, `gdp`. | Maximized at equilibrium prices. |
+| `objective` | String / category | Scenario objective, currently `average_wealth`. | Older snapshots may use `gdp`; GDP remains a reported metric. |
 | `employment_cap` | Integer / workers | Upper bound on employed workers, 1,000,000. | Does not require full employment. |
 | `workforce_ratio` | Float / fraction | Workers divided by total population, 0.4. | Shared uniformly across households. |
 | `banned_building_groups` | String / identifiers | Semicolon-separated `DEFAULT_BANNED_BGS`. | Excluded configurations have zero levels. |
-| `min_net_infrastructure` | Float / infrastructure units | Scenario minimum infrastructure generation minus consumption, zero. | Zero prevents deficits; positive values require surplus; negative values allow a bounded deficit. |
+| `min_net_infrastructure` | Float or empty / infrastructure units | Scenario minimum infrastructure generation minus consumption. | Empty in both equilibrium examples: infrastructure is unconstrained. If configured elsewhere, zero prevents deficits; positive values require surplus; negative values allow a bounded deficit. |
 | `min_net_infrastructure_usage` | Float / infrastructure units | Historical minimum consumption minus generation. | Present only in older snapshots. Replaced by `min_net_infrastructure`, which uses the opposite sign convention; the old name is no longer a scenario parameter. |
 | `default_min_goods_output` | Float or empty / weekly goods units | Default minimum net domestic output. | Empty means `None`, leaving unspecified goods unconstrained. |
 | `throughput_multiplier` | Float / multiplier | Common fixed multiplier, 1.0. | No throughput bonus. |
 | `economy_of_scale_level_cap` | Float / building levels | Economy-of-scale cap, zero. | Level-dependent bonuses are disabled. |
-| `max_evaluations` | Integer / trials | Requested hard optimizer budget. | Baseline evaluation and final verification are additional solves. |
-| `initial_gdp_weekly` | Float / £ per week | GDP at the initial, uniformly scaled allowed mix after household equilibrium. | Uses the same scenario and wealth seed as search trials. |
+| `configuration_count` | Integer / configurations | Number of configurations in the selected production basis. | Includes configurations with zero returned levels. |
+| `construction_cost` | Float / construction points | Model construction cost at this row's returned levels. | Uses the current production coefficients. |
+| `arable_land_consumption` | Float / land units | Model arable-land consumption at this row's returned levels. | No arable-land cap is added by this example. |
+| `max_evaluations` | Integer / trials | Requested hard budget for each local search. | Separate starting-point/baseline evaluations and final verification are additional solves. |
+| `initial_gdp_weekly` | Float / £ per week | GDP at this search's initial mix after household equilibrium. | Uses the same scenario and wealth seed as search trials; baseline rows use their own state. |
 | `initial_annual_gdp` | Float / £ per year | `52 * initial_gdp_weekly`. | Baseline for comparison with the final state. |
-| `gdp_weekly` | Float / £ per week | Returned state's equilibrium GDP. | Best verified value found during search. |
+| `gdp_weekly` | Float / £ per week | This row's returned equilibrium GDP. | Selection uses the scenario objective, which may differ from GDP. |
 | `annual_gdp` | Float / £ per year | `52 * gdp_weekly`. | Includes all modeled production. |
 | `employment` | Float / workers | Returned state's total employed workers. | At most the cap within solver tolerance. |
 | `population` | Float / people | `employment / workforce_ratio`. | Includes dependents. |
 | `gdp_per_capita` | Float / £ per person per year | Annual GDP divided by total population. | Zero for an empty population. |
 | `average_wealth` | Float / wealth tier | Population-weighted household wealth tier. | Equal to employment-weighted wealth with a uniform workforce ratio. |
-| `net_infrastructure_usage` | Float / infrastructure units | Consumption minus generation: levels dotted with the model infrastructure vector. | For new runs, at most `-min_net_infrastructure` within solver tolerance when the minimum is configured. |
+| `net_infrastructure_usage` | Float / infrastructure units | Consumption minus generation: levels dotted with the model infrastructure vector. | Diagnostic in both equilibrium examples; positive values are permitted. When a minimum is configured elsewhere, at most `-min_net_infrastructure` within solver tolerance. |
 | `search_success` | Boolean | Optimizer search success flag. | Can be false for a saved, converged household equilibrium. |
 | `search_status` | Integer / code | Optimizer termination code. | Interpret together with `search_message`. |
 | `search_message` | String / diagnostic text | Search termination message. | Explicitly reports budget exhaustion. |
@@ -267,6 +275,23 @@ without writing new files. The companion `buildings.csv` uses the
 | `equilibrium_iterations` | Integer / transitions | Household transition steps in the fresh final solve. | Initialization and final accounting verification are excluded. |
 | `loss_buildings_count` | Integer / configurations | Number of materially loss-making configurations. | A financial flag, without implicit financing. |
 | `unaffordable_floor_cells_count` | Integer / household cells | Number of configuration/profession cells unable to afford the lowest tier. | A financial flag that does not prevent numerical convergence. |
+| `iteration` | Integer / searches | One-based local-search number. | Zero identifies the re-evaluated saved baseline on resume. |
+| `initialization` | String / category | `equal_configurations`, `saved_solution`, or `previous_iteration`. | The fresh initial mix scales equal allowed configuration levels to the employment cap without balancing infrastructure. |
+| `initial_average_wealth` | Float / wealth tier | Average wealth at this search's starting levels. | Baseline rows use their own state. |
+| `loss_reduction` | Float / fraction | Fraction applied to loss-making configurations before this search. | Defaults to 0.5; zero for a fresh first search or baseline row. |
+| `reduced_configuration_count` | Integer / configurations | Number of levels actually reduced before this search. | No employment rescaling is applied. |
+| `objective_value` | Float / objective units | Returned objective in the optimizer's units, currently average wealth. | GDP-based objectives, if configured, use weekly units. |
+| `objective_change` | Float / objective units | Objective minus the preceding search's value, or saved baseline for a first resumed search. | Empty without a predecessor; a strict negative value ends iteration. |
+| `gdp_weekly_change` | Float / £ per week | GDP minus the preceding search's GDP, or saved baseline on first resume. | Diagnostic only when maximizing wealth; empty without a predecessor. |
+| `started_at_utc` | String / ISO timestamp | UTC start time for this search. | Baseline rows record invocation setup start. |
+| `elapsed_seconds` | Float / seconds | Search duration including starting-point evaluation. | Baseline rows cover setup through saved-state evaluation and adjustment. |
+| `is_best` | Boolean | True only for the earliest highest-objective row. | All solution reports use that row's state. |
+| `completed_iterations` | Integer / searches | Total completed local searches in the invocation. | Excludes the saved baseline; repeated on all rows. |
+| `total_trial_evaluations` | Integer / trials | Sum of local-search trial counts. | Excludes separate baseline/starting evaluations and final verification; repeated on all rows. |
+| `total_elapsed_seconds` | Float / seconds | Invocation elapsed time through summary preparation. | Excludes CSV writes; repeated on all rows. |
+| `best_iteration` | Integer / searches | Selected best row's iteration number. | Zero when the saved baseline wins; repeated on all rows. |
+| `max_iterations` | Integer or empty / searches | Optional cap on completed local searches. | Empty means unlimited. |
+| `stop_reason` | String / category | `objective_worsened` or `max_iterations`. | A strict decrease takes precedence if both conditions apply. |
 
 ## Japan optimization comparison
 
@@ -338,19 +363,34 @@ column order.
 | `chains.csv`: `good` | Terminal good identifying a matrix column. |
 | `chains.csv`: `target_quantity` | Weekly terminal-output minimum used to generate one recipe. Coproducts may cause actual output to exceed it. |
 | `chains.csv`: `target_base_value` | Terminal target quantity times base price; £100,000 per saved recipe. |
-| `chains.csv`: `initial_level` | Starting multiplier of the saved recipe. |
-| `chains.csv`: `level` | Best verified chain multiplier returned by the search. |
+| `chains.csv`: `initial_level` | Starting multiplier of the saved recipe for the invocation, after any resume reduction. |
+| `chains.csv`: `level` | Best verified chain multiplier across local searches and the eligible saved baseline. |
 | `chains.csv`: `previous_level` | Saved chain multiplier before reducing losses; present on resumed runs. |
 | `chains.csv`: `previous_terminal_surplus` | Recipe-attributed weekly operating surplus of terminal-good producers at the re-evaluated saved solution, including coproduct revenue; present on resumed runs. |
 | `summary.csv`: `recipe_configuration` | Source collection, `era_5_automation`. |
 | `summary.csv`: `chain_count` | Number of chain decision variables. |
 | `summary.csv`: `configuration_count` | Number of building-configuration rows in the basis. |
-| `summary.csv`: `initial_average_wealth` | Household average wealth at the initial chain vector. |
-| `summary.csv`: `initialization` | `equal_chains` or `saved_solution`; the latter applies the requested loss reduction before optimization. |
-| `summary.csv`: `loss_reduction` | Fraction removed from loss-making starting chains on a resumed run. Zero also permits resuming the saved vector unchanged; equal-chain initialization records zero. |
-| `summary.csv`: `reduced_chain_count` | Number of starting chain levels reduced from the saved solution. |
+| `summary.csv`: `iteration` | One-based local-search number; zero identifies the re-evaluated saved baseline on resumed invocations. |
+| `summary.csv`: `initial_average_wealth`, `initial_gdp_weekly`, `initial_annual_gdp` | Metrics at that local search's starting vector; baseline rows use their own state. |
+| `summary.csv`: `initialization` | `equal_chains` for a fresh first search, `saved_solution` for a resume baseline/first search, or `previous_iteration` for subsequent searches. |
+| `summary.csv`: `loss_reduction` | Fraction applied to loss-making chains before this search. Equal-chain initialization and baseline rows record zero. |
+| `summary.csv`: `reduced_chain_count` | Number of chain levels actually reduced before this search. |
+| `summary.csv`: `max_evaluations` | Hard trial budget for each local search. |
+| `summary.csv`: `gdp_weekly_change` | Returned weekly GDP minus the preceding search's GDP, or the saved baseline's GDP for the first resumed search; empty without a predecessor. |
+| `summary.csv`: `started_at_utc`, `elapsed_seconds` | UTC ISO timestamp and elapsed seconds for this search including its starting-point evaluation; baseline rows describe invocation setup through saved-state evaluation and adjustment. |
+| `summary.csv`: `is_best` | True only for the earliest highest-GDP row, whose state is exported in the solution reports. |
+| `summary.csv`: `completed_iterations` | Total completed local searches, excluding the saved baseline; repeated on every row. |
+| `summary.csv`: `total_trial_evaluations` | Sum of local-search trial counts, excluding separate baseline/starting evaluations and final verification; repeated on every row. |
+| `summary.csv`: `total_elapsed_seconds` | Invocation elapsed seconds through summary preparation, excluding CSV writes; repeated on every row. |
+| `summary.csv`: `best_iteration` | Selected best row's iteration number, including zero when the saved baseline wins; repeated on every row. |
+| `summary.csv`: `max_iterations` | Optional cap on completed local searches; empty means unlimited. |
+| `summary.csv`: `stop_reason` | `objective_worsened` for a strict decrease from the preceding result, otherwise `max_iterations` when the configured cap is reached; repeated on every row. |
 
-Other summary columns follow the [equilibrium optimization summary](#equilibrium-optimization-summary).
+Each summary row describes its own returned state, including the worse search
+that triggers stopping. Equal GDP continues iteration; ties select the earliest
+best state. Baseline rows have empty search diagnostics, retaining their current
+economic and household-equilibrium metrics. Other summary columns follow the
+[equilibrium optimization summary](#equilibrium-optimization-summary).
 `buildings.csv` follows the [building registry](#building-registry), including
 only positive building levels and sorting by level. Reconstruct those levels
 by multiplying the labeled matrix by `chains.csv`'s `level` column, then align

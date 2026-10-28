@@ -200,7 +200,7 @@ no previously generated tables.
 | `production_analysis.py` | `datasets/production/production_table.csv` |
 | `buy_packages.py` | `analyses/buy_packages/default.csv`: goods packages per 10,000 standard workers at every wealth tier, using a state with zero building levels |
 | `optimize_jap.py` | `analyses/optimization/japan/employment_sweep.csv` |
-| `optimize_equilibrium.py` | `analyses/optimization/equilibrium/summary.csv` and `buildings.csv`: best verified GDP found under a one-million-worker cap and 40% workforce ratio; optional `--max-evaluations` controls the search budget |
+| `optimize_equilibrium.py` | `analyses/optimization/equilibrium/`: best verified average-wealth solution in `buildings.csv`, `market.csv`, `pop.csv`, and `goods_buy_packages.csv`; iteration history and run metadata in `summary.csv`. Profitability-based restarts use a fresh `--max-evaluations` budget, with optional `--max-iterations`, `--loss-reduction`, and `--resume` controls. |
 | `supply_chain_compare.py` | `analyses/supply_chains/<configuration>/<good>/` reports, plots, and diagrams; each configuration's `summary.csv`; combined `comparison/summary.csv` with `pop.svg`, `construction_points.svg`, and `gdp_per_capita.svg` grouped by good and configuration |
 | `supply_chain_cangshulun.py` | `analyses/supply_chains/cangshulun_video/summary.csv`, containing all goods and variants |
 
@@ -326,3 +326,9 @@ the source summary, and writes a separate
 `analyses/optimization/supply_chain_equilibrium/` collection containing
 `chain_matrix.csv`, `chains.csv`, `buildings.csv`, `market.csv`, `pop.csv`,
 `goods_buy_packages.csv`, and `summary.csv`.
+It repeats local searches, reducing loss-making terminal producers' chain
+levels before each restart, until verified GDP decreases or an optional
+`--max-iterations` cap is reached. Each search receives its own trial budget;
+equal GDP continues iteration. Solution reports contain only the best retained
+state, including the re-evaluated saved baseline when resuming. The summary
+records each local search, a resume baseline row, and invocation totals.

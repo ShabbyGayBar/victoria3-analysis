@@ -229,12 +229,23 @@ def test_summary_reports_compiled_throughput(
         assert actual == expected
 
 
-@pytest.mark.parametrize("kind", ["equilibrium", "supply_chain", "resume"])
+@pytest.mark.parametrize(
+    "kind", ["equilibrium", "equilibrium_resume", "supply_chain", "resume"]
+)
+@pytest.mark.parametrize(
+    "infrastructure_usage", [(0.0, -1.0), (1.0, 1.0)], ids=["surplus", "deficit"]
+)
 def test_example_summary_exports(
-    toy_economy: Economy, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
+    toy_economy: Economy,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    infrastructure_usage: tuple[float, float],
 ) -> None:
+    building_search = kind.startswith("equilibrium")
+    resumed = kind in ("equilibrium_resume", "resume")
     production = toy_economy.df_production.copy()
-    production["infrastructure_usage_per_level"] = [0.0, -1.0]
+    production["infrastructure_usage_per_level"] = infrastructure_usage
     production.to_csv(tmp_path / "production_table.csv", index=False, encoding="utf-8")
     for name, table in (
         ("goods", toy_economy.df_goods),
@@ -254,9 +265,7 @@ def test_example_summary_exports(
         index=pd.Index(toy_economy.building_index, name="config"),
     ).to_csv(recipe_dir / "building_levels.csv", encoding="utf-8")
     example = (
-        optimize_equilibrium
-        if kind == "equilibrium"
-        else optimize_supply_chain_equilibrium
+        optimize_equilibrium if building_search else optimize_supply_chain_equilibrium
     )
     for constant in (
         "PRODUCTION_DIR",
@@ -266,9 +275,13 @@ def test_example_summary_exports(
     ):
         monkeypatch.setattr(example, constant, tmp_path)
     output = tmp_path / "output"
-    if kind == "equilibrium":
+    if building_search:
         monkeypatch.setattr(optimize_equilibrium, "EQUILIBRIUM_DIR", output)
-        model, state = optimize_equilibrium.run(max_evaluations=1)
+        model, state = optimize_equilibrium.run(max_evaluations=1, max_iterations=1)
+        if resumed:
+            model, state = optimize_equilibrium.run(
+                max_evaluations=1, max_iterations=1, resume=True, loss_reduction=0.25
+            )
     else:
         monkeypatch.setattr(
             optimize_supply_chain_equilibrium, "SUPPLY_CHAIN_EQUILIBRIUM_DIR", output
@@ -276,19 +289,21 @@ def test_example_summary_exports(
         monkeypatch.setattr(
             optimize_supply_chain_equilibrium, "ALLOWED_CHAIN_GOODS", ("food",)
         )
-        model, state = optimize_supply_chain_equilibrium.run(max_evaluations=1)
-        if kind == "resume":
+        model, state = optimize_supply_chain_equilibrium.run(
+            max_evaluations=1, max_iterations=1
+        )
+        if resumed:
             model, state = optimize_supply_chain_equilibrium.run(
-                max_evaluations=1, resume=True, loss_reduction=0.25
+                max_evaluations=1, max_iterations=1, resume=True, loss_reduction=0.25
             )
     report = pd.read_csv(output / "summary.csv", encoding="utf-8")
-    assert len(report) == 1
+    assert len(report) == (2 if resumed else 1)
     assert set(COMMON_COLUMNS + EQUILIBRIUM_COLUMNS).issubset(report.columns)
-    row = report.iloc[0]
+    row = report.iloc[-1]
     assert row["max_evaluations"] == 1
     assert row["employment_cap"] == 1_000_000
     assert row["workforce_ratio"] == 0.4
-    assert row["objective"] == ("average_wealth" if kind == "equilibrium" else "gdp")
+    assert row["objective"] == ("average_wealth" if building_search else "gdp")
     assert row["gdp_weekly"] == pytest.approx(state.gdp_weekly)
     assert row["annual_gdp"] == pytest.approx(state.gdp(annual=True))
     assert row["initial_gdp_weekly"] == pytest.approx(state.gdp_weekly)
@@ -299,8 +314,25 @@ def test_example_summary_exports(
     assert row["net_infrastructure_usage"] == pytest.approx(
         state.building_levels @ model.infrastructure_vector
     )
-    assert row["net_infrastructure_usage"] < 0
-    if kind != "equilibrium":
+    if infrastructure_usage[0] > 0:
+        assert row["net_infrastructure_usage"] > 0
+    else:
+        assert row["net_infrastructure_usage"] < 0
+    assert report["min_net_infrastructure"].isna().all()
+    assert report["iteration"].tolist() == ([0, 1] if resumed else [1])
+    assert report["is_best"].tolist() == ([True, False] if resumed else [True])
+    assert row["completed_iterations"] == 1
+    assert row["total_trial_evaluations"] == 1
+    assert row["max_iterations"] == 1
+    assert row["stop_reason"] == "max_iterations"
+    if resumed:
+        assert (
+            report.loc[0, ["search_success", "trial_evaluations"]]
+            .isna()
+            .to_numpy()
+            .all()
+        )
+    if not building_search:
         chains = pd.read_csv(output / "chains.csv", encoding="utf-8")
         assert chains["good"].tolist() == ["food"]
         assert chains["target_base_value"].tolist() == [100_000.0]
