@@ -312,6 +312,16 @@ are NaN, including counts and `objective_value`; they do **not** mean zero.
 Sweep input-validation errors raise before an applicable result rather than
 becoming failure rows. A template's `min_goods_output` basket is ignored with a warning.
 
+`sweep.df_building_levels` is a float matrix with one row per production unit
+in `economy.building_index` order and one column per requested terminal good
+in selection order. Its index is named `config` and uses the existing
+`building+production_method` keys, keeping PM combinations separate. Each
+successful column contains the complete solved `state.building_levels` vector,
+including production outside the realized terminal chain, fractional levels,
+and zero levels for unused units. Failed columns contain NaN throughout.
+An empty sweep retains every production-unit row with zero columns. This
+report is available with `keep_results=False` and returns a defensive copy.
+
 ## Example CSV additions
 
 The nominal example exports retain every sweep field, including its failure
@@ -324,6 +334,12 @@ files live at configuration level. Cross-configuration comparisons live under
 construction, and annual GDP per capita charts `pop.svg`,
 `construction_points.svg`, and `gdp_per_capita.svg`.
 Labels describe presets, not additional economic metrics.
+
+The comparison example also writes
+`analyses/supply_chains/<configuration>/building_levels.csv` beside each
+configuration's summary. Its first column is `config`, followed by one column
+per requested good; failed solves are blank cells. Empty selections produce
+only the `config` column with every production unit retained.
 
 | Column | Type / unit | Meaning / source | Presence / edge cases |
 | --- | --- | --- | --- |

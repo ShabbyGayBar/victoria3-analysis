@@ -282,7 +282,8 @@ def run_supply_chain_compare(
     """Export each good's three configurations, continuing after failed solves.
 
     Only one detailed result is retained at a time. The complete request is
-    validated before any outputs are written.
+    validated before any outputs are written. Each configuration also exports
+    a cross-good building-level matrix beside its summary.
     """
     selected = list(economy.producible_goods) if goods is None else list(goods)
     if len(selected) != len(set(selected)):
@@ -297,6 +298,9 @@ def run_supply_chain_compare(
 
     root = output_dir.resolve() / "analyses" / "supply_chains"
     frames: list[pd.DataFrame] = []
+    level_frames: dict[str, list[pd.DataFrame]] = {
+        template.display_name(): [] for template in TEMPLATES
+    }
     print(
         f"Comparing {len(selected)} goods across {len(TEMPLATES)} configurations; "
         f"weekly target base value £{NORMALIZED_VALUE:,.0f}; autarky."
@@ -318,6 +322,7 @@ def run_supply_chain_compare(
                 2, "ban_config", "cangshulun" if configuration == "cangshulun" else ""
             )
             good_frames.append(frame)
+            level_frames[configuration].append(sweep.df_building_levels)
             result_dir = root / configuration / good
             if good in sweep.results:
                 _export_result(sweep.result_for(good), result_dir)
@@ -339,6 +344,15 @@ def run_supply_chain_compare(
             combined.loc[combined["configuration"].eq(configuration)]
         )
         _write_csv(summary, root / configuration / "summary.csv")
+        building_levels = (
+            pd.concat(level_frames[configuration], axis=1)
+            if level_frames[configuration]
+            else pd.DataFrame(index=pd.Index(economy.building_index, name="config"))
+        )
+        _write_csv(
+            building_levels.reset_index(),
+            root / configuration / "building_levels.csv",
+        )
     _export_comparison(combined, root / "comparison")
     return combined
 

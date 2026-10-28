@@ -153,6 +153,20 @@ def test_tradeoffs_failures_and_per_good_exports(tmp_path: Path) -> None:
         pd.testing.assert_frame_equal(
             saved.fillna(""), expected.fillna(""), check_dtype=False
         )
+        levels_path = _root(tmp_path) / configuration / "building_levels.csv"
+        levels = pd.read_csv(levels_path)
+        assert levels.columns.tolist() == ["config", "automobiles", "future"]
+        assert levels["config"].tolist() == list(_economy().building_index)
+        np.testing.assert_allclose(
+            levels["automobiles"],
+            [0.0, 10.0, 0.0]
+            if configuration == "era_3_construction"
+            else [10.0, 0.0, 0.0],
+        )
+        assert levels["future"].isna().all()
+        assert all(
+            line.endswith(",") for line in levels_path.read_text().splitlines()[1:]
+        )
     assert not list(_root(tmp_path).glob("*/*/summary.csv"))
     for path in _root(tmp_path).rglob("*.csv"):
         assert not path.read_bytes().startswith(b"\xef\xbb\xbf")
@@ -250,6 +264,12 @@ def test_empty_selection_writes_fixed_schema(tmp_path: Path) -> None:
         summary = pd.read_csv(_root(tmp_path) / template.display_name() / "summary.csv")
         assert summary.empty
         assert list(summary.columns) == COMPARISON_COLUMNS
+        levels = pd.read_csv(
+            _root(tmp_path) / template.display_name() / "building_levels.csv"
+        )
+        pd.testing.assert_frame_equal(
+            levels, pd.DataFrame({"config": list(_economy().building_index)})
+        )
 
 
 def test_resource_columns_in_comparison_exports(tmp_path: Path) -> None:
@@ -306,6 +326,10 @@ def test_failed_rerun_removes_previous_details(tmp_path: Path) -> None:
         assert {path.name for path in directory.iterdir()} == (
             {"notes.txt"} if template.name == "era_5_automation" else set()
         )
+        levels = pd.read_csv(directory.parent / "building_levels.csv")
+        assert levels.columns.tolist() == ["config", "automobiles"]
+        assert levels["config"].tolist() == list(unavailable.building_index)
+        assert levels["automobiles"].isna().all()
 
 
 @pytest.mark.parametrize(

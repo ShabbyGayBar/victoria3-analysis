@@ -838,11 +838,15 @@ class SupplyChainSweepResult:
 
     _summary: pd.DataFrame = field(repr=False)
     _failures: pd.DataFrame = field(repr=False)
+    _building_levels: pd.DataFrame = field(repr=False)
     _results: Mapping[str, SupplyChainResult] = field(repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "_summary", self._summary.copy(deep=True))
         object.__setattr__(self, "_failures", self._failures.copy(deep=True))
+        object.__setattr__(
+            self, "_building_levels", self._building_levels.copy(deep=True)
+        )
         object.__setattr__(self, "_results", MappingProxyType(dict(self._results)))
 
     @property
@@ -854,6 +858,17 @@ class SupplyChainSweepResult:
     def failures(self) -> pd.DataFrame:
         """Return unsuccessful sweep rows."""
         return self._failures.copy(deep=True)
+
+    @property
+    def df_building_levels(self) -> pd.DataFrame:
+        """Return whole-system levels by production unit and terminal good.
+
+        Rows follow the economy's production-unit order, indexed by ``config``;
+        columns follow requested goods order. Failed solves contain NaN, while
+        successful unused units retain zero. Available even without retained
+        results; an empty sweep keeps every row with no goods columns.
+        """
+        return self._building_levels.copy(deep=True)
 
     @property
     def results(self) -> Mapping[str, SupplyChainResult]:

@@ -779,7 +779,83 @@ def test_sweep_normalizes_value_preserves_order_and_names(economy: Economy):
     ]
     np.testing.assert_allclose(sweep.summary["target_base_value"], 1_000.0)
     assert list(sweep.results) == ["widget", "ore"]
+    assert sweep.df_building_levels.columns.tolist() == ["widget", "ore"]
     assert sweep.result_for("widget").target_quantity == 20.0
+
+
+@pytest.mark.parametrize("keep_results", [False, True])
+def test_sweep_building_levels_preserve_units_and_fractional_values(
+    economy: Economy, keep_results: bool
+):
+    sweep = sweep_supply_chains(
+        economy,
+        Scenario(objective="construction_cost"),
+        goods=["ore", "luxury"],
+        target_value=25.0,
+        keep_results=keep_results,
+    )
+    expected = pd.DataFrame(
+        0.0,
+        index=pd.Index(economy.building_index, name="config"),
+        columns=["ore", "luxury"],
+    )
+    expected.loc["building_mine+pm_mine", "ore"] = 0.25
+    expected.loc["building_luxury+pm_luxury", "luxury"] = 0.25
+    pd.testing.assert_frame_equal(sweep.df_building_levels, expected)
+    assert bool(sweep.results) is keep_results
+
+
+def test_sweep_building_levels_are_defensive_snapshots(economy: Economy):
+    sweep = sweep_supply_chains(
+        economy, Scenario(objective="construction_cost"), goods=["ore"]
+    )
+    source = sweep.df_building_levels
+    expected = source.copy(deep=True)
+    snapshot = replace(sweep, _building_levels=source)
+    source.iloc[0, 0] = -1.0
+    source.index = pd.Index(range(len(source)))
+    source.columns = ["changed"]
+    pd.testing.assert_frame_equal(snapshot.df_building_levels, expected)
+    report = snapshot.df_building_levels
+    report.iloc[0, 0] = -2.0
+    report.index = pd.Index(range(len(report)))
+    report.columns = ["changed_again"]
+    pd.testing.assert_frame_equal(snapshot.df_building_levels, expected)
+
+
+def test_sweep_building_levels_keep_same_building_pm_configurations_separate():
+    economy = _resource_economy()
+    sweep = sweep_supply_chains(
+        economy,
+        Scenario(objective="construction_cost"),
+        goods=["widget"],
+        target_value=250.0,
+    )
+    expected = pd.DataFrame(
+        {"widget": [0.5, 0.5, 0.0, 0.0, 0.0]},
+        index=pd.Index(economy.building_index, name="config"),
+    )
+    pd.testing.assert_frame_equal(sweep.df_building_levels, expected)
+
+
+def test_sweep_building_levels_include_active_units_outside_chain(economy: Economy):
+    sweep = sweep_supply_chains(
+        economy,
+        Scenario(
+            objective="gdp",
+            building_level_caps=tuple(
+                (str(building), 100.0) for building in economy.df_production["building"]
+            ),
+        ),
+        goods=["widget"],
+        target_value=5_000.0,
+        keep_results=True,
+    )
+    result = sweep.result_for("widget")
+    assert "building_luxury" not in result.processes()["building"].tolist()
+    assert sweep.df_building_levels.loc[
+        "building_luxury+pm_luxury", "widget"
+    ] == pytest.approx(100.0)
 
 
 def test_sweep_default_goods_use_economy_order(economy: Economy):
@@ -789,6 +865,7 @@ def test_sweep_default_goods_use_economy_order(economy: Economy):
         target_value=100.0,
     )
     assert sweep.summary["good"].tolist() == list(economy.producible_goods)
+    assert sweep.df_building_levels.columns.tolist() == list(economy.producible_goods)
     assert sweep.results == {}
 
 
@@ -816,6 +893,9 @@ def test_sweep_reuses_economy_and_matches_standalone_results(economy: Economy):
         np.testing.assert_allclose(
             retained.state.building_levels, standalone.state.building_levels
         )
+        np.testing.assert_allclose(
+            sweep.df_building_levels[good], standalone.state.building_levels
+        )
         pd.testing.assert_series_equal(retained.summary(), standalone.summary())
         pd.testing.assert_frame_equal(retained.processes(), standalone.processes())
         pd.testing.assert_frame_equal(retained.flows(), standalone.flows())
@@ -842,8 +922,26 @@ def test_sweep_continues_after_failure(economy: Economy):
     assert sweep.summary["status"].tolist() == ["failure", "success"]
     assert sweep.failures["good"].tolist() == ["dead"]
     assert sweep.failures.iloc[0]["error_type"] == "ValueError"
+    levels = sweep.df_building_levels
+    assert levels.columns.tolist() == ["dead", "ore"]
+    assert levels["dead"].isna().all()
+    assert levels["ore"].notna().all()
     with pytest.raises(KeyError, match="keep_results"):
         sweep.result_for("ore")
+
+
+@pytest.mark.parametrize("goods", [[], ["dead"]])
+def test_sweep_building_levels_empty_and_all_failure_schema(
+    economy: Economy, goods: list[str]
+):
+    sweep = sweep_supply_chains(economy, Scenario(), goods=goods)
+    expected = pd.DataFrame(
+        np.nan,
+        index=pd.Index(economy.building_index, name="config"),
+        columns=goods,
+        dtype=np.float64,
+    )
+    pd.testing.assert_frame_equal(sweep.df_building_levels, expected)
 
 
 def test_sweep_validates_template_and_selection(economy: Economy):

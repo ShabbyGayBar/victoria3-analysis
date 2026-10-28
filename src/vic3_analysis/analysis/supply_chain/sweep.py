@@ -48,6 +48,8 @@ def sweep_supply_chains(
     Summary columns include fixed economic metrics and per-building resource
     levels derived from the full economy, including banned and unused types.
     Empty sweeps retain the same columns; failed solves use NaN for metrics.
+    ``df_building_levels`` retains every production unit's solved level for
+    each requested good, independently of ``keep_results``; failures use NaN.
     """
     if scenario_template.min_goods_output:
         warnings.warn(
@@ -70,6 +72,12 @@ def sweep_supply_chains(
     columns = sweep_columns(economy.df_production)
     rows: list[dict[str, object]] = []
     retained: dict[str, SupplyChainResult] = {}
+    building_levels = pd.DataFrame(
+        np.nan,
+        index=pd.Index(economy.building_index, name="config"),
+        columns=selected_goods,
+        dtype=np.float64,
+    )
     for good in selected_goods:
         price = float(prices[good])
         if not np.isfinite(price) or price <= 0:
@@ -103,6 +111,7 @@ def sweep_supply_chains(
                     "error_message": "",
                 }
             )
+            building_levels[good] = result.state.building_levels
             if keep_results:
                 retained[good] = result
         except ValueError as exc:
@@ -132,5 +141,6 @@ def sweep_supply_chains(
     return SupplyChainSweepResult(
         _summary=summary,
         _failures=failures,
+        _building_levels=building_levels,
         _results=retained,
     )
