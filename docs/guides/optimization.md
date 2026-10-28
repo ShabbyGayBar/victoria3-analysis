@@ -120,6 +120,31 @@ before solving it, or `optimizer.solve_problem(problem)` to solve an already
 compiled problem. Shared context and constraints are compiled by
 `BaseOptimizer`; `Scenario` remains configuration-only.
 
+After solving, call `optimizer.summary()` for a fresh one-row DataFrame of
+scenario settings, economy metrics, and search diagnostics:
+
+```python
+optimizer = NominalOptimizer(economy)
+state = optimizer.solve(scenario)
+summary = optimizer.summary()
+```
+
+The report includes weekly and annual GDP, annual GDP per capita, worker
+employment, total population including dependents, average wealth tier,
+construction cost, arable-land consumption, and net infrastructure usage
+(consumption minus generation). `throughput_multiplier` contains the common
+compiled multiplier, or `NaN` when configuration multipliers differ.
+Level-dependent economy-of-scale bonuses remain disabled.
+
+Equilibrium optimizers add household convergence diagnostics and evaluation
+counts; the supply-chain optimizer also reports chain and building
+configuration counts. A budget-limited search that returns a verified
+equilibrium can be summarized with `search_success=False`. Reporting uses the
+retained solution without rerunning the solver. Calling `summary()` before a
+solution is returned, after binding a new problem, or after solving or verifying
+that bound problem fails raises `ValueError`. Each report is independent and can be
+extended with experiment metadata using `summary.assign(...)`.
+
 For endogenous national prices, use `MarketOptimizer`. It supports `gdp` and
 `gdp_per_capita`, requires `default_min_goods_output=None`, and treats `goods_import`
 and `goods_export` as fixed market orders that affect prices rather than goods

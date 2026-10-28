@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, replace
 from time import perf_counter
 
 import numpy as np
+import pandas as pd
 import scipy.optimize as opt
 
 from vic3_analysis.analysis.economy import EconomyState, EquilibriumError
@@ -270,6 +271,26 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
     smooth-objective stationarity guarantee. Population varies with employment.
     Numerical equilibrium permits the existing financial warning flags.
     """
+
+    def summary(self) -> pd.DataFrame:
+        """Extend the solution report with search and equilibrium diagnostics.
+
+        Evaluation counts exclude final verification, matching ``result``.
+        Financial warning counts do not imply equilibrium non-convergence.
+        """
+        report = super().summary()
+        diagnostics = self._require_state().equilibrium_diagnostics
+        result = self.result
+        if diagnostics is None or result is None:
+            raise ValueError("Optimizer has no returned equilibrium to summarize.")
+        return report.assign(
+            equilibrium_evaluations=int(result.equilibrium_evaluations),
+            failed_equilibrium_evaluations=sum(result.equilibrium_failures.values()),
+            equilibrium_status=diagnostics.status,
+            equilibrium_iterations=diagnostics.iterations,
+            loss_buildings_count=len(diagnostics.loss_buildings),
+            unaffordable_floor_cells_count=len(diagnostics.unaffordable_floor_cells),
+        )
 
     def compile(
         self,
@@ -560,6 +581,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             status=status,
             message=f"household_equilibrium=converged; {result.message}",
         )
+        self._state = verified
         return verified
 
 

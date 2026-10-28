@@ -281,52 +281,15 @@ def run(
         raise RuntimeError("Supply-chain optimizer did not retain diagnostics.")
     chains["initial_level"] = initial
     chains["level"] = result.x
-    summary = pd.DataFrame(
-        [
-            {
-                "objective": scenario.objective,
-                "recipe_configuration": "era_5_automation",
-                "chain_count": len(optimizer.chain_index),
-                "configuration_count": len(economy.building_index),
-                "employment_cap": scenario.employment_cap,
-                "workforce_ratio": scenario.workforce_ratio,
-                "banned_building_groups": ";".join(scenario.banned_building_groups),
-                "min_net_infrastructure": scenario.min_net_infrastructure,
-                "default_min_goods_output": scenario.default_min_goods_output,
-                "throughput_multiplier": 1.0,
-                "economy_of_scale_level_cap": 0.0,
-                "max_evaluations": max_evaluations,
-                "initialization": "saved_solution" if resume else "equal_chains",
-                "loss_reduction": loss_reduction if resume else 0.0,
-                "reduced_chain_count": reduced_count,
-                "initial_average_wealth": initial_state.average_wealth,
-                "initial_gdp_weekly": initial_state.gdp_weekly,
-                "initial_annual_gdp": initial_state.gdp(annual=True),
-                "gdp_weekly": state.gdp_weekly,
-                "annual_gdp": state.gdp(annual=True),
-                "employment": state.total_employment,
-                "population": state.total_population,
-                "gdp_per_capita": state.gdp_per_capita(annual=True),
-                "average_wealth": state.average_wealth,
-                "net_infrastructure_usage": float(
-                    state.building_levels @ economy.infrastructure_vector
-                ),
-                "search_success": bool(result.success),
-                "search_status": int(result.status),
-                "search_message": str(result.message),
-                "trial_evaluations": int(result.nfev),
-                "equilibrium_evaluations": int(result.equilibrium_evaluations),
-                "failed_equilibrium_evaluations": sum(
-                    result.equilibrium_failures.values()
-                ),
-                "equilibrium_status": diagnostics.status,
-                "equilibrium_iterations": diagnostics.iterations,
-                "loss_buildings_count": len(diagnostics.loss_buildings),
-                "unaffordable_floor_cells_count": len(
-                    diagnostics.unaffordable_floor_cells
-                ),
-            }
-        ]
+    summary = optimizer.summary().assign(
+        recipe_configuration="era_5_automation",
+        max_evaluations=max_evaluations,
+        initialization="saved_solution" if resume else "equal_chains",
+        loss_reduction=loss_reduction if resume else 0.0,
+        reduced_chain_count=reduced_count,
+        initial_average_wealth=initial_state.average_wealth,
+        initial_gdp_weekly=initial_state.gdp_weekly,
+        initial_annual_gdp=initial_state.gdp(annual=True),
     )
     reports = {
         "chain_matrix": optimizer.df_building_levels.reset_index(),

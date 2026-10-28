@@ -13,6 +13,7 @@ from types import MappingProxyType
 from typing import TypedDict
 
 import numpy as np
+import pandas as pd
 import scipy.optimize as opt
 from scipy.optimize import OptimizeResult
 
@@ -156,6 +157,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
     result: OptimizeResult | None
     scenario: Scenario | None
     problem: ProblemT | None
+    _state: EconomyState | None
 
     def __init__(self, model: Economy) -> None:
         """Bind the optimizer to *model*."""
@@ -163,10 +165,74 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         self.result = None
         self.scenario = None
         self.problem = None
+        self._state = None
 
     @abstractmethod
     def compile(self, scenario: Scenario) -> ProblemT:
         """Compile *scenario* into the concrete optimizer's problem type."""
+
+    def summary(self) -> pd.DataFrame:
+        """Return a fresh one-row report of the latest returned solution.
+
+        GDP is reported weekly and annually; ``gdp_per_capita`` is annual.
+        Employment counts workers, population includes dependents, and wealth
+        is a population-weighted tier. Infrastructure usage is consumption
+        minus generation. Construction cost and arable-land consumption use
+        the model's existing accounting. ``throughput_multiplier`` is NaN
+        unless all compiled configuration multipliers are equal.
+
+        Reporting never solves or evaluates the problem again. Binding a new
+        problem clears the retained solution. Equilibrium searches that return
+        a verified state on budget exhaustion remain reportable even when
+        ``search_success`` is false.
+
+        Raises:
+            ValueError: If the current problem has no returned solution.
+        """
+        state = self._require_state()
+        problem = self._require_problem()
+        result = self.result
+        if result is None:
+            raise ValueError("Optimizer has no returned solution to summarize.")
+        scenario = problem.scenario
+        multipliers = problem.throughput_multipliers
+        values: dict[str, object] = {
+            "objective": scenario.objective,
+            "employment_cap": scenario.employment_cap,
+            "workforce_ratio": scenario.workforce_ratio,
+            "banned_building_groups": ";".join(scenario.banned_building_groups),
+            "min_net_infrastructure": scenario.min_net_infrastructure,
+            "default_min_goods_output": scenario.default_min_goods_output,
+            "configuration_count": len(self.model.building_index),
+            "throughput_multiplier": (
+                float(multipliers[0])
+                if multipliers.size and np.all(multipliers == multipliers[0])
+                else float("nan")
+            ),
+            "economy_of_scale_level_cap": 0.0,
+            "gdp_weekly": state.gdp_weekly,
+            "annual_gdp": state.gdp(annual=True),
+            "employment": state.total_employment,
+            "population": state.total_population,
+            "gdp_per_capita": state.gdp_per_capita(annual=True),
+            "average_wealth": state.average_wealth,
+            "construction_cost": self.model.construction_cost(state),
+            "arable_land_consumption": self.model.arable_land_consumption(state),
+            "net_infrastructure_usage": float(
+                state.building_levels @ self.model.infrastructure_vector
+            ),
+            "search_success": bool(result.success),
+            "search_status": int(result.status),
+            "search_message": str(result.message),
+        }
+        if "nfev" in result:
+            values["trial_evaluations"] = int(result.nfev)
+        return pd.DataFrame([values])
+
+    def _require_state(self) -> EconomyState:
+        if self._state is None:
+            raise ValueError("Optimizer has no returned solution to summarize.")
+        return self._state
 
     @property
     def goods_input_matrix(self) -> np.ndarray:
@@ -199,11 +265,12 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
         return self.problem
 
     def _bind_problem(self, problem: ProblemT) -> None:
-        """Retain *problem* and invalidate any previous solver result."""
+        """Retain *problem* and invalidate any previous result and solution."""
         self._validate_problem_economy(problem)
         self.problem = problem
         self.scenario = problem.scenario
         self.result = None
+        self._state = None
 
     def _validate_problem_economy(self, problem: _CompiledProblem) -> None:
         if problem.economy is not self.model:

@@ -389,6 +389,8 @@ def test_final_verification_retains_failure_status(toy_economy: Economy):
         optimizer.solve(_scenario(), x0=np.array([0.5, 0.1]), options={"maxiter": 1})
     assert optimizer.result is not None and not optimizer.result.success
     np.testing.assert_array_equal(optimizer.result.building_levels, [0.5, 0.45])
+    with pytest.raises(ValueError, match="no returned solution"):
+        optimizer.summary()
 
 
 @pytest.mark.parametrize("constrained", [False, True])
@@ -430,6 +432,8 @@ def test_original_building_feasibility_is_rechecked(toy_economy: Economy):
             altered, x0=np.array([0.5, 0.1]), options={"maxiter": 1}
         )
     assert optimizer.result is not None and not optimizer.result.success
+    with pytest.raises(ValueError, match="no returned solution"):
+        optimizer.summary()
 
 
 @pytest.mark.parametrize("iterations,status", [(1, "max_iterations"), (10, "cycle")])
@@ -453,5 +457,8 @@ def test_chain_search_recovers_from_failed_equilibria(
     )
     result = optimizer.result
     assert result is not None and result.equilibrium_failures[status] >= 1
+    assert optimizer.summary().loc[0, "failed_equilibrium_evaluations"] == sum(
+        result.equilibrium_failures.values()
+    )
     np.testing.assert_allclose(state.building_levels, recipes.to_numpy() @ result.x)
     _assert_accounting(model, state)

@@ -56,7 +56,9 @@ class NominalOptimizer(BaseOptimizer[LinearProblem]):
         if not result.success:
             raise ValueError(f"Optimization failed: {result.message}")
         self.result = result
-        return self._state_from_levels(problem, np.asarray(result.x, dtype=np.float64))
+        state = self._state_from_levels(problem, np.asarray(result.x, dtype=np.float64))
+        self._state = state
+        return state
 
     def import_marginals(self) -> np.ndarray | None:
         """Return shadow prices for relaxing default goods-output minima.

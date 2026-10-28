@@ -343,6 +343,9 @@ def test_failed_trials_are_counted_and_search_recovers(
     result = optimizer.result
     assert result is not None
     assert result.equilibrium_failures[status] >= 1
+    assert optimizer.summary().loc[0, "failed_equilibrium_evaluations"] == sum(
+        result.equilibrium_failures.values()
+    )
     assert isinstance(result.last_equilibrium_error, EquilibriumError)
     assert state.building_levels[0] != 1.0
     assert any(
@@ -627,6 +630,8 @@ def test_final_verification_never_returns_stale_success(
         optimizer.result.message == "Equilibrium optimizer final verification failed."
     )
     assert calls[0] == 2
+    with pytest.raises(ValueError, match="no returned solution"):
+        optimizer.summary()
     assert "phase=verification" in caplog.records[-1].message
     assert "status=failed" in caplog.records[-1].message
 

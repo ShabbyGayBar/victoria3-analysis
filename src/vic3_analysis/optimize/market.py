@@ -163,11 +163,13 @@ class MarketOptimizer(BaseOptimizer[MarketProblem]):
             raise ValueError(f"Market optimization failed: {result.message}")
 
         self.result = result
-        return self._state_from_levels(
+        state = self._state_from_levels(
             problem,
             np.asarray(result.x, dtype=np.float64),
             method="market",
         )
+        self._state = state
+        return state
 
     @staticmethod
     def _value_and_gradient(

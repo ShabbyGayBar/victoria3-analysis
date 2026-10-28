@@ -112,6 +112,14 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
         self._chain_matrix = _readonly_array(frame.to_numpy(dtype=np.float64))
         self._owner = object()
 
+    def summary(self) -> pd.DataFrame:
+        """Add the recipe count to the report of the verified building state.
+
+        ``chain_count`` counts recipe columns; ``configuration_count`` counts
+        building configurations. Economy metrics use mapped building levels.
+        """
+        return super().summary().assign(chain_count=len(self.chain_index))
+
     @staticmethod
     def validate_building_levels(
         frame: pd.DataFrame,
@@ -297,6 +305,7 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
                     else problem.to_building_levels(self.result.x)
                 )
         if not _is_feasible(problem.building_problem, state.building_levels):
+            self._state = None
             if self.result is not None:
                 self.result.success = False
                 self.result.message = (

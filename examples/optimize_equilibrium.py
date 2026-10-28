@@ -132,45 +132,10 @@ def run(
     if result is None or diagnostics is None:
         raise RuntimeError("The equilibrium optimizer did not retain diagnostics.")
 
-    summary = pd.DataFrame(
-        [
-            {
-                "objective": scenario.objective,
-                "employment_cap": scenario.employment_cap,
-                "workforce_ratio": scenario.workforce_ratio,
-                "banned_building_groups": ";".join(scenario.banned_building_groups),
-                "min_net_infrastructure": scenario.min_net_infrastructure,
-                "default_min_goods_output": scenario.default_min_goods_output,
-                "throughput_multiplier": 1.0,
-                "economy_of_scale_level_cap": 0.0,
-                "max_evaluations": max_evaluations,
-                "initial_gdp_weekly": initial_state.gdp_weekly,
-                "initial_annual_gdp": initial_state.gdp(annual=True),
-                "gdp_weekly": state.gdp_weekly,
-                "annual_gdp": state.gdp(annual=True),
-                "employment": state.total_employment,
-                "population": state.total_population,
-                "gdp_per_capita": state.gdp_per_capita(annual=True),
-                "average_wealth": state.average_wealth,
-                "net_infrastructure_usage": float(
-                    state.building_levels @ economy.infrastructure_vector
-                ),
-                "search_success": bool(result.success),
-                "search_status": int(result.status),
-                "search_message": str(result.message),
-                "trial_evaluations": int(result.nfev),
-                "equilibrium_evaluations": int(result.equilibrium_evaluations),
-                "failed_equilibrium_evaluations": sum(
-                    result.equilibrium_failures.values()
-                ),
-                "equilibrium_status": diagnostics.status,
-                "equilibrium_iterations": diagnostics.iterations,
-                "loss_buildings_count": len(diagnostics.loss_buildings),
-                "unaffordable_floor_cells_count": len(
-                    diagnostics.unaffordable_floor_cells
-                ),
-            }
-        ]
+    summary = optimizer.summary().assign(
+        max_evaluations=max_evaluations,
+        initial_gdp_weekly=initial_state.gdp_weekly,
+        initial_annual_gdp=initial_state.gdp(annual=True),
     )
     reports = {
         "summary": summary,
