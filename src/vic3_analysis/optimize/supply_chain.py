@@ -1,12 +1,16 @@
 # Copyright (C) 2026 Brian Li
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Equilibrium searches in a fixed basis of complete supply-chain recipes."""
+"""Equilibrium searches over fixed supply-chain recipes."""
 
+from __future__ import annotations
+
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 
 import numpy as np
+import pandas as pd
 
 from vic3_analysis.analysis.economy import Economy, EconomyState
 from vic3_analysis.optimize.base import Bounds, _readonly_array
@@ -18,51 +22,18 @@ from vic3_analysis.optimize.equilibrium import (
 from vic3_analysis.optimize.scenario import Scenario
 
 
-@dataclass(frozen=True, eq=False)
-class SupplyChainBasis:
-    """Labeled, immutable coefficients for ``building_levels = matrix @ levels``.
-
-    Rows follow an Economy's building-configuration index; columns follow
-    ``chain_index``. Units are defined by the caller's recipes, without implicit
-    normalization. Shared configurations receive the sum of chain contributions.
-    """
-
-    building_index: tuple[str, ...]
-    chain_index: tuple[str, ...]
-    matrix: np.ndarray = field(repr=False)
-
-    def __post_init__(self) -> None:
-        """Own the coefficients and require distinct labels and usable recipes."""
-        for name in ("building_index", "chain_index"):
-            labels = tuple(getattr(self, name))
-            if not labels or any(not isinstance(key, str) or not key for key in labels):
-                raise ValueError(f"{name} must contain nonempty string labels.")
-            if len(set(labels)) != len(labels):
-                raise ValueError(f"{name} must contain unique labels.")
-            object.__setattr__(self, name, labels)
-        matrix = _readonly_array(self.matrix)
-        if matrix.shape != (len(self.building_index), len(self.chain_index)):
-            raise ValueError(
-                "matrix must match building_index rows and chain_index columns."
-            )
-        if not np.isfinite(matrix).all() or (matrix < 0).any():
-            raise ValueError("matrix must contain finite non-negative coefficients.")
-        if not (matrix > 0).any(axis=0).all():
-            raise ValueError("Every chain must have at least one nonzero coefficient.")
-        object.__setattr__(self, "matrix", matrix)
-
-    def to_building_levels(self, chain_levels: np.ndarray) -> np.ndarray:
-        """Map a finite nonnegative chain vector to building configurations."""
-        levels = np.asarray(chain_levels, dtype=np.float64)
-        if levels.shape != (len(self.chain_index),):
-            raise ValueError("chain_levels must be aligned to chain_index.")
-        if not np.isfinite(levels).all() or (levels < 0).any():
-            raise ValueError("chain_levels must contain finite non-negative values.")
-        with np.errstate(over="ignore", invalid="ignore"):
-            buildings = self.matrix @ levels
-        if not np.isfinite(buildings).all():
-            raise ValueError("Transformed building levels must be finite.")
-        return buildings
+def _to_building_levels(matrix: np.ndarray, chain_levels: np.ndarray) -> np.ndarray:
+    """Map a finite nonnegative chain vector, rejecting numerical overflow."""
+    levels = np.asarray(chain_levels, dtype=np.float64)
+    if levels.shape != (matrix.shape[1],):
+        raise ValueError("chain_levels must be aligned to chain_index.")
+    if not np.isfinite(levels).all() or (levels < 0).any():
+        raise ValueError("chain_levels must contain finite non-negative values.")
+    with np.errstate(over="ignore", invalid="ignore"):
+        buildings = matrix @ levels
+    if not np.isfinite(buildings).all():
+        raise ValueError("Transformed building levels must be finite.")
+    return buildings
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -70,46 +41,147 @@ class SupplyChainEquilibriumProblem(EquilibriumProblem):
     """Chain-coordinate constraints with building-coordinate economic accounting.
 
     ``bounds``, constraint columns, and ``warm_start`` decision coefficients
-    follow ``basis.chain_index``. Production matrices and wealth retain the
+    follow ``chain_index``. Production matrices and wealth retain the
     original economy indexes. Physical evaluation delegates to ``building_problem``.
     """
 
-    basis: SupplyChainBasis = field(repr=False, compare=False)
+    chain_index: tuple[str, ...]
+    chain_matrix: np.ndarray = field(repr=False, compare=False)
     building_problem: EquilibriumProblem = field(repr=False, compare=False)
+    _owner: object = field(default_factory=object, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        """Validate the basis against the retained physical problem."""
+        """Snapshot the chain mapping against the retained physical problem."""
         super().__post_init__()
-        if self.basis.building_index != tuple(self.economy.building_index):
-            raise ValueError("basis building_index must match the Economy exactly.")
+        chains = tuple(self.chain_index)
+        if not chains or any(not isinstance(key, str) or not key for key in chains):
+            raise ValueError("chain_index must contain nonempty string labels.")
+        if len(set(chains)) != len(chains):
+            raise ValueError("chain_index must contain unique labels.")
+        matrix = _readonly_array(self.chain_matrix)
+        if matrix.shape != (len(self.economy.building_index), len(chains)):
+            raise ValueError(
+                "chain_matrix must match building configurations and chains."
+            )
+        if not np.isfinite(matrix).all() or (matrix < 0).any():
+            raise ValueError(
+                "chain_matrix must contain finite non-negative coefficients."
+            )
+        if not (matrix > 0).any(axis=0).all():
+            raise ValueError("Every chain must have at least one nonzero coefficient.")
+        object.__setattr__(self, "chain_index", chains)
+        object.__setattr__(self, "chain_matrix", matrix)
         if self.building_problem.economy is not self.economy:
             raise ValueError("building_problem belongs to a different Economy.")
-        if len(self.bounds) != len(self.basis.chain_index):
+        if len(self.bounds) != len(chains):
             raise ValueError("bounds must match the chain index.")
+
+    def to_building_levels(self, chain_levels: np.ndarray) -> np.ndarray:
+        """Map chain coordinates using this problem's immutable coefficients."""
+        return _to_building_levels(self.chain_matrix, chain_levels)
 
     def evaluate(self, levels: np.ndarray) -> EconomyState:
         """Solve equilibrium after transforming a nonnegative chain vector."""
-        return self.building_problem.evaluate(self.basis.to_building_levels(levels))
+        return self.building_problem.evaluate(self.to_building_levels(levels))
 
     def _to_building_levels(self, levels: np.ndarray) -> np.ndarray:
         """Map chain coordinates for the shared final verification."""
-        return self.basis.to_building_levels(levels)
+        return self.to_building_levels(levels)
 
 
 class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
     """Optimize nonnegative chain levels using the existing equilibrium search.
 
     ``x0`` and ``result.x`` contain chain levels. Returned states and
-    ``result.building_levels`` contain ``basis.matrix @ result.x``. Fixed
+    ``result.building_levels`` contain the recipe matrix times ``result.x``. Fixed
     recipes restrict the search space; they do not guarantee financial viability.
     """
 
-    def __init__(self, economy: Economy, basis: SupplyChainBasis) -> None:
-        """Bind an economy and a compatible, immutable supply-chain basis."""
+    def __init__(self, economy: Economy, df_building_levels: pd.DataFrame) -> None:
+        """Snapshot a production-unit-by-chain DataFrame for an economy.
+
+        DataFrame rows are aligned by configuration key to the economy;
+        all-NaN columns are skipped with a warning. Shared configurations receive
+        the sum of chain contributions, without normalization of coefficients.
+        """
         super().__init__(economy)
-        if basis.building_index != tuple(economy.building_index):
-            raise ValueError("basis building_index must match the Economy exactly.")
-        self.basis = basis
+        frame = self.validate_building_levels(
+            df_building_levels, building_index=tuple(economy.building_index)
+        )
+        self._chain_index = tuple(frame.columns)
+        self._chain_matrix = _readonly_array(frame.to_numpy(dtype=np.float64))
+        self._owner = object()
+
+    @staticmethod
+    def validate_building_levels(
+        frame: pd.DataFrame,
+        *,
+        building_index: tuple[str, ...],
+    ) -> pd.DataFrame:
+        """Validate, align, and copy recipes, warning when failed columns are skipped.
+
+        Rows must match ``building_index`` exactly; column order is preserved.
+        All-NaN columns are omitted. Each remaining recipe must have finite,
+        nonnegative coefficients and at least one positive coefficient. Returned
+        float coefficients retain the caller's units without normalization.
+        """
+        buildings = tuple(building_index)
+        rows = tuple(frame.index)
+        columns = tuple(frame.columns)
+        for name, labels in (
+            ("building_index", buildings),
+            ("DataFrame index", rows),
+            ("DataFrame columns", columns),
+        ):
+            if any(not isinstance(key, str) or not key for key in labels):
+                raise ValueError(f"{name} must contain nonempty string labels.")
+            if len(set(labels)) != len(labels):
+                raise ValueError(f"{name} must contain unique labels.")
+        if not buildings or set(rows) != set(buildings):
+            raise ValueError("DataFrame index must match building_index exactly.")
+        failed = frame.isna().all(axis=0)
+        skipped = [key for key, missing in zip(columns, failed, strict=True) if missing]
+        if skipped:
+            warnings.warn(
+                "Skipping failed supply-chain recipes containing only NaN: "
+                + ", ".join(skipped),
+                UserWarning,
+                stacklevel=2,
+            )
+        chains = tuple(key for key in columns if key not in skipped)
+        if not chains:
+            raise ValueError("No usable supply-chain recipes remain.")
+        try:
+            matrix = frame.loc[list(buildings), list(chains)].to_numpy(
+                dtype=np.float64, copy=True
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError("matrix must contain numeric coefficients.") from exc
+        if not np.isfinite(matrix).all() or (matrix < 0).any():
+            raise ValueError("matrix must contain finite non-negative coefficients.")
+        if not (matrix > 0).any(axis=0).all():
+            raise ValueError("Every chain must have at least one nonzero coefficient.")
+        return pd.DataFrame(
+            matrix, index=pd.Index(buildings, name="config"), columns=chains
+        )
+
+    @property
+    def chain_index(self) -> tuple[str, ...]:
+        """Return surviving recipe labels in chain-vector order."""
+        return self._chain_index
+
+    @property
+    def df_building_levels(self) -> pd.DataFrame:
+        """Return an independent copy of the aligned production-unit-by-chain matrix."""
+        return pd.DataFrame(
+            self._chain_matrix.copy(),
+            index=pd.Index(self.model.building_index, name="config"),
+            columns=self.chain_index,
+        )
+
+    def to_building_levels(self, chain_levels: np.ndarray) -> np.ndarray:
+        """Map a finite nonnegative chain vector to building configurations."""
+        return _to_building_levels(self._chain_matrix, chain_levels)
 
     def compile(
         self,
@@ -128,12 +200,12 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
             rtol=rtol,
             atol=atol,
         )
-        matrix = self.basis.matrix
+        matrix = self._chain_matrix
         A_ub = None if building.A_ub is None else building.A_ub @ matrix
         A_eq = None if building.A_eq is None else building.A_eq @ matrix
         b_ub = building.b_ub
         slices = dict(building.inequality_slices)
-        bounds: Bounds = tuple((0.0, None) for _ in self.basis.chain_index)
+        bounds: Bounds = tuple((0.0, None) for _ in self.chain_index)
         blocked = np.zeros(len(bounds), dtype=bool)
         rows: list[np.ndarray] = []
         rhs: list[float] = []
@@ -186,7 +258,9 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
             max_iterations=building.max_iterations,
             rtol=building.rtol,
             atol=building.atol,
-            basis=self.basis,
+            chain_index=self.chain_index,
+            chain_matrix=matrix,
+            _owner=self._owner,
             building_problem=building,
         )
         self._bind_problem(problem)
@@ -203,9 +277,13 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
         """Search chain coordinates and verify the original building constraints."""
         if not isinstance(problem, SupplyChainEquilibriumProblem):
             raise TypeError("Expected a SupplyChainEquilibriumProblem.")
-        if problem.basis is not self.basis:
+        if (
+            problem._owner is not self._owner
+            or problem.chain_index != self.chain_index
+            or not np.array_equal(problem.chain_matrix, self._chain_matrix)
+        ):
             raise ValueError(
-                "Compiled problem belongs to a different supply-chain basis."
+                "Compiled problem belongs to a different supply-chain optimizer or recipes."
             )
         try:
             state = super().solve_problem(
@@ -216,7 +294,7 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
                 self.result.building_levels = (
                     None
                     if self.result.x is None
-                    else self.basis.to_building_levels(self.result.x)
+                    else problem.to_building_levels(self.result.x)
                 )
         if not _is_feasible(problem.building_problem, state.building_levels):
             if self.result is not None:

@@ -322,6 +322,13 @@ describes the Japan experiment.
 
 The separate `examples/optimize_supply_chain_equilibrium.py` example exports:
 
+Its input recipes come from `era_5_automation/building_levels.csv`, exported by
+the supply-chain comparison example. Rows are aligned to the full production
+table before units unused by all selected recipes are removed. Each retained
+coefficient is used without normalization; normalization metadata comes from
+the adjacent `summary.csv`. Entirely NaN recipe columns are skipped with a
+warning, and chain metadata follows the surviving column order.
+
 | File / column | Meaning |
 | --- | --- |
 | `chain_matrix.csv`: `config` | Building plus production-method key; rows follow the selected production table. |

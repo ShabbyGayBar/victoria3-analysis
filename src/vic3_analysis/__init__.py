@@ -31,7 +31,6 @@ from vic3_analysis.optimize.market import MarketOptimizer
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
 from vic3_analysis.optimize.supply_chain import (
-    SupplyChainBasis,
     SupplyChainEquilibriumOptimizer,
     SupplyChainEquilibriumProblem,
 )
@@ -76,7 +75,6 @@ __all__ = [
     "Scenario",
     "StateRegionsParser",
     "SupplyChainAnalyzer",
-    "SupplyChainBasis",
     "SupplyChainEquilibriumOptimizer",
     "SupplyChainEquilibriumProblem",
     "SupplyChainResult",

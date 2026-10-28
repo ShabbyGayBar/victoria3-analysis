@@ -5,16 +5,23 @@ description: Search GDP by scaling complete era-5 production recipes.
 
 # Equilibrium search over era-5 supply chains
 
-`examples/optimize_supply_chain_equilibrium.py` builds a transformation matrix
-from the successful `era_5_automation` reports. One chain level reproduces a
+`examples/optimize_supply_chain_equilibrium.py` loads the transformation matrix
+from `era_5_automation/building_levels.csv`, selecting successful recipes using
+the adjacent `summary.csv`. One chain level reproduces a
 saved recipe targeting £100,000/week of terminal output at base prices.
 Each trial transforms chain levels into building levels, then solves household
 wealth, demand, and market prices using the existing equilibrium solver.
 
 Generate inputs with `examples/parse.py`, `examples/production_analysis.py`, and
 `examples/supply_chain_compare.py` first. The example selects successful recipes
-in `ALLOWED_CHAIN_GOODS` order and includes every active configuration, including supporting infrastructure
-outside the terminal graph. It retains the recipes' production ratios.
+in `ALLOWED_CHAIN_GOODS` order and includes every configuration used by a
+selected recipe, including supporting infrastructure outside the terminal
+graph. It filters unused matrix rows and retains the recipes' production ratios.
+If an older artifact collection lacks `building_levels.csv`, rerun
+`uv run python -m examples.supply_chain_compare` to generate it. Per-good
+process reports are no longer used to reconstruct recipes. The example assumes
+the source recipes use the preset's throughput multiplier of 1; the matrix
+does not carry throughput metadata.
 
 The 20 allowed chains, in vector order, are `clothes`, `furniture`, `groceries`,
 `coal`, `oil`, `electricity`, `glass`, `services`, `liquor`, `tobacco`, `opium`,
@@ -26,9 +33,8 @@ The objective is GDP. The worker cap is one million, the workforce
 ratio is 0.4, and infrastructure generation must cover usage. The example uses
 the shared banned building groups, no domestic-output minima, fixed throughput
 of 1, and no level-dependent economies of scale. The initial vector assigns
-equal chain levels and scales them to one million workers. The current
-47-configuration, 20-chain data yields a converged starting equilibrium;
-dimensions are derived from the reports.
+equal chain levels and scales them to one million workers. Matrix dimensions
+are derived from the surviving recipes after unused rows are filtered out.
 
 ```bash
 uv run python -m examples.optimize_supply_chain_equilibrium --max-evaluations 100 --log-every 10
@@ -49,7 +55,7 @@ uv run python -m examples.optimize_supply_chain_equilibrium --resume --loss-redu
 ```
 
 Resume aligns saved levels by good and verifies that the saved recipe matrix
-matches the current basis. It re-evaluates the saved solution, then identifies
+matches the current recipes. It re-evaluates the saved solution, then identifies
 negative operating surplus among each recipe's terminal-good producers,
 including coproduct revenue. It scales those chains by `1 - loss_reduction`
 and keeps other chain levels unchanged, without scaling employment back up.

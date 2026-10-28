@@ -311,14 +311,16 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
 
 ### Supply-chain equilibrium optimization
 
-`optimize/supply_chain.py` adds `SupplyChainBasis`,
-`SupplyChainEquilibriumProblem`, and `SupplyChainEquilibriumOptimizer` as public
-exports. The immutable basis maps chain levels to building configurations;
-the specialized optimizer transforms scenario constraints and reuses the
-existing equilibrium search and physical solver.
+`optimize/supply_chain.py` adds `SupplyChainEquilibriumProblem` and
+`SupplyChainEquilibriumOptimizer` as public exports. The optimizer validates
+building-level DataFrames and snapshots coefficients that map chain levels
+to building configurations. Compiled problems retain immutable mappings;
+the optimizer transforms scenario constraints and reuses the existing
+equilibrium search and physical solver.
 
 `examples/optimize_supply_chain_equilibrium.py` loads successful
-`era_5_automation` recipe reports and writes a separate
+`era_5_automation/building_levels.csv` and its summary, filters unused production
+units, passes the labeled DataFrame to the optimizer, and writes a separate
 `analyses/optimization/supply_chain_equilibrium/` collection containing
 `chain_matrix.csv`, `chains.csv`, `buildings.csv`, `market.csv`, `pop.csv`,
 `goods_buy_packages.csv`, and `summary.csv`.

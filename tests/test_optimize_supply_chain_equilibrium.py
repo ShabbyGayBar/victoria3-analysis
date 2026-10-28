@@ -10,19 +10,20 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from examples import PRODUCTION_DIR, SUPPLY_CHAIN_EQUILIBRIUM_DIR, SUPPLY_CHAINS_DIR
+from examples import DATASETS_DIR, PRODUCTION_DIR, SUPPLY_CHAIN_EQUILIBRIUM_DIR
 from examples.optimize_supply_chain_equilibrium import (
     ALLOWED_CHAIN_GOODS,
     _initial_levels,
     _resume_levels,
     load_recipes,
 )
+from examples.supply_chain_compare import TEMPLATES, load_economy
 from tests.test_equilibrium_optimizer import toy_economy
 from vic3_analysis import (
     Economy,
     Scenario,
-    SupplyChainBasis,
     SupplyChainEquilibriumOptimizer,
+    sweep_supply_chains,
 )
 
 __all__ = ["toy_economy"]  # Re-export the shared pytest fixture.
@@ -45,75 +46,76 @@ def _reports(root: Path) -> Path:
             "target_base_value": [100_000.0, 100_000.0, np.nan],
         }
     ).to_csv(root / "summary.csv", index=False, encoding="utf-8")
-    for good, levels in (("steel", [3.0, 1.0]), ("paper", [1.0, 2.0])):
-        directory = root / good
-        directory.mkdir()
-        pd.DataFrame(
-            {
-                "building": ["mine", "mill", "unused"],
-                "production_method": ["pump", "automatic", "manual"],
-                "active": [True, True, False],
-                "in_terminal_chain": [False, True, False],
-                "level": [*levels, 0.0],
-                "throughput_multiplier": [1.0, 1.0, 1.0],
-            }
-        ).to_csv(directory / "processes.csv", index=False, encoding="utf-8")
+    pd.DataFrame(
+        {
+            "steel": [3.0, 1.0, 0.0],
+            "paper": [1.0, 2.0, 0.0],
+            "failed": [np.nan, np.nan, np.nan],
+        },
+        index=pd.Index(["mine+pump", "mill+automatic", "unused+manual"], name="config"),
+    ).to_csv(root / "building_levels.csv", encoding="utf-8")
     return path
 
 
 def test_loading_aligns_keys_preserves_order_and_supporting_processes(tmp_path: Path):
     production_path = _reports(tmp_path)
-    production, basis, metadata = load_recipes(production_path, tmp_path)
+    production, matrix, metadata = load_recipes(production_path, tmp_path)
     assert production["building"].tolist() == ["mill", "mine"]
-    assert basis.chain_index == ("steel", "paper")
-    assert basis.building_index == ("mill+automatic", "mine+pump")
-    np.testing.assert_array_equal(basis.matrix, [[1, 2], [3, 1]])
-    np.testing.assert_array_equal(basis.to_building_levels(np.ones(2)), [3, 4])
+    expected = pd.DataFrame(
+        {"steel": [1.0, 3.0], "paper": [2.0, 1.0]},
+        index=pd.Index(["mill+automatic", "mine+pump"], name="config"),
+    )
+    pd.testing.assert_frame_equal(matrix, expected)
+    np.testing.assert_array_equal(matrix.to_numpy() @ np.ones(2), [3, 4])
     assert metadata["target_quantity"].tolist() == [2000, 2500]
-    report = tmp_path / "steel/processes.csv"
-    processes = pd.read_csv(report, encoding="utf-8")
-    processes.iloc[::-1].to_csv(report, index=False, encoding="utf-8")
+    report = tmp_path / "building_levels.csv"
+    levels = pd.read_csv(report, index_col="config", encoding="utf-8")
+    levels.iloc[::-1].to_csv(report, encoding="utf-8")
     _, reordered, _ = load_recipes(production_path, tmp_path)
-    np.testing.assert_array_equal(reordered.matrix, basis.matrix)
+    pd.testing.assert_frame_equal(reordered, expected)
 
 
 @pytest.mark.parametrize(
     "failure",
     [
-        "missing_report",
+        "missing_matrix",
         "unknown_config",
         "negative_level",
         "duplicate_config",
-        "throughput",
-        "invalid_active",
-        "zero_active",
+        "partial_nan",
+        "infinite_level",
+        "zero_recipe",
+        "missing_config",
+        "missing_good",
     ],
 )
-def test_invalid_process_reports(tmp_path: Path, failure: str):
+def test_invalid_recipe_matrices(tmp_path: Path, failure: str):
     production = _reports(tmp_path)
-    path = tmp_path / "steel/processes.csv"
-    if failure == "missing_report":
+    path = tmp_path / "building_levels.csv"
+    if failure == "missing_matrix":
         path.unlink()
-        with pytest.raises(FileNotFoundError, match="Missing recipe"):
+        with pytest.raises(FileNotFoundError, match="examples.supply_chain_compare"):
             load_recipes(production, tmp_path)
         return
-    report = pd.read_csv(path, encoding="utf-8")
+    report = pd.read_csv(path, index_col="config", encoding="utf-8")
     if failure == "unknown_config":
-        report.loc[0, "building"] = "unknown"
-        report.loc[0, "production_method"] = "pm"
+        report.index = ["unknown+pm", *report.index[1:]]
     elif failure == "negative_level":
-        report.loc[0, "level"] = -1.0
+        report.iloc[0, 0] = -1.0
     elif failure == "duplicate_config":
-        report.loc[0, ["building", "production_method"]] = report.loc[
-            1, ["building", "production_method"]
-        ]
-    elif failure == "throughput":
-        report.loc[0, "throughput_multiplier"] = 2.0
-    elif failure == "invalid_active":
-        report["active"] = ["bad", "True", "False"]
+        report.index = [report.index[1], *report.index[1:]]
+    elif failure == "partial_nan":
+        report.iloc[0, 0] = np.nan
+    elif failure == "infinite_level":
+        report.iloc[0, 0] = np.inf
+    elif failure == "zero_recipe":
+        report["steel"] = 0.0
+    elif failure == "missing_config":
+        report = report.iloc[:2]
     else:
-        report["active"] = False
-    report.to_csv(path, index=False, encoding="utf-8")
+        report = report.drop(columns="steel")
+    report.index.name = "config"
+    report.to_csv(path, encoding="utf-8")
     with pytest.raises(ValueError):
         load_recipes(production, tmp_path)
 
@@ -140,7 +142,7 @@ def test_invalid_summary(tmp_path: Path, failure: str):
     elif failure == "duplicate_good":
         summary.loc[1, "good"] = "steel"
     elif failure == "bad_good":
-        summary.loc[1, "good"] = "../paper"
+        summary.loc[1, "good"] = ""
     elif failure == "target":
         summary.loc[0, "target_quantity"] = 0.0
     else:
@@ -153,27 +155,41 @@ def test_invalid_summary(tmp_path: Path, failure: str):
 def test_initial_chain_levels_preserve_recipes_and_scale_workforce(
     toy_economy: Economy,
 ):
-    basis = SupplyChainBasis(
-        tuple(toy_economy.building_index), ("a", "b"), np.array([[1, 0], [0.5, 2]])
+    recipes = pd.DataFrame(
+        [[1.0, 0.0], [0.5, 2.0]], index=toy_economy.building_index, columns=["a", "b"]
     )
-    levels = _initial_levels(toy_economy, basis)
+    optimizer = SupplyChainEquilibriumOptimizer(toy_economy, recipes)
+    levels = _initial_levels(optimizer)
     assert levels[0] == levels[1]
     assert float(
-        basis.to_building_levels(levels) @ toy_economy.employment_vector
+        optimizer.to_building_levels(levels) @ toy_economy.employment_vector
     ) == pytest.approx(1_000_000)
 
 
-def test_real_recipes_align_and_preserve_normalization():
-    production, basis, metadata = load_recipes(
+def test_real_recipes_align_and_preserve_normalization(tmp_path: Path):
+    economy = load_economy(DATASETS_DIR)
+    sweep = sweep_supply_chains(
+        economy, TEMPLATES[1], goods=ALLOWED_CHAIN_GOODS, target_value=100_000.0
+    )
+    sweep.summary.to_csv(tmp_path / "summary.csv", index=False, encoding="utf-8")
+    sweep.df_building_levels.to_csv(tmp_path / "building_levels.csv", encoding="utf-8")
+    production, matrix, metadata = load_recipes(
         PRODUCTION_DIR / "production_table.csv",
-        SUPPLY_CHAINS_DIR / "era_5_automation",
+        tmp_path,
         allowed_goods=ALLOWED_CHAIN_GOODS,
     )
-    assert basis.matrix.shape == (len(production), len(metadata))
-    assert basis.chain_index == tuple(metadata["good"])
-    assert basis.chain_index == ALLOWED_CHAIN_GOODS
+    assert matrix.shape == (len(production), len(metadata))
+    assert tuple(matrix.columns) == tuple(metadata["good"])
+    assert tuple(matrix.columns) == ALLOWED_CHAIN_GOODS
     assert (metadata["target_base_value"] == 100_000.0).all()
-    assert np.isfinite(basis.matrix).all()
+    assert np.isfinite(matrix.to_numpy()).all()
+    expected = sweep.df_building_levels
+    expected = pd.DataFrame(expected.loc[(expected > 0).any(axis=1)])
+    pd.testing.assert_frame_equal(matrix, expected)
+    assert (
+        matrix.index.tolist()
+        == (production["building"] + "+" + production["production_method"]).tolist()
+    )
 
 
 def test_saved_matrix_and_chain_levels_reproduce_building_report():
@@ -205,7 +221,7 @@ def test_saved_matrix_and_chain_levels_reproduce_building_report():
     assert final_gdp >= initial_gdp
 
 
-def test_missing_process_columns_and_duplicate_production(tmp_path: Path):
+def test_missing_config_column_and_duplicate_production(tmp_path: Path):
     path = _reports(tmp_path)
     production = pd.read_csv(path, encoding="utf-8")
     pd.concat([production, production.iloc[:1]]).to_csv(
@@ -214,27 +230,54 @@ def test_missing_process_columns_and_duplicate_production(tmp_path: Path):
     with pytest.raises(ValueError, match="duplicate configuration"):
         load_recipes(path, tmp_path)
     production.to_csv(path, index=False, encoding="utf-8")
-    report = tmp_path / "steel/processes.csv"
-    processes = pd.read_csv(report, encoding="utf-8").drop(columns="level")
-    processes.to_csv(report, index=False, encoding="utf-8")
-    with pytest.raises(ValueError, match="required process columns"):
+    report = tmp_path / "building_levels.csv"
+    levels = pd.read_csv(report, encoding="utf-8").drop(columns="config")
+    levels.to_csv(report, index=False, encoding="utf-8")
+    with pytest.raises(ValueError, match="config"):
         load_recipes(path, tmp_path)
 
 
-def test_selected_recipes_preserve_requested_order_and_skip_other_reports(
+def test_selected_recipes_preserve_requested_order_and_skip_other_columns(
     tmp_path: Path,
 ):
     production = _reports(tmp_path)
-    _, basis, metadata = load_recipes(
+    _, matrix, metadata = load_recipes(
         production, tmp_path, allowed_goods=("paper", "steel")
     )
-    assert basis.chain_index == ("paper", "steel")
+    assert matrix.columns.tolist() == ["paper", "steel"]
     assert metadata["good"].tolist() == ["paper", "steel"]
-    np.testing.assert_array_equal(basis.matrix, [[2, 1], [1, 3]])
-    (tmp_path / "steel/processes.csv").unlink()
+    np.testing.assert_array_equal(matrix.to_numpy(), [[2, 1], [1, 3]])
+    path = tmp_path / "building_levels.csv"
+    levels = pd.read_csv(path, index_col="config", encoding="utf-8")
+    levels["steel"] = -1.0
+    levels.to_csv(path, encoding="utf-8")
     _, selected, _ = load_recipes(production, tmp_path, allowed_goods=("paper",))
-    assert selected.chain_index == ("paper",)
-    np.testing.assert_array_equal(selected.matrix, [[2], [1]])
+    assert selected.columns.tolist() == ["paper"]
+    np.testing.assert_array_equal(selected.to_numpy(), [[2], [1]])
+
+
+def test_loading_skips_failed_columns_and_aligns_metadata(tmp_path: Path):
+    production = _reports(tmp_path)
+    path = tmp_path / "building_levels.csv"
+    levels = pd.read_csv(path, index_col="config", encoding="utf-8")
+    levels["steel"] = np.nan
+    levels.to_csv(path, encoding="utf-8")
+    with pytest.warns(UserWarning, match="steel"):
+        _, matrix, metadata = load_recipes(production, tmp_path)
+    assert matrix.columns.tolist() == ["paper"]
+    assert metadata["good"].tolist() == ["paper"]
+    assert metadata["target_quantity"].tolist() == [2500.0]
+
+
+def test_loading_preserves_round_trip_coefficients(tmp_path: Path):
+    production = _reports(tmp_path)
+    path = tmp_path / "building_levels.csv"
+    levels = pd.read_csv(path, index_col="config", encoding="utf-8")
+    coefficient = 1.0000000000000002
+    levels.loc["mill+automatic", "steel"] = coefficient
+    levels.to_csv(path, encoding="utf-8")
+    _, matrix, _ = load_recipes(production, tmp_path)
+    assert matrix.loc["mill+automatic", "steel"] == coefficient
 
 
 @pytest.mark.parametrize("goods", [(), ("paper", "paper"), ("missing",), ("failed",)])
@@ -258,22 +301,19 @@ def test_resume_reduces_terminal_losses_and_preserves_other_levels(
         df_goods=pd.DataFrame({"key": ["food", "input"], "cost": [1.0, 1.0]}),
         df_buy_packages=toy_economy.df_buy_packages.iloc[:1].copy(),
     )
-    basis = SupplyChainBasis(
-        tuple(model.building_index),
-        ("food", "input"),
+    recipes = pd.DataFrame(
         np.array([[1.0, 0.0], [0.0, 2.0]]),
+        index=pd.Index(model.building_index, name="config"),
+        columns=["food", "input"],
     )
-    problem = SupplyChainEquilibriumOptimizer(model, basis).compile(
+    problem = SupplyChainEquilibriumOptimizer(model, recipes).compile(
         Scenario(objective="gdp", default_min_goods_output=None, employment_cap=50_000)
     )
     previous = np.array([0.5000000000000001, 0.7000000000000001])
-    pd.DataFrame({"good": basis.chain_index, "level": previous}).iloc[::-1].to_csv(
+    pd.DataFrame({"good": problem.chain_index, "level": previous}).iloc[::-1].to_csv(
         tmp_path / "chains.csv", index=False, encoding="utf-8"
     )
-    matrix = pd.DataFrame(
-        basis.matrix, index=basis.building_index, columns=basis.chain_index
-    )
-    matrix.index.name = "config"
+    matrix = recipes.copy(deep=True)
     matrix.iloc[::-1].to_csv(tmp_path / "chain_matrix.csv", encoding="utf-8")
     initial, details = _resume_levels(problem, tmp_path, 0.5)
     np.testing.assert_array_equal(details["previous_level"].to_numpy(), previous)
@@ -287,7 +327,7 @@ def test_resume_reduces_terminal_losses_and_preserves_other_levels(
     )
     with pytest.raises(ValueError, match="goods must match"):
         _resume_levels(problem, tmp_path, 0.5)
-    pd.DataFrame({"good": basis.chain_index, "level": previous}).to_csv(
+    pd.DataFrame({"good": problem.chain_index, "level": previous}).to_csv(
         tmp_path / "chains.csv", index=False, encoding="utf-8"
     )
     matrix *= 2
@@ -300,10 +340,8 @@ def test_resume_reduces_terminal_losses_and_preserves_other_levels(
 def test_resume_rejects_invalid_reductions(
     tmp_path: Path, toy_economy: Economy, reduction: float
 ):
-    basis = SupplyChainBasis(
-        tuple(toy_economy.building_index), ("food",), np.ones((2, 1))
-    )
-    problem = SupplyChainEquilibriumOptimizer(toy_economy, basis).compile(
+    recipes = pd.DataFrame({"food": [1.0, 1.0]}, index=toy_economy.building_index)
+    problem = SupplyChainEquilibriumOptimizer(toy_economy, recipes).compile(
         Scenario(objective="gdp")
     )
     with pytest.raises(ValueError, match="loss_reduction"):

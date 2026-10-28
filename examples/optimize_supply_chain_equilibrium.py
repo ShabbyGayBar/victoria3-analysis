@@ -33,7 +33,6 @@ from vic3_analysis import (
     Economy,
     EconomyState,
     Scenario,
-    SupplyChainBasis,
     SupplyChainEquilibriumOptimizer,
     SupplyChainEquilibriumProblem,
 )
@@ -67,10 +66,11 @@ def load_recipes(
     analysis_dir: Path,
     *,
     allowed_goods: tuple[str, ...] | None = None,
-) -> tuple[pd.DataFrame, SupplyChainBasis, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load successful recipes in requested order, or otherwise summary order.
 
-    Active supporting processes are included even outside the terminal graph.
+    The saved building-level matrix includes supporting processes outside the
+    terminal graph. Units unused by all surviving recipes are filtered out.
     Production-table order defines the matrix rows. Each saved recipe is one
     chain level; no coefficients are renormalized or inferred from graph edges.
     """
@@ -82,14 +82,8 @@ def load_recipes(
     if successful.empty:
         raise ValueError("No successful supply-chain recipes found.")
     goods = successful["good"].tolist()
-    if any(
-        not isinstance(good, str)
-        or not good
-        or Path(good).name != good
-        or good in (".", "..")
-        for good in goods
-    ):
-        raise ValueError("Recipe goods must be valid nonempty directory names.")
+    if any(not isinstance(good, str) or not good for good in goods):
+        raise ValueError("Recipe goods must be nonempty strings.")
     if len(set(goods)) != len(goods):
         raise ValueError("Recipe summary must contain unique goods.")
     if allowed_goods is not None:
@@ -113,84 +107,44 @@ def load_recipes(
         raise ValueError(
             "era_5_automation recipes must target 100000 base-price value."
         )
-    recipes: list[pd.Series] = []
-    configurations: set[str] = set()
-    for good in goods:
-        path = analysis_dir / good / "processes.csv"
-        if not path.is_file():
-            raise FileNotFoundError(
-                f"Missing recipe report: {path}; run examples.supply_chain_compare."
-            )
-        processes = pd.read_csv(path, encoding="utf-8")
-        if not {
-            "building",
-            "production_method",
-            "active",
-            "level",
-            "throughput_multiplier",
-        }.issubset(processes.columns):
-            raise ValueError(
-                f"Recipe report is missing required process columns: {path}"
-            )
-        if (
-            processes["active"].isna().any()
-            or not processes["active"].isin([True, False]).all()
-        ):
-            raise ValueError(f"Recipe active flags must be boolean: {path}")
-        levels = processes["level"].to_numpy(dtype=float)
-        if not np.isfinite(levels).all() or (levels < 0).any():
-            raise ValueError(f"Recipe levels must be finite and non-negative: {path}")
-        active = pd.DataFrame(processes.loc[processes["active"].eq(True)])
-        if active.empty or (active["level"] <= 0).any():
-            raise ValueError(f"Recipe must have positive active process levels: {path}")
-        if not np.equal(
-            active["throughput_multiplier"].to_numpy(dtype=float), 1.0
-        ).all():
-            raise ValueError(f"Recipe throughput multipliers must equal 1: {path}")
-        active["config"] = active["building"] + "+" + active["production_method"]
-        keys = active["config"].tolist()
-        if any(not isinstance(key, str) or not key for key in keys) or len(
-            set(keys)
-        ) != len(keys):
-            raise ValueError(
-                f"Recipe configurations must be unique nonempty strings: {path}"
-            )
-        configurations.update(keys)
-        recipes.append(active.set_index("config")["level"])
-
     production = pd.read_csv(production_path, encoding="utf-8")
     keys = production["building"] + "+" + production["production_method"]
     if keys.duplicated().any():
         raise ValueError("Production table has duplicate configuration keys.")
-    missing = configurations.difference(keys)
+    path = analysis_dir / "building_levels.csv"
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Missing recipe matrix: {path}; run "
+            "uv run python -m examples.supply_chain_compare to regenerate it."
+        )
+    levels = pd.read_csv(
+        path, encoding="utf-8", float_precision="round_trip", index_col="config"
+    )
+    missing = [good for good in goods if good not in levels.columns]
     if missing:
         raise ValueError(
-            "Recipe configurations missing from production table: "
-            + ", ".join(sorted(missing))
+            "Recipe matrix is missing requested goods: " + ", ".join(missing)
         )
-    selected = pd.DataFrame(production.loc[keys.isin(configurations)]).reset_index(
-        drop=True
+    matrix = SupplyChainEquilibriumOptimizer.validate_building_levels(
+        pd.DataFrame(levels.loc[:, goods]), building_index=tuple(keys)
     )
-    building_index = tuple(
-        (selected["building"] + "+" + selected["production_method"]).tolist()
-    )
-    matrix = np.column_stack(
-        [
-            recipe.reindex(building_index, fill_value=0.0).to_numpy(dtype=float)
-            for recipe in recipes
+    used = (matrix > 0).any(axis=1).to_numpy()
+    selected = pd.DataFrame(production.loc[used]).reset_index(drop=True)
+    matrix = pd.DataFrame(matrix.loc[used])
+    metadata = pd.DataFrame(
+        successful.set_index("good").loc[
+            list(matrix.columns), ["target_quantity", "target_base_value"]
         ]
-    )
-    basis = SupplyChainBasis(building_index, tuple(goods), matrix)
-    metadata = successful[["good", "target_quantity", "target_base_value"]].reset_index(
-        drop=True
-    )
-    return selected, basis, metadata
+    ).reset_index()
+    return selected, matrix, metadata
 
 
-def _initial_levels(economy: Economy, basis: SupplyChainBasis) -> np.ndarray:
+def _initial_levels(optimizer: SupplyChainEquilibriumOptimizer) -> np.ndarray:
     """Scale equal chain levels to one million workers, preserving recipes."""
-    levels = np.ones(len(basis.chain_index), dtype=float)
-    workers = float(basis.to_building_levels(levels) @ economy.employment_vector)
+    levels = np.ones(len(optimizer.chain_index), dtype=float)
+    workers = float(
+        optimizer.to_building_levels(levels) @ optimizer.model.employment_vector
+    )
     if not np.isfinite(workers) or workers <= 0:
         raise ValueError("The initial chain mix must employ workers.")
     levels *= 1_000_000 / workers
@@ -210,20 +164,21 @@ def _resume_levels(
     """
     if not np.isfinite(loss_reduction) or not 0 <= loss_reduction < 1:
         raise ValueError("loss_reduction must be finite, at least 0 and less than 1.")
-    basis = problem.basis
     saved = pd.read_csv(
         directory / "chains.csv", encoding="utf-8", float_precision="round_trip"
     )
     if not {"good", "level"}.issubset(saved.columns):
         raise ValueError("Saved chains must contain good and level columns.")
-    if saved["good"].duplicated().any() or set(saved["good"]) != set(basis.chain_index):
-        raise ValueError("Saved chain goods must match the current basis exactly.")
+    if saved["good"].duplicated().any() or set(saved["good"]) != set(
+        problem.chain_index
+    ):
+        raise ValueError("Saved chain goods must match the current recipes exactly.")
     previous = (
         saved.set_index("good")
-        .loc[list(basis.chain_index), "level"]
+        .loc[list(problem.chain_index), "level"]
         .to_numpy(dtype=float)
     )
-    basis.to_building_levels(previous)
+    problem.to_building_levels(previous)
     matrix = pd.read_csv(
         directory / "chain_matrix.csv",
         encoding="utf-8",
@@ -232,16 +187,16 @@ def _resume_levels(
     )
     if (
         not matrix.index.is_unique
-        or set(matrix.index) != set(basis.building_index)
-        or set(matrix.columns) != set(basis.chain_index)
+        or set(matrix.index) != set(problem.economy.building_index)
+        or set(matrix.columns) != set(problem.chain_index)
         or not np.array_equal(
-            matrix.loc[list(basis.building_index), list(basis.chain_index)].to_numpy(
-                dtype=float
-            ),
-            basis.matrix,
+            matrix.loc[
+                list(problem.economy.building_index), list(problem.chain_index)
+            ].to_numpy(dtype=float),
+            problem.chain_matrix,
         )
     ):
-        raise ValueError("Saved recipe matrix must match the current basis exactly.")
+        raise ValueError("Saved recipe matrix must match the current recipes exactly.")
     state = problem.evaluate(previous)
     prices = state.market_prices
     unit_surplus = problem.net_matrix @ prices
@@ -249,10 +204,10 @@ def _resume_levels(
     unit_outputs = problem.output_matrix @ prices
     surpluses = np.zeros(len(previous))
     losses = np.zeros(len(previous), dtype=bool)
-    for column, good in enumerate(basis.chain_index):
+    for column, good in enumerate(problem.chain_index):
         good_index = problem.economy.goods_index.index(good)
         producers = problem.net_matrix[:, good_index] > 0
-        attributed = basis.matrix[producers, column] * previous[column]
+        attributed = problem.chain_matrix[producers, column] * previous[column]
         surpluses[column] = attributed @ unit_surplus[producers]
         scale = max(
             float(attributed @ unit_inputs[producers]),
@@ -265,7 +220,7 @@ def _resume_levels(
         {"previous_level": previous, "previous_terminal_surplus": surpluses}
     )
     print(f"Saved solution annual equilibrium GDP: {state.gdp(annual=True):,.2f}")
-    for good in np.asarray(basis.chain_index)[losses & (loss_reduction > 0)]:
+    for good in np.asarray(problem.chain_index)[losses & (loss_reduction > 0)]:
         print(f"Reducing {good} starting chain level by {loss_reduction:.0%}")
     return initial, details
 
@@ -278,7 +233,7 @@ def run(
     loss_reduction: float = 0.5,
 ) -> tuple[Economy, EconomyState]:
     """Search saved chain recipes and export the best verified equilibrium."""
-    production, basis, chains = load_recipes(
+    production, df_building_levels, chains = load_recipes(
         PRODUCTION_DIR / "production_table.csv",
         SUPPLY_CHAINS_DIR / "era_5_automation",
         allowed_goods=ALLOWED_CHAIN_GOODS,
@@ -301,7 +256,7 @@ def run(
         default_min_goods_output=None,
         throughput_multipliers=(),
     )
-    optimizer = SupplyChainEquilibriumOptimizer(economy, basis)
+    optimizer = SupplyChainEquilibriumOptimizer(economy, df_building_levels)
     problem = optimizer.compile(scenario)
     if resume:
         initial, previous = _resume_levels(
@@ -313,7 +268,7 @@ def run(
             np.count_nonzero(initial < previous["previous_level"].to_numpy())
         )
     else:
-        initial = _initial_levels(economy, basis)
+        initial = _initial_levels(optimizer)
         reduced_count = 0
     initial_state = problem.evaluate(initial)
     print(f"Initial annual equilibrium GDP: {initial_state.gdp(annual=True):,.2f}")
@@ -331,8 +286,8 @@ def run(
             {
                 "objective": scenario.objective,
                 "recipe_configuration": "era_5_automation",
-                "chain_count": len(basis.chain_index),
-                "configuration_count": len(basis.building_index),
+                "chain_count": len(optimizer.chain_index),
+                "configuration_count": len(economy.building_index),
                 "employment_cap": scenario.employment_cap,
                 "workforce_ratio": scenario.workforce_ratio,
                 "banned_building_groups": ";".join(scenario.banned_building_groups),
@@ -373,12 +328,8 @@ def run(
             }
         ]
     )
-    chain_matrix = pd.DataFrame(
-        basis.matrix, index=basis.building_index, columns=basis.chain_index
-    )
-    chain_matrix.index.name = "config"
     reports = {
-        "chain_matrix": chain_matrix.reset_index(),
+        "chain_matrix": optimizer.df_building_levels.reset_index(),
         "chains": chains,
         "buildings": economy.df_buildings(state),
         "market": economy.df_market(state),

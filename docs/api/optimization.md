@@ -25,8 +25,6 @@ and [supply-chain examples](../showcase/supply-chains.md).
 
 ::: vic3_analysis.EquilibriumOptimizer
 
-::: vic3_analysis.SupplyChainBasis
-
 ::: vic3_analysis.SupplyChainEquilibriumProblem
 
 ::: vic3_analysis.SupplyChainEquilibriumOptimizer
