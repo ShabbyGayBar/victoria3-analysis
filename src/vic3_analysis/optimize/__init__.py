@@ -8,6 +8,11 @@ from vic3_analysis.optimize.equilibrium import EquilibriumOptimizer, Equilibrium
 from vic3_analysis.optimize.market import MarketOptimizer
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
+from vic3_analysis.optimize.supply_chain import (
+    SupplyChainBasis,
+    SupplyChainEquilibriumOptimizer,
+    SupplyChainEquilibriumProblem,
+)
 
 __all__ = [
     "BaseOptimizer",
@@ -18,4 +23,7 @@ __all__ = [
     "MarketProblem",
     "NominalOptimizer",
     "Scenario",
+    "SupplyChainBasis",
+    "SupplyChainEquilibriumOptimizer",
+    "SupplyChainEquilibriumProblem",
 ]

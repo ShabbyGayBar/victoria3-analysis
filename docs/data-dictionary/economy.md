@@ -317,3 +317,37 @@ For the report APIs, see the
 [economy API](../api/economy.md). The
 [resource-limited optimization showcase](../showcase/resource-limited-optimization.md)
 describes the Japan experiment.
+
+## Supply-chain equilibrium exports
+
+The separate `examples/optimize_supply_chain_equilibrium.py` example exports:
+
+| File / column | Meaning |
+| --- | --- |
+| `chain_matrix.csv`: `config` | Building plus production-method key; rows follow the selected production table. |
+| `chain_matrix.csv`: terminal-good columns | Building-level coefficients for one saved chain recipe. Columns follow the example's `ALLOWED_CHAIN_GOODS` order. |
+| `chains.csv`: `good` | Terminal good identifying a matrix column. |
+| `chains.csv`: `target_quantity` | Weekly terminal-output minimum used to generate one recipe. Coproducts may cause actual output to exceed it. |
+| `chains.csv`: `target_base_value` | Terminal target quantity times base price; £100,000 per saved recipe. |
+| `chains.csv`: `initial_level` | Starting multiplier of the saved recipe. |
+| `chains.csv`: `level` | Best verified chain multiplier returned by the search. |
+| `chains.csv`: `previous_level` | Saved chain multiplier before reducing losses; present on resumed runs. |
+| `chains.csv`: `previous_terminal_surplus` | Recipe-attributed weekly operating surplus of terminal-good producers at the re-evaluated saved solution, including coproduct revenue; present on resumed runs. |
+| `summary.csv`: `recipe_configuration` | Source collection, `era_5_automation`. |
+| `summary.csv`: `chain_count` | Number of chain decision variables. |
+| `summary.csv`: `configuration_count` | Number of building-configuration rows in the basis. |
+| `summary.csv`: `initial_average_wealth` | Household average wealth at the initial chain vector. |
+| `summary.csv`: `initialization` | `equal_chains` or `saved_solution`; the latter applies the requested loss reduction before optimization. |
+| `summary.csv`: `loss_reduction` | Fraction removed from loss-making starting chains on a resumed run. Zero also permits resuming the saved vector unchanged; equal-chain initialization records zero. |
+| `summary.csv`: `reduced_chain_count` | Number of starting chain levels reduced from the saved solution. |
+
+Other summary columns follow the [equilibrium optimization summary](#equilibrium-optimization-summary).
+`buildings.csv` follows the [building registry](#building-registry), including
+only positive building levels and sorting by level. Reconstruct those levels
+by multiplying the labeled matrix by `chains.csv`'s `level` column, then align
+by `building + "+" + production_method`.
+
+`market.csv`, `pop.csv`, and `goods_buy_packages.csv` use the same full report
+exports as `examples/optimize_equilibrium.py`: `Economy.df_market(state)`,
+`Economy.df_pop(state)`, and `Economy.df_goods_buy_packages(state)` with the
+wealth index reset to a CSV column.

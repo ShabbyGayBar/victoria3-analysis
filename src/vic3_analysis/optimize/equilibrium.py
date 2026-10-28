@@ -105,6 +105,10 @@ class EquilibriumProblem(_CompiledProblem):
         """Return the negative, unscaled metric after solving equilibrium."""
         return -_metric(self.evaluate(levels), self.scenario.objective)
 
+    def _to_building_levels(self, levels: np.ndarray) -> np.ndarray:
+        """Map search coordinates to physical levels for final verification."""
+        return levels
+
 
 class _BudgetReached(Exception):
     """Stop even during COBYLA initialization without losing the incumbent."""
@@ -121,6 +125,7 @@ class _Search:
     failures: dict[str, int] = field(default_factory=dict)
     last_error: EquilibriumError | None = None
     best: EconomyState | None = None
+    best_levels: np.ndarray | None = None
     best_value: float = np.inf
     scale: float | None = None
     last_levels: np.ndarray | None = None
@@ -235,6 +240,7 @@ class _Search:
         self.last_value = float(np.arctan(value / self.scale))
         if value < self.best_value and self.current_feasible:
             self.best = state
+            self.best_levels = levels.copy()
             self.best_value = value
             self.report("new_incumbent", level=logging.DEBUG)
         return self.last_value
@@ -507,7 +513,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             equilibrium_failures=dict(search.failures),
             last_equilibrium_error=search.last_error,
             solver_result=raw,
-            x=None if search.best is None else search.best.building_levels.copy(),
+            x=None if search.best_levels is None else search.best_levels.copy(),
             fun=search.best_value,
         )
         self.result = result
@@ -517,7 +523,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             else ("completed" if result.success else "stopped")
         )
         search.report("search_stopped", status=status, message=str(result.message))
-        if search.best is None:
+        if search.best_levels is None:
             result.success = False
             result.message = (
                 f"No feasible converged equilibrium found. {result.message}"
@@ -528,12 +534,19 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         search.phase = "verification"
         search.report("verification_started")
         try:
-            verified = problem.evaluate(search.best.building_levels)
-            if not _is_feasible(problem, verified.building_levels) or not np.isclose(
-                -_metric(verified, problem.scenario.objective),
-                search.best_value,
-                rtol=problem.rtol,
-                atol=problem.atol,
+            verified = problem.evaluate(search.best_levels)
+            if (
+                not _is_feasible(problem, search.best_levels)
+                or not np.array_equal(
+                    verified.building_levels,
+                    problem._to_building_levels(search.best_levels),
+                )
+                or not np.isclose(
+                    -_metric(verified, problem.scenario.objective),
+                    search.best_value,
+                    rtol=problem.rtol,
+                    atol=problem.atol,
+                )
             ):
                 raise ValueError("Equilibrium optimizer final verification disagrees.")
         except (EquilibriumError, ValueError):

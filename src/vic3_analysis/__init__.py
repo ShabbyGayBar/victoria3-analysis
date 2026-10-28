@@ -30,6 +30,11 @@ from vic3_analysis.optimize.equilibrium import EquilibriumOptimizer, Equilibrium
 from vic3_analysis.optimize.market import MarketOptimizer
 from vic3_analysis.optimize.nominal import NominalOptimizer
 from vic3_analysis.optimize.scenario import Scenario
+from vic3_analysis.optimize.supply_chain import (
+    SupplyChainBasis,
+    SupplyChainEquilibriumOptimizer,
+    SupplyChainEquilibriumProblem,
+)
 from vic3_analysis.parse.building_groups import BuildingGroupParser
 from vic3_analysis.parse.buildings import BuildingsParser
 from vic3_analysis.parse.buy_packages import buy_packages
@@ -71,6 +76,9 @@ __all__ = [
     "Scenario",
     "StateRegionsParser",
     "SupplyChainAnalyzer",
+    "SupplyChainBasis",
+    "SupplyChainEquilibriumOptimizer",
+    "SupplyChainEquilibriumProblem",
     "SupplyChainResult",
     "SupplyChainSweepResult",
     "buy_packages",

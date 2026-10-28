@@ -78,9 +78,25 @@ page = "showcase/equilibrium-optimization.md"
 artifacts = [
     "artifacts/analyses/optimization/equilibrium/summary.csv",
     "artifacts/analyses/optimization/equilibrium/buildings.csv",
+    "artifacts/analyses/optimization/equilibrium/market.csv",
+    "artifacts/analyses/optimization/equilibrium/pop.csv",
+    "artifacts/analyses/optimization/equilibrium/goods_buy_packages.csv",
 ]
 
 [[collection]]
 script = "examples/buy_packages.py"
 page = "guides/economy.md"
 artifacts = ["artifacts/analyses/buy_packages/default.csv"]
+
+[[collection]]
+script = "examples/optimize_supply_chain_equilibrium.py"
+page = "showcase/supply-chain-equilibrium.md"
+artifacts = [
+    "artifacts/analyses/optimization/supply_chain_equilibrium/chain_matrix.csv",
+    "artifacts/analyses/optimization/supply_chain_equilibrium/chains.csv",
+    "artifacts/analyses/optimization/supply_chain_equilibrium/buildings.csv",
+    "artifacts/analyses/optimization/supply_chain_equilibrium/market.csv",
+    "artifacts/analyses/optimization/supply_chain_equilibrium/pop.csv",
+    "artifacts/analyses/optimization/supply_chain_equilibrium/goods_buy_packages.csv",
+    "artifacts/analyses/optimization/supply_chain_equilibrium/summary.csv",
+]

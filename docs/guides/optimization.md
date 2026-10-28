@@ -331,3 +331,54 @@ scenario = Scenario(
 See the [optimization API](../api/optimization.md)
 and [resource-limited optimization showcase](../showcase/resource-limited-optimization.md)
 for a complete regional experiment.
+
+## Equilibrium optimization over supply chains
+
+`SupplyChainEquilibriumOptimizer` searches nonnegative chain levels `z` using
+fixed recipes. A `SupplyChainBasis` stores a matrix `C` with building
+configurations as rows and chains as columns. Every trial computes `x = C @ z`
+and passes those building levels to the existing equilibrium solver.
+
+```python
+import numpy as np
+from vic3_analysis import SupplyChainBasis, SupplyChainEquilibriumOptimizer
+
+# recipe_a and recipe_b are building-level vectors aligned to economy.building_index.
+basis = SupplyChainBasis(
+    building_index=tuple(economy.building_index),
+    chain_index=("recipe_a", "recipe_b"),
+    matrix=np.column_stack((recipe_a, recipe_b)),
+)
+optimizer = SupplyChainEquilibriumOptimizer(economy, basis)
+problem = optimizer.compile(scenario)
+state = optimizer.solve_problem(problem, x0=np.ones(2))
+chain_levels = optimizer.result.x
+building_levels = basis.to_building_levels(chain_levels)
+```
+
+The basis owns read-only coefficients and unique index labels. Its building
+index must match the economy exactly; the optimizer does not reorder rows or
+normalize recipes. Shared configurations receive the sum of contributions.
+`problem.evaluate(z)` returns an ordinary building-based `EconomyState`, and
+`problem.objective(z)` returns the negative selected equilibrium metric.
+
+Scenario constraints are transformed into chain coordinates: `A @ C @ z <= b`
+and `A_eq @ C @ z == b_eq`. Building bounds remain enforced; any chain using a
+prohibited configuration is fixed to zero. Feasibility, boundedness, and the
+nominal GDP warm-start LP are evaluated in this restricted chain space.
+Production matrices, workforce, wealth seeds, and returned state arrays retain
+the economy's original indexes. Final verification checks the selected chain
+vector, its physical building levels, and the original building constraints.
+
+GDP, GDP per capita, average wealth, equilibrium tolerances, COBYLA options,
+hard budgets, and failure diagnostics follow `EquilibriumOptimizer`.
+`x0` and `result.x` use chain coordinates; `result.building_levels` and
+`state.building_levels` use building coordinates. The raw `solver_result` retains
+COBYLA's internal reduced/scaled coordinates. Budget exhaustion can return the
+best verified equilibrium with `result.success=False`.
+
+Fixed recipes restrict the feasible production space. They coordinate upstream
+and downstream changes but do not guarantee balanced household demand or
+profitable individual buildings. Financial flags remain diagnostics.
+See the [era-5 chain example](../showcase/supply-chain-equilibrium.md) for a
+matrix built from saved reports and reproducible output artifacts.

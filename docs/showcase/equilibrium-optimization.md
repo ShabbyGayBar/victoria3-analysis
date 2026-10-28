@@ -107,7 +107,7 @@ The solution uses the existing [building registry](../data-dictionary/economy.md
 report: nonzero configuration levels, sorted by level descending. Configuration
 keys identify building and production-method combinations in the source table.
 
-<!-- table-preview: artifacts/analyses/optimization/equilibrium/buildings.csv | columns=key,level,construction_cost | rows=10 -->
+<!-- table-preview: artifacts/analyses/optimization/equilibrium/buildings.csv | columns=building,production_method,level,construction_cost | rows=10 -->
 
 [:material-download: Download `artifacts/analyses/optimization/equilibrium/buildings.csv`](../artifacts/analyses/optimization/equilibrium/buildings.csv)
 · [:fontawesome-brands-github: View `examples/optimize_equilibrium.py`](https://github.com/ShabbyGayBar/victoria3-analysis/blob/main/examples/optimize_equilibrium.py)

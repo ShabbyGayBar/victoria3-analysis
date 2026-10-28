@@ -308,3 +308,17 @@ Source for the MkDocs Material site (`uv run mkdocs serve`).
   submodule recursively at the commit pinned by the parent repository, installs
   development dependencies, checks types and documentation coverage, and builds
   and publishes the documentation site.
+
+### Supply-chain equilibrium optimization
+
+`optimize/supply_chain.py` adds `SupplyChainBasis`,
+`SupplyChainEquilibriumProblem`, and `SupplyChainEquilibriumOptimizer` as public
+exports. The immutable basis maps chain levels to building configurations;
+the specialized optimizer transforms scenario constraints and reuses the
+existing equilibrium search and physical solver.
+
+`examples/optimize_supply_chain_equilibrium.py` loads successful
+`era_5_automation` recipe reports and writes a separate
+`analyses/optimization/supply_chain_equilibrium/` collection containing
+`chain_matrix.csv`, `chains.csv`, `buildings.csv`, `market.csv`, `pop.csv`,
+`goods_buy_packages.csv`, and `summary.csv`.
