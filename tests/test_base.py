@@ -5,9 +5,17 @@ from dataclasses import FrozenInstanceError
 from typing import Any, cast
 
 import numpy as np
+import pandas as pd
 import pytest
 
-from vic3_analysis import BaseOptimizer, LinearProblem, MarketProblem, Scenario
+from vic3_analysis import (
+    BaseOptimizer,
+    EquilibriumOptimizer,
+    LinearProblem,
+    MarketOptimizer,
+    MarketProblem,
+    Scenario,
+)
 from vic3_analysis.analysis.economy import Economy
 from vic3_analysis.optimize.nominal import NominalOptimizer
 
@@ -165,7 +173,7 @@ def test_inequality_compilation_and_named_slices(economy: Economy):
         employment_cap=1000.0,
         building_level_caps=(("building_dye_plantation", 0.0),),
         arable_land_cap=25.0,
-        min_net_infrastructure_usage=5.0,
+        min_net_infrastructure=5.0,
     )
     problem = NominalOptimizer(economy).compile(scenario)
     assert problem.A_ub is not None
@@ -177,7 +185,7 @@ def test_inequality_compilation_and_named_slices(economy: Economy):
         "min_goods_output",
         "building_level_caps",
         "arable_land_cap",
-        "min_net_infrastructure_usage",
+        "min_net_infrastructure",
     )
     default_rows = problem.inequality_slices["default_min_goods_output"]
     default_positions = [
@@ -191,6 +199,84 @@ def test_inequality_compilation_and_named_slices(economy: Economy):
     output_rows = problem.inequality_slices["min_goods_output"]
     np.testing.assert_array_equal(problem.b_ub[output_rows], [-1.0, -2.0])
     assert problem.A_ub.shape[0] == problem.b_ub.shape[0]
+
+
+@pytest.fixture(scope="module")
+def infrastructure_economy() -> Economy:
+    return Economy(
+        df_production=pd.DataFrame(
+            {
+                "building": ["consumer", "supplier", "neutral"],
+                "production_method": ["pm"] * 3,
+                "goods_food": [1.0] * 3,
+                "employment": [1.0] * 3,
+                "employment_workers": [1.0] * 3,
+                "construction_cost": [1.0] * 3,
+                "infrastructure_usage_per_level": [2.0, -4.0, np.nan],
+            }
+        ),
+        df_goods=pd.DataFrame({"key": ["food"], "cost": [1.0]}),
+        df_pop_types=pd.DataFrame({"key": ["workers"], "start_quality_of_life": [1]}),
+        df_pop_needs=pd.DataFrame(),
+        df_buy_packages=pd.DataFrame(),
+    )
+
+
+@pytest.mark.parametrize(
+    "optimizer_type", [NominalOptimizer, MarketOptimizer, EquilibriumOptimizer]
+)
+@pytest.mark.parametrize(
+    ("minimum", "levels", "feasible"),
+    [
+        (None, [2.0, 0.0, 1.0], True),
+        (0.0, [2.0, 1.0, 1.0], True),
+        (0.0, [1.0, 1.0, 1.0], True),
+        (0.0, [3.0, 1.0, 1.0], False),
+        (3.0, [0.5, 1.0, 1.0], True),
+        (3.0, [0.0, 1.0, 1.0], True),
+        (3.0, [1.0, 1.0, 1.0], False),
+        (-2.0, [3.0, 1.0, 1.0], True),
+        (-2.0, [2.0, 1.0, 1.0], True),
+        (-2.0, [4.0, 1.0, 1.0], False),
+    ],
+)
+def test_min_net_infrastructure_feasibility(
+    infrastructure_economy: Economy,
+    optimizer_type: type[NominalOptimizer | MarketOptimizer | EquilibriumOptimizer],
+    minimum: float | None,
+    levels: list[float],
+    feasible: bool,
+):
+    problem = optimizer_type(infrastructure_economy).compile(
+        Scenario(
+            objective="gdp",
+            default_min_goods_output=None,
+            min_net_infrastructure=minimum,
+        )
+    )
+    if minimum is None:
+        assert "min_net_infrastructure" not in problem.inequality_slices
+        assert problem.A_ub is None
+        assert problem.b_ub is None
+    else:
+        assert tuple(problem.inequality_slices) == ("min_net_infrastructure",)
+
+    def validate() -> np.ndarray:
+        return BaseOptimizer._validate_initial_point(
+            np.array(levels),
+            problem.A_ub,
+            problem.b_ub,
+            problem.A_eq,
+            problem.b_eq,
+            problem.bounds,
+            len(levels),
+        )
+
+    if feasible:
+        np.testing.assert_array_equal(validate(), levels)
+    else:
+        with pytest.raises(ValueError, match="inequality constraints"):
+            validate()
 
 
 def test_equality_compilation_and_named_slices(economy: Economy):

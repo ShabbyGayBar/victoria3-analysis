@@ -15,9 +15,9 @@ establish a global maximum.
 The worker cap is **1,000,000**, and the workforce ratio is **0.4**, allowing
 up to **2,500,000** people including dependents. Actual employment may be lower.
 The scenario excludes `DEFAULT_BANNED_BGS` from `examples/__init__.py`, sets
-`min_net_infrastructure_usage=0.0`, and uses
-`default_min_goods_output=None`. Net infrastructure usage retains the
-scenario's existing lower-bound semantics.
+`min_net_infrastructure=0.0`, and uses
+`default_min_goods_output=None`. Infrastructure generation must cover
+consumption, so the minimum net infrastructure surplus is zero.
 
 Fixed throughput multipliers are all **1.0**, and level-dependent
 economy-of-scale bonuses are disabled. Trade, resource limits, arable-land
@@ -38,10 +38,11 @@ uv run python -m examples.supply_chain_compare
 ```
 
 The initial mix starts with equal levels of every allowed configuration,
-reduces infrastructure suppliers as needed to satisfy the net-usage floor,
+increases infrastructure suppliers as needed to cover consumption,
 and scales to one million workers. Missing reports, an empty active set, or
 configurations absent from the production table raise an error. The optimizer
-checks scenario feasibility before starting its search.
+checks scenario feasibility before starting its search. A starting mix that
+consumes infrastructure without an active supplier raises an error.
 
 ## Run the search
 

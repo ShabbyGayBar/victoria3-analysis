@@ -400,7 +400,7 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
                     np.array([scenario.arable_land_cap], dtype=np.float64),
                 )
             )
-        if scenario.min_net_infrastructure_usage is not None:
+        if scenario.min_net_infrastructure is not None:
             infrastructure = (
                 self.model.df_production["infrastructure_usage_per_level"]
                 .fillna(0)
@@ -408,11 +408,9 @@ class BaseOptimizer[ProblemT: _CompiledProblem](ABC):
             )
             blocks.append(
                 (
-                    "min_net_infrastructure_usage",
-                    -infrastructure,
-                    np.array(
-                        [-scenario.min_net_infrastructure_usage], dtype=np.float64
-                    ),
+                    "min_net_infrastructure",
+                    infrastructure,
+                    np.array([-scenario.min_net_infrastructure], dtype=np.float64),
                 )
             )
         return self._stack_named(blocks)

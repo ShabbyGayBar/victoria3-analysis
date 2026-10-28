@@ -21,7 +21,7 @@ def test_defaults():
     assert scenario.construction_cost_cap is None
     assert scenario.employment_cap is None
     assert scenario.arable_land_cap is None
-    assert scenario.min_net_infrastructure_usage is None
+    assert scenario.min_net_infrastructure is None
     assert scenario.urbanization_per_center is None
     assert scenario.goods_import == ()
     assert scenario.goods_export == ()

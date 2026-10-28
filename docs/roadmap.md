@@ -75,7 +75,7 @@ per solve.
   recipe as data (per-good and default output minima, objective,
   banned PMs / buildings / building groups, per-building level caps,
   throughput multipliers, era / construction-cost / employment caps,
-  net infrastructure usage floor, urban-center tie).
+  minimum net infrastructure surplus, urban-center tie).
 - [x] `SupplyChainAnalyzer` validates a single matching positive target and
   performs exactly one nominal solve.
 - [x] Immutable `SupplyChainResult` snapshots matrices, state arrays,

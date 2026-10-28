@@ -155,8 +155,9 @@ or expose a `pyradox.Tree` subclass with helper methods.
 - `scenario.py` — `Scenario`, a frozen dataclass that captures an
   optimisation recipe as data (per-good and default output minima, objective,
   banned PMs / buildings / building groups, per-building level caps, throughput
-  multipliers, era / construction-cost / employment caps, net infrastructure usage floor,
-  urban-center tie). It has no economy- or solver-dependent methods.
+  multipliers, era / construction-cost / employment caps, minimum net
+  infrastructure surplus, urban-center tie). It has no economy- or
+  solver-dependent methods.
 - `base.py` — public abstract `BaseOptimizer` plus immutable `LinearProblem`
   and `MarketProblem` compiled types. The base compiles fixed market context,
   throughput-adjusted matrices, shared constraints with named row slices,

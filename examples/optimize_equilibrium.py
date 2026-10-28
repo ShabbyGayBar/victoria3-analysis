@@ -63,6 +63,27 @@ def load_production_units(production_path: Path, analysis_dir: Path) -> pd.DataF
     return pd.DataFrame(production.loc[keys.isin(configs)]).reset_index(drop=True)
 
 
+def _initial_levels(economy: Economy) -> np.ndarray:
+    """Supply enough infrastructure in an allowed mix scaled to one million workers."""
+    allowed = ~economy.df_production["building_group"].isin(DEFAULT_BANNED_BGS)
+    levels = allowed.to_numpy(dtype=np.float64)
+    infrastructure = economy.infrastructure_vector
+    if float(levels @ infrastructure) > 0:
+        suppliers = infrastructure < 0
+        usage = float(levels[~suppliers] @ infrastructure[~suppliers])
+        supply = -float(levels[suppliers] @ infrastructure[suppliers])
+        if supply <= 0:
+            raise ValueError(
+                "The starting mix consumes infrastructure but has no active supplier."
+            )
+        levels[suppliers] *= usage / supply
+    workers = float(levels @ economy.employment_vector)
+    if not np.isfinite(workers) or workers <= 0:
+        raise ValueError("The allowed configurations must employ workers.")
+    levels *= 1_000_000 / workers
+    return levels
+
+
 def run(
     max_evaluations: int = 20_000, *, log_every: int = 100
 ) -> tuple[Economy, EconomyState]:
@@ -87,7 +108,7 @@ def run(
         employment_cap=1_000_000,
         workforce_ratio=0.4,
         banned_building_groups=DEFAULT_BANNED_BGS,
-        min_net_infrastructure_usage=0.0,
+        min_net_infrastructure=0.0,
         default_min_goods_output=None,
         throughput_multipliers=(),
     )
@@ -95,20 +116,8 @@ def run(
     problem = optimizer.compile(scenario)
 
     # A broad seed supplies consumption goods as well as industrial inputs.
-    # Start with equal allowed levels, reducing infrastructure suppliers if
-    # needed to satisfy the net-usage floor, then scale to the worker cap.
-    allowed = ~economy.df_production["building_group"].isin(DEFAULT_BANNED_BGS)
-    levels = allowed.to_numpy(dtype=np.float64)
-    infrastructure = economy.infrastructure_vector
-    if float(levels @ infrastructure) < 0:
-        suppliers = infrastructure < 0
-        usage = float(levels[~suppliers] @ infrastructure[~suppliers])
-        supply = -float(levels[suppliers] @ infrastructure[suppliers])
-        levels[suppliers] *= usage / supply
-    workers = float(levels @ economy.employment_vector)
-    if not np.isfinite(workers) or workers <= 0:
-        raise ValueError("The allowed configurations must employ workers.")
-    levels *= 1_000_000 / workers
+    # Increase infrastructure suppliers if needed, then scale to the worker cap.
+    levels = _initial_levels(economy)
     initial_state = problem.evaluate(levels)
     print(f"Initial annual equilibrium GDP: {initial_state.gdp(annual=True):,.2f}")
 
@@ -129,7 +138,7 @@ def run(
                 "employment_cap": scenario.employment_cap,
                 "workforce_ratio": scenario.workforce_ratio,
                 "banned_building_groups": ";".join(scenario.banned_building_groups),
-                "min_net_infrastructure_usage": scenario.min_net_infrastructure_usage,
+                "min_net_infrastructure": scenario.min_net_infrastructure,
                 "default_min_goods_output": scenario.default_min_goods_output,
                 "throughput_multiplier": 1.0,
                 "economy_of_scale_level_cap": 0.0,

@@ -31,6 +31,11 @@ class Scenario:
     nonnegative net output for unspecified goods; ``None`` leaves them
     unconstrained.
 
+    ``min_net_infrastructure`` sets minimum infrastructure generation minus
+    consumption, weighted by building levels. ``0.0`` prevents a deficit;
+    positive minima require spare capacity, negative minima allow a bounded
+    deficit, and ``None`` leaves infrastructure unconstrained.
+
     ``goods_import`` and ``goods_export`` record fixed weekly ``(good, amount)``
     pairs with non-negative amounts. Imports add sell orders; exports add buy
     orders. Repeated entries are summed, and a good may be both imported and
@@ -51,7 +56,7 @@ class Scenario:
     construction_cost_cap: float | None = None
     employment_cap: float | None = None
     arable_land_cap: float | None = None
-    min_net_infrastructure_usage: float | None = None
+    min_net_infrastructure: float | None = None
     urbanization_per_center: float | None = None
     name: str | None = None
     goods_import: tuple[tuple[str, float], ...] = ()

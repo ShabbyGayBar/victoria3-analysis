@@ -252,25 +252,31 @@ def test_fixed_zero_start_is_exact_despite_feasibility_tolerance(toy_economy: Ec
 
 
 def test_shared_constraints_and_nonzero_equality(toy_economy: Economy):
+    production = toy_economy.df_production.copy()
+    production["infrastructure_usage_per_level"] = [1.0, -3.0]
+    model = replace(toy_economy, df_production=production)
     scenario = replace(
         _scenario(),
         min_goods_output=(("food", 1.0),),
         default_min_goods_output=-1.0,
         construction_cost_cap=1.5,
         arable_land_cap=0.5,
-        min_net_infrastructure_usage=1.0,
+        min_net_infrastructure=1.0,
         urbanization_per_center=100.0,
     )
-    optimizer = EquilibriumOptimizer(toy_economy)
+    optimizer = EquilibriumOptimizer(model)
     problem = optimizer.compile(scenario)
-    nominal = NominalOptimizer(toy_economy).compile(scenario)
+    nominal = NominalOptimizer(model).compile(scenario)
     for name in ("A_ub", "b_ub", "A_eq", "b_eq"):
         np.testing.assert_array_equal(getattr(problem, name), getattr(nominal, name))
     state = optimizer.solve_problem(problem, options={"maxiter": 30})
     np.testing.assert_allclose(state.building_levels, [0.5, 0.5], atol=1e-7)
+    assert -float(state.building_levels @ model.infrastructure_vector) == pytest.approx(
+        1.0, abs=1e-7
+    )
     assert problem.inequality_slices == nominal.inequality_slices
     assert problem.equality_slices == nominal.equality_slices
-    _assert_accounting(toy_economy, state)
+    _assert_accounting(model, state)
 
 
 def test_baskets_refresh_with_changed_supply(toy_economy: Economy):

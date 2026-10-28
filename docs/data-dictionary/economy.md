@@ -242,7 +242,8 @@ without writing new files. The companion `buildings.csv` uses the
 | `employment_cap` | Integer / workers | Upper bound on employed workers, 1,000,000. | Does not require full employment. |
 | `workforce_ratio` | Float / fraction | Workers divided by total population, 0.4. | Shared uniformly across households. |
 | `banned_building_groups` | String / identifiers | Semicolon-separated `DEFAULT_BANNED_BGS`. | Excluded configurations have zero levels. |
-| `min_net_infrastructure_usage` | Float / infrastructure units | Scenario lower bound on net usage, zero. | Uses the existing net-usage convention. |
+| `min_net_infrastructure` | Float / infrastructure units | Scenario minimum infrastructure generation minus consumption, zero. | Zero prevents deficits; positive values require surplus; negative values allow a bounded deficit. |
+| `min_net_infrastructure_usage` | Float / infrastructure units | Historical minimum consumption minus generation. | Present only in older snapshots. Replaced by `min_net_infrastructure`, which uses the opposite sign convention; the old name is no longer a scenario parameter. |
 | `default_min_goods_output` | Float or empty / weekly goods units | Default minimum net domestic output. | Empty means `None`, leaving unspecified goods unconstrained. |
 | `throughput_multiplier` | Float / multiplier | Common fixed multiplier, 1.0. | No throughput bonus. |
 | `economy_of_scale_level_cap` | Float / building levels | Economy-of-scale cap, zero. | Level-dependent bonuses are disabled. |
@@ -255,7 +256,7 @@ without writing new files. The companion `buildings.csv` uses the
 | `population` | Float / people | `employment / workforce_ratio`. | Includes dependents. |
 | `gdp_per_capita` | Float / £ per person per year | Annual GDP divided by total population. | Zero for an empty population. |
 | `average_wealth` | Float / wealth tier | Population-weighted household wealth tier. | Equal to employment-weighted wealth with a uniform workforce ratio. |
-| `net_infrastructure_usage` | Float / infrastructure units | Levels dotted with the model infrastructure vector. | Satisfies the configured floor within solver tolerance. |
+| `net_infrastructure_usage` | Float / infrastructure units | Consumption minus generation: levels dotted with the model infrastructure vector. | For new runs, at most `-min_net_infrastructure` within solver tolerance when the minimum is configured. |
 | `search_success` | Boolean | Optimizer search success flag. | Can be false for a saved, converged household equilibrium. |
 | `search_status` | Integer / code | Optimizer termination code. | Interpret together with `search_message`. |
 | `search_message` | String / diagnostic text | Search termination message. | Explicitly reports budget exhaustion. |
