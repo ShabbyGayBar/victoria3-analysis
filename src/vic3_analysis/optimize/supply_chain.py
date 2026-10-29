@@ -196,6 +196,7 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
         scenario: Scenario,
         *,
         initial_wealth: np.ndarray | None = None,
+        subsidize_operating_losses: bool = True,
         max_iterations: int = 1000,
         rtol: float = 1e-9,
         atol: float = 1e-8,
@@ -204,6 +205,7 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
         building = super().compile(
             scenario,
             initial_wealth=initial_wealth,
+            subsidize_operating_losses=subsidize_operating_losses,
             max_iterations=max_iterations,
             rtol=rtol,
             atol=atol,
@@ -263,6 +265,7 @@ class SupplyChainEquilibriumOptimizer(EquilibriumOptimizer):
             equality_slices=warm.equality_slices,
             warm_start=warm,
             initial_wealth=building.initial_wealth,
+            subsidize_operating_losses=building.subsidize_operating_losses,
             max_iterations=building.max_iterations,
             rtol=building.rtol,
             atol=building.atol,

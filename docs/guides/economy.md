@@ -298,9 +298,11 @@ missing wages mean zero. Only coefficients used by represented dependents are
 validated. These exogenous earnings do not reduce building surplus or increase
 production GDP, and remain available when a workplace has a loss.
 
-The calculation leaves the state and `pop_balance` unchanged. Existing solve
-modes do not automatically calculate income. This policy excludes taxes,
-transfers, reserves, subsistence income, and wealth iteration.
+The calculation leaves the state and `pop_balance` unchanged. Nominal and market
+solves do not automatically calculate income. Equilibrium funds operating losses
+through the income tax described below by default. Setting
+`subsidize_operating_losses=False` disables that tax. The model excludes other
+transfers, reserves, and subsistence income.
 
 ## Population needs
 
@@ -581,19 +583,61 @@ It can coexist with `unaffordable_floor_cells` or `loss_buildings`. The former
 identifies households below their lower affordability threshold at the minimum
 tier. The latter identifies unfunded losses larger than
 `atol + rtol * max(output_value, input_value)`, using the existing signed-flow
-accounting. These are financial flags on a successful solve. No subsidies,
-reserves, wage changes, or financing are introduced; dependent earnings remain
-exogenous, and trade remains fixed orders.
+accounting. Unfunded loss flags can accompany a successful solve when
+`subsidize_operating_losses=False`. Dependent earnings remain exogenous, and
+trade remains fixed orders.
+
+### Tax-funded operating losses
+
+Equilibrium covers every configuration's operating loss through a proportional
+tax on all represented household income by default:
+
+```python
+state = economy.solve(levels, method="equilibrium")
+gross_income = state.pop_income_before_tax
+tax = state.pop_income_tax
+disposable_income = state.pop_income
+```
+
+At each price evaluation, total subsidy cost is `D = state.building_deficit.sum()`.
+Gross income `Y` includes both cooperative surplus distributions and dependent
+earnings. Every household pays the same rate `D / Y.sum()`; zero-income households
+pay zero. No losses means zero tax, including for an empty economy. Subsidies pay
+building costs directly; they add no payroll or household transfer. Wealth
+transitions and balances use disposable income, and taxes are recomputed when
+prices change. GDP still measures production value added; it is not reduced again
+by the subsidy transfer.
+
+`building_surplus` and `building_deficit` continue to describe production before
+subsidies. Funded losses do not appear in diagnostic `loss_buildings`.
+`pop_income_tax` and derived `pop_income_before_tax` are read-only matrices aligned
+to `pops`. Evaluated untaxed states have zero tax arrays; unevaluated finances
+remain `None`. `economy.pop_income(state)` and `economy.pop_income_tax(state)`
+recompute the policy from the stored context and prices.
+
+Exactly 100% tax is allowed. Losses exceeding all gross income raise
+`EquilibriumError` with status `insufficient_income`, including at initialization.
+Its snapshot contains the failing wealth and prices, gross income in `pop_income`,
+and zero tax collected; it is not a successful funded state. Direct income
+calculation and `evaluate_wealth()` instead raise `ValueError`. A failure during
+iteration retains the failing evaluation rather than the preceding funded one.
+
+Disable the policy with `subsidize_operating_losses=False`. Direct
+`EconomyContext` construction and equilibrium optimizers also default to enabled.
+The context retains the selected policy for `evaluate_wealth()` and `iterate()`.
+`Economy.solve()` resolves an omitted or `None` policy to enabled for equilibrium
+and disabled for nominal/market modes. Explicitly enabling it for nominal or
+market modes is rejected.
 
 `EquilibriumError` distinguishes `cycle`, `max_iterations`, `evaluation_failed`,
-and `verification_failed`. Its immutable `.state` retains the last complete
-evaluation and references the same `.diagnostics`. Diagnostics identify cells
+`verification_failed`, and `insufficient_income`. Its immutable `.state` retains
+the last complete evaluation and references the same `.diagnostics`. Diagnostics identify cells
 requiring changes and financial flags; cycles additionally report `cycle_start`
 and `cycle_length`. Household coordinates are `(configuration_index,
 profession_index)` in economy index order; building flags are configuration
 indices. Calculation failures chain their original exception as `__cause__`.
-Invalid setup or initial evaluations raise `ValueError` directly. A detected
-cycle or exhausted budget does not prove that no equilibrium exists.
+Invalid setup or initial evaluations other than insufficient income raise
+`ValueError` directly. A detected cycle or exhausted budget does not prove that no equilibrium exists.
 
 Nominal and market modes retain their existing behavior and leave equilibrium
 diagnostics as `None`; equilibrium controls are ignored in those modes.

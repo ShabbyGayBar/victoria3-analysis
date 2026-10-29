@@ -22,8 +22,9 @@ class EquilibriumDiagnostics:
 
     Attributes:
         status: ``converged``, ``cycle``, ``max_iterations``, ``evaluation_failed``,
-            or ``verification_failed``. Convergence means wealth is stationary,
-            including at its boundaries; it does not promise financial sustainability.
+            ``verification_failed``, or ``insufficient_income``. Convergence
+            means wealth is stationary, including at its boundaries; it does
+            not promise financial sustainability.
         iterations: Completed transition steps, excluding initialization and verification.
         increasing_cells: Configuration/profession coordinates requiring advancement.
         decreasing_cells: Configuration/profession coordinates requiring a lower tier.
@@ -43,6 +44,7 @@ class EquilibriumDiagnostics:
         "max_iterations",
         "evaluation_failed",
         "verification_failed",
+        "insufficient_income",
     ]
     iterations: int
     increasing_cells: tuple[tuple[int, int], ...] = ()
@@ -153,6 +155,8 @@ class EconomyContext:
         exports: Read-only alias for goods_export.
         pops: Employed-worker counts by configuration and profession.
         workforce_ratio: Workers / total population, in ``(0, 1]``.
+        subsidize_operating_losses: Fund operating losses by taxing all household
+            income proportionally; no payroll guarantee. Defaults to True.
         goods_buy_packages: Optional immutable goods baskets with their wealth labels,
             shared across contexts and snapshots.
         consumption_scales: Optional dimensionless basket multiples, shaped
@@ -165,11 +169,14 @@ class EconomyContext:
     goods_export: np.ndarray
     pops: np.ndarray
     workforce_ratio: float = field(default=1.0, kw_only=True)
+    subsidize_operating_losses: bool = field(default=True, kw_only=True)
     goods_buy_packages: GoodsBuyPackages | None = field(default=None, kw_only=True)
     consumption_scales: np.ndarray | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         """Own fixed arrays and validate optional prepared consumption data."""
+        if not isinstance(self.subsidize_operating_losses, (bool, np.bool_)):
+            raise TypeError("subsidize_operating_losses must be a boolean.")
         if not np.isfinite(self.workforce_ratio) or not 0 < self.workforce_ratio <= 1:
             raise ValueError("workforce_ratio must be finite and in (0, 1].")
         for name in (
@@ -312,7 +319,7 @@ class MarketState:
 
     @cached_property
     def building_deficit(self) -> np.ndarray:
-        """Return unfunded weekly input costs per configuration (£)."""
+        """Return weekly operating losses before subsidies per configuration (£)."""
         return _readonly_array(np.maximum(-self.building_surplus, 0))
 
     @cached_property
@@ -357,7 +364,9 @@ class PopState:
     Attributes:
         pop_wealth: Non-negative integer wealth tiers.
         pop_buy_orders: Weekly household goods demand.
-        pop_income: Optional total household income in pounds per week.
+        pop_income: Optional disposable household income in pounds per week.
+        pop_income_tax: Optional household tax funding operating losses, in
+            pounds per week. Evaluated untaxed states contain zero taxes.
         pop_expenses: Optional total consumption expenses in pounds per week.
     """
 
@@ -365,6 +374,7 @@ class PopState:
     pop_buy_orders: np.ndarray
     pop_income: np.ndarray | None = None
     pop_expenses: np.ndarray | None = None
+    pop_income_tax: np.ndarray | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         """Own population arrays and validate supplied finances."""
@@ -372,13 +382,22 @@ class PopState:
             self, "pop_wealth", _readonly_wealth(self.pop_wealth, "pop_wealth")
         )
         object.__setattr__(self, "pop_buy_orders", _readonly_array(self.pop_buy_orders))
-        for name in ("pop_income", "pop_expenses"):
+        for name in ("pop_income", "pop_expenses", "pop_income_tax"):
             value = getattr(self, name)
             if value is not None:
                 values = _validate_nonnegative_values(value, name)
                 if values.ndim != 2 or values.shape != self.pop_wealth.shape:
                     raise ValueError(f"{name} shape must match the pop_wealth matrix.")
                 object.__setattr__(self, name, _readonly_array(values))
+
+    @cached_property
+    def pop_income_before_tax(self) -> np.ndarray | None:
+        """Return gross weekly household income, or None when unevaluated."""
+        if self.pop_income is None:
+            return None
+        if self.pop_income_tax is None:
+            return self.pop_income
+        return _readonly_array(self.pop_income + self.pop_income_tax)
 
     @cached_property
     def pop_balance(self) -> np.ndarray | None:
@@ -550,6 +569,16 @@ class EconomyState:
     def pop_income(self) -> np.ndarray | None:
         """Return ``households.pop_income``."""
         return self.households.pop_income
+
+    @property
+    def pop_income_tax(self) -> np.ndarray | None:
+        """Return weekly household taxes funding operating losses."""
+        return self.households.pop_income_tax
+
+    @property
+    def pop_income_before_tax(self) -> np.ndarray | None:
+        """Return gross weekly household income."""
+        return self.households.pop_income_before_tax
 
     @property
     def pop_expenses(self) -> np.ndarray | None:

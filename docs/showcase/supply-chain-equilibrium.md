@@ -45,6 +45,25 @@ are derived from the surviving recipes after unused rows are filtered out.
 uv run python -m examples.optimize_supply_chain_equilibrium --max-evaluations 100 --max-iterations 10 --log-every 10
 ```
 
+Operating losses are funded by default through a proportional tax on cooperative
+and dependent income, without guaranteeing payroll. Disable it with:
+
+```bash
+uv run python -m examples.optimize_supply_chain_equilibrium --no-subsidize-operating-losses --max-evaluations 100 --max-iterations 10
+```
+
+The selected policy applies to saved baselines and every restart. `--resume` uses
+the current invocation's policy, which defaults to enabled; `summary.csv` records
+it in `subsidize_operating_losses`. Imported calls also default to enabled; use
+`run(..., subsidize_operating_losses=False)` to disable it. Unfundable starting or
+saved mixes still enter the optimizer, whose funding-shortfall penalty guides
+search toward a fundable recipe mix. An unfunded saved mix cannot become the
+best solution. Its initial wealth/GDP metrics are empty, and the summary records
+`initial_equilibrium_status=insufficient_income`. Only verified, funded equilibria
+are exported. If no valid result is found within the trial budget, existing
+exports remain untouched. Other initialization errors still propagate. See
+[tax-funded operating losses](../guides/economy.md#tax-funded-operating-losses).
+
 The default hard trial budget is 20,000 **per local search**;
 `--log-level WARNING|INFO|DEBUG` controls progress verbosity. After each local
 search, the example reduces loss-making terminal producers' chain levels by

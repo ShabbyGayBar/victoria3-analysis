@@ -411,6 +411,7 @@ def test_financial_flags_are_accepted(toy_economy: Economy):
             building_level_caps=(("farm_a", 1.0),),
             goods_import=(("food", 10.0),),
         ),
+        subsidize_operating_losses=False,
         x0=np.ones(1),
         options={"maxiter": 1},
     )
@@ -691,6 +692,7 @@ def test_full_vanilla_table_with_hard_budget(vanilla_economy: Economy):
     initial = np.ones(len(vanilla_economy.building_index))
     state = optimizer.solve(
         Scenario(objective="gdp", min_goods_balance=None, building_level_caps=caps),
+        subsidize_operating_losses=False,
         x0=initial,
         options={"maxiter": 2},
     )

@@ -38,6 +38,16 @@ class _PopIncomeCoefficients:
     dependent_income: np.ndarray
 
 
+class _InsufficientIncomeError(ValueError):
+    """Retain gross income when operating losses cannot be funded."""
+
+    def __init__(self, gross_income: np.ndarray, losses: float, income: float):
+        super().__init__(
+            f"Operating losses ({losses}) exceed total household income ({income})."
+        )
+        self.gross_income = gross_income
+
+
 def pop_wealth_init(economy: Economy) -> np.ndarray:
     """Return read-only int64 starting wealth aligned to `pop_index`."""
     return _readonly_wealth(
@@ -57,14 +67,14 @@ def pop_wage_weights(economy: Economy) -> np.ndarray:
 
 
 def pop_income(economy: Economy, state: EconomyState) -> np.ndarray:
-    """Return cooperative employee income plus exogenous dependent earnings.
+    """Return disposable cooperative and dependent household income.
 
     Each configuration distributes all of its positive ``building_surplus``
     in proportion to ``state.pops * wage_weight``. Every profession is
     included regardless of ``paid_private_wage``; zero weights receive no
     cooperative income. Configurations are independent, including those of the same
     building type. Losses pay zero cooperative wages and remain visible
-    through ``state.building_deficit``, without implicit financing.
+    through ``state.building_deficit``, before any optional operating-loss subsidy.
     Add ``pops * dependents_per_worker * dependent_wage / 52`` for household
     dependent earnings; missing annual dependent wages default to zero.
 
@@ -86,10 +96,12 @@ def pop_income(economy: Economy, state: EconomyState) -> np.ndarray:
             surplus but no positive recipient weight.
 
     Notes:
-        This is a simplified worker-cooperative accounting policy. It does
-        not apply taxes, transfers, subsistence income, reserves, or household
-        expenses, and does not change wealth or ``pop_balance``. Dependent
-        earnings do not reduce building surplus or increase production GDP.
+        This is a simplified worker-cooperative accounting policy. It applies
+        proportional income tax when context.subsidize_operating_losses is enabled.
+        Losses exceeding total gross income raise ValueError. It excludes
+        transfers, subsistence income, reserves, and household expenses, and
+        does not change wealth or ``pop_balance``. Dependent earnings do not
+        reduce building surplus or increase production GDP.
     """
     _validate_goods_vector(economy, state.market_prices, "state.market_prices")
     return _pop_income_from_arrays(
@@ -138,7 +150,17 @@ def _pop_income_from_arrays(
     prices: np.ndarray,
     coefficients: _PopIncomeCoefficients,
 ) -> np.ndarray:
-    """Allocate changing surplus using fixed income coefficients."""
+    """Return disposable income using the context's financing policy."""
+    return _pop_income_and_tax_from_arrays(economy, context, prices, coefficients)[0]
+
+
+def _pop_income_and_tax_from_arrays(
+    economy: Economy,
+    context: EconomyContext,
+    prices: np.ndarray,
+    coefficients: _PopIncomeCoefficients,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Allocate surplus, then fund operating losses from all household income."""
     with np.errstate(over="ignore", invalid="ignore"):
         surplus = context.building_goods_flow @ prices
     if not np.isfinite(surplus).all():
@@ -150,8 +172,32 @@ def _pop_income_from_arrays(
             f"Positive surplus has no positive recipient weight for: {keys}"
         )
     with np.errstate(over="ignore", invalid="ignore"):
-        return _validate_nonnegative_values(
+        gross = _validate_nonnegative_values(
             coefficients.shares * np.maximum(surplus, 0)[:, None]
             + coefficients.dependent_income,
             "calculated pop_income",
         )
+        tax = np.zeros_like(gross)
+        if context.subsidize_operating_losses:
+            losses = float(np.maximum(-surplus, 0).sum())
+            total_income = float(gross.sum())
+            if not np.isfinite(losses) or not np.isfinite(total_income):
+                raise ValueError(
+                    "Aggregate operating losses and income must be finite."
+                )
+            if losses > total_income:
+                raise _InsufficientIncomeError(gross, losses, total_income)
+            if losses > 0:
+                tax = gross * (losses / total_income)
+        return gross - tax, tax
+
+
+def pop_income_tax(economy: Economy, state: EconomyState) -> np.ndarray:
+    """Recompute weekly household taxes at the supplied prices and policy."""
+    _validate_goods_vector(economy, state.market_prices, "state.market_prices")
+    return _pop_income_and_tax_from_arrays(
+        economy,
+        state.context,
+        state.market_prices,
+        _prepare_pop_income(economy, state.context),
+    )[1]

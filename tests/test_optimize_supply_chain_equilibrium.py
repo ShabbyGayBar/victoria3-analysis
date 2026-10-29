@@ -516,15 +516,100 @@ def test_cli_iteration_controls(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(example, "run", run)
     monkeypatch.setattr(
-        "sys.argv", ["optimize", "--max-iterations", "3", "--loss-reduction", "0"]
+        "sys.argv",
+        [
+            "optimize",
+            "--subsidize-operating-losses",
+            "--max-iterations",
+            "3",
+            "--loss-reduction",
+            "0",
+        ],
     )
     example.main()
     assert calls[0]["max_iterations"] == 3
+    assert calls[0]["subsidize_operating_losses"] is True
     assert calls[0]["loss_reduction"] == 0.0
     monkeypatch.setattr("sys.argv", ["optimize"])
     example.main()
     assert calls[1]["max_iterations"] is None
+    assert calls[1]["subsidize_operating_losses"] is True
+    monkeypatch.setattr("sys.argv", ["optimize", "--no-subsidize-operating-losses"])
+    example.main()
+    assert calls[2]["subsidize_operating_losses"] is False
     monkeypatch.setattr("sys.argv", ["optimize", "--max-iterations", "0"])
     with pytest.raises(SystemExit) as error:
         example.main()
     assert error.value.code == 2
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_operating_loss_policy_applies_to_resume_and_restarts(
+    example_output: Path, enabled: bool
+):
+    production_path = example_output.parent / "production_table.csv"
+    production = pd.read_csv(production_path, encoding="utf-8")
+    production["goods_food"] = [5.25, -0.1]
+    production.to_csv(production_path, index=False, encoding="utf-8")
+    _, default_state = example.run(max_evaluations=1, max_iterations=1)
+    assert default_state.context.subsidize_operating_losses
+    assert default_state.pop_income_tax is not None
+    assert default_state.pop_income_tax.sum() > 0
+    # Save an unsubsidized mix, then re-evaluate it under the requested policy.
+    example.run(max_evaluations=1, max_iterations=1, subsidize_operating_losses=False)
+    model, state = example.run(
+        max_evaluations=1,
+        max_iterations=2,
+        resume=True,
+        loss_reduction=0,
+        subsidize_operating_losses=enabled,
+    )
+    assert state.context.subsidize_operating_losses is enabled
+    assert state.pop_income is not None
+    assert state.pop_income_tax is not None
+    assert state.building_deficit.sum() > 0
+    assert state.pop_income_tax.sum() == pytest.approx(
+        state.building_deficit.sum() if enabled else 0
+    )
+    np.testing.assert_allclose(state.pop_income, model.pop_income(state))
+    report = pd.read_csv(example_output / "summary.csv", encoding="utf-8")
+    assert report["iteration"].tolist() == [0, 1, 2]
+    assert report["subsidize_operating_losses"].tolist() == [enabled] * 3
+
+
+@pytest.mark.parametrize("resume", [False, True])
+def test_unfundable_start_enters_search(
+    example_output: Path, monkeypatch: pytest.MonkeyPatch, resume: bool
+):
+    directory = example_output.parent
+    production_path = directory / "production_table.csv"
+    production = pd.read_csv(production_path, encoding="utf-8")
+    production["goods_food"] = [5.25, -6.0]
+    production["goods_input"] = 0.0
+    production.to_csv(production_path, index=False, encoding="utf-8")
+    # The first chain loses money; the second can supply food independently.
+    pd.DataFrame({"key": ["food", "input"], "cost": [1.0, 1.0]}).to_csv(
+        directory / "goods.csv", index=False, encoding="utf-8"
+    )
+    pd.DataFrame(
+        {"food": [1.0, 2.0], "input": [1.0, 0.0]},
+        index=pd.Index(
+            production["building"] + "+" + production["production_method"],
+            name="config",
+        ),
+    ).to_csv(directory / "era_5_automation" / "building_levels.csv", encoding="utf-8")
+    monkeypatch.setattr(example, "ALLOWED_CHAIN_GOODS", ("food", "input"))
+    if resume:
+        example.run(
+            max_evaluations=1, max_iterations=1, subsidize_operating_losses=False
+        )
+    _, state = example.run(max_evaluations=100, max_iterations=1, resume=resume)
+    assert state.pop_income_tax is not None
+    assert state.equilibrium_diagnostics is not None
+    assert state.equilibrium_diagnostics.status == "converged"
+    assert state.pop_income_tax.sum() == pytest.approx(state.building_deficit.sum())
+    report = pd.read_csv(example_output / "summary.csv", encoding="utf-8")
+    assert report["iteration"].tolist() == [1]
+    assert report.loc[0, "initial_equilibrium_status"] == "insufficient_income"
+    assert pd.isna(report.loc[0, "initial_gdp_weekly"])
+    assert report["failed_equilibrium_evaluations"].to_numpy()[0] > 0

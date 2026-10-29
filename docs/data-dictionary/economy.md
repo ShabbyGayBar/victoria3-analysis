@@ -100,7 +100,7 @@ aggregates are cached on `MarketState`.
 | `building_goods_input` | Goods / units per week | `maximum(-building_goods_flow, 0).sum(axis=0)`. |
 | `building_goods_output` | Goods / units per week | `maximum(building_goods_flow, 0).sum(axis=0)`. |
 | `building_surplus` | Configurations / £ per week | `building_goods_flow @ market_prices`, value added before wages; may be negative. |
-| `building_deficit` | Configurations / £ per week | `maximum(-building_surplus, 0)`, unfunded input costs. |
+| `building_deficit` | Configurations / £ per week | `maximum(-building_surplus, 0)`, operating losses before subsidies. |
 | `pop_income(state)` | Configurations × professions / £ per week | Positive surplus allocated by `pops * wage_weight`, plus `pops * dependents_per_worker * dependent_wage / 52`; household totals, not per-worker rates. |
 
 The four state properties are cached, owned, read-only float64 arrays. Signs
@@ -110,10 +110,10 @@ within-row flows retain the production table's signed-net convention.
 The income calculation returns a fresh writable matrix. It includes professions
 regardless of `paid_private_wage`, pays zero wages on zero/negative surplus, and
 does not pool configurations. Positive surplus with zero total recipient weight
-raises `ValueError`. Deficits have no implicit funding source. Dependent earnings
+raises `ValueError`. With subsidies disabled, deficits have no funding source. Dependent earnings
 are exogenous and do not alter building surplus or production GDP. Missing
-dependent wages mean zero. Income excludes
-taxes, transfers, reserves, and subsistence income; it does not update
+dependent wages mean zero. Income excludes transfers, reserves, and subsistence
+income, and is untaxed unless operating-loss subsidies are enabled; it does not update
 `pop_balance` or wealth.
 
 ## Household consumption calculations
@@ -161,12 +161,12 @@ and chain the original error.
 
 | Field | Type / unit | Meaning |
 | --- | --- | --- |
-| `status` | String | `converged`, `cycle`, `max_iterations`, `evaluation_failed`, or `verification_failed`. |
+| `status` | String | `converged`, `cycle`, `max_iterations`, `evaluation_failed`, `verification_failed`, or `insufficient_income`. |
 | `iterations` | Integer / transition steps | Completed transitions after initialization; excludes final verification. Initially stable wealth reports zero. |
 | `increasing_cells` | Tuple of integer pairs | Occupied configuration/profession coordinates requiring a permitted increase. |
 | `decreasing_cells` | Tuple of integer pairs | Occupied configuration/profession coordinates requiring a permitted decrease. |
 | `unaffordable_floor_cells` | Tuple of integer pairs | Occupied minimum-tier households below the lower affordability threshold; downward changes are blocked. |
-| `loss_buildings` | Tuple of integers | Configuration indices with losses exceeding `atol + rtol * max(output_value, input_value)`. |
+| `loss_buildings` | Tuple of integers | Configuration indices with unfunded losses exceeding `atol + rtol * max(output_value, input_value)`; empty when all operating losses are subsidized. |
 | `cycle_start` | Integer or `None` / iteration index | First appearance of the repeated wealth assignment, counting initialization as zero. |
 | `cycle_length` | Integer or `None` / transition steps | Detected cycle period; only populated with `cycle_start` for cycles. |
 
@@ -176,7 +176,22 @@ and use weekly pounds; household affordability uses weekly group totals.
 `converged` means no permitted wealth changes remain, including at boundaries.
 It does not guarantee affordability or self-financing buildings: the two
 financial flags do not change success status. Setup and initial-evaluation
-errors raise `ValueError` without a partial result.
+errors other than insufficient income raise `ValueError` without a partial result.
+
+Equilibrium solves, optimizers, and direct contexts default to
+`subsidize_operating_losses=True`; pass `False` to disable the policy. Nominal and
+market solves default to disabled. With the policy enabled, `pop_income` is disposable income after
+the uniform tax funding all operating losses. The optional `pop_income_tax`
+matrix stores weekly household taxes, and `pop_income_before_tax` derives gross
+income as income plus tax. All three follow configuration × profession order;
+the tax includes dependent earnings. Evaluated untaxed snapshots store zero
+taxes; unevaluated snapshots use `None`. The context retains the policy flag.
+`Economy.pop_income_tax(state)` recalculates taxes without modifying the state.
+
+An `insufficient_income` error occurs when losses exceed total gross income.
+Unlike other initial evaluation errors, it carries the failing snapshot even at
+initialization. This unsuccessful snapshot records pre-tax income and zero tax
+collected. Its iteration count identifies the failing wealth assignment.
 
 ## Market report
 
@@ -256,7 +271,8 @@ writing new files. The companion `buildings.csv` uses the
 | `construction_cost` | Float / construction points | Model construction cost at this row's returned levels. | Uses the current production coefficients. |
 | `arable_land_consumption` | Float / land units | Model arable-land consumption at this row's returned levels. | No arable-land cap is added by this example. |
 | `max_evaluations` | Integer / trials | Requested hard budget for each local search. | Separate starting-point/baseline evaluations and final verification are additional solves. |
-| `initial_gdp_weekly` | Float / £ per week | GDP at this search's initial mix after household equilibrium. | Uses the same scenario and wealth seed as search trials; baseline rows use their own state. |
+| `initial_equilibrium_status` | String / category | `converged` or `insufficient_income` for the starting mix. | An unfunded start is passed to the optimizer without accepting it as a valid baseline. |
+| `initial_gdp_weekly` | Float / £ per week | GDP at this search's initial mix after household equilibrium. | Empty for an unfunded start, as are initial annual GDP and average wealth. Uses the same scenario and wealth seed as search trials; baseline rows use their own state. |
 | `initial_annual_gdp` | Float / £ per year | `52 * initial_gdp_weekly`. | Baseline for comparison with the final state. |
 | `gdp_weekly` | Float / £ per week | This row's returned equilibrium GDP. | Selection uses the scenario objective, which may differ from GDP. |
 | `annual_gdp` | Float / £ per year | `52 * gdp_weekly`. | Includes all modeled production. |

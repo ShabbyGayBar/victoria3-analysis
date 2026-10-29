@@ -4,7 +4,7 @@
 """Public economy model and cached facade for focused calculation modules."""
 
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from pathlib import Path
 
@@ -568,14 +568,14 @@ class Economy:
         return _income.pop_wage_weights(self)
 
     def pop_income(self, state: EconomyState) -> np.ndarray:
-        """Return cooperative employee income plus exogenous dependent earnings.
+        """Return disposable cooperative and dependent household income.
 
         Each configuration distributes all of its positive ``building_surplus``
         in proportion to ``state.pops * wage_weight``. Every profession is
         included regardless of ``paid_private_wage``; zero weights receive no
         cooperative income. Configurations are independent, including those of the same
         building type. Losses pay zero cooperative wages and remain visible
-        through ``state.building_deficit``, without implicit financing.
+        through ``state.building_deficit``, before any optional operating-loss subsidy.
         Add ``pops * dependents_per_worker * dependent_wage / 52`` for household
         dependent earnings; missing annual dependent wages default to zero.
 
@@ -597,12 +597,23 @@ class Economy:
                 surplus but no positive recipient weight.
 
         Notes:
-            This is a simplified worker-cooperative accounting policy. It does
-            not apply taxes, transfers, subsistence income, reserves, or household
-            expenses, and does not change wealth or ``pop_balance``. Dependent
-            earnings do not reduce building surplus or increase production GDP.
+            This is a simplified worker-cooperative accounting policy. It applies
+            proportional income tax when context.subsidize_operating_losses is enabled.
+            Losses exceeding total gross income raise ValueError. It excludes
+            transfers, subsistence income, reserves, and household expenses, and
+            does not change wealth or ``pop_balance``. Dependent earnings do not
+            reduce building surplus or increase production GDP.
         """
         return _income.pop_income(self, state)
+
+    def pop_income_tax(self, state: EconomyState) -> np.ndarray:
+        """Recompute weekly household taxes funding operating losses.
+
+        Returns a fresh matrix aligned to ``state.pops``. The context policy
+        taxes cooperative and dependent earnings proportionally, or returns
+        zeros when disabled. Raises ValueError if losses cannot be financed.
+        """
+        return _income.pop_income_tax(self, state)
 
     @cached_property
     def employment_vector(self) -> np.ndarray:
@@ -736,6 +747,7 @@ class Economy:
         economy_of_scale_level_cap: float = 0.0,
         *,
         workforce_ratio: float = 1.0,
+        subsidize_operating_losses: bool | None = None,
         initial_wealth: np.ndarray | None = None,
         max_iterations: int = 1000,
         rtol: float = 1e-9,
@@ -764,6 +776,11 @@ class Economy:
                 ``20.0`` to cap the throughput bonus at +20%.
             workforce_ratio: Economy-wide workers / total population in ``(0, 1]``.
                 Defaults to ``1.0`` for worker-only accounting.
+            subsidize_operating_losses: Equilibrium-only proportional tax on all
+                household income to fund operating losses. None (the default)
+                enables it for equilibrium and disables it for other modes.
+                Pass False to disable it explicitly.
+                No payroll is guaranteed; unaffordable losses fail the solve.
             initial_wealth: Equilibrium-only full configuration/profession matrix.
                 Defaults to profession starting tiers. Occupied tiers must have baskets.
             max_iterations: Positive integer limit on equilibrium transition steps,
@@ -776,8 +793,10 @@ class Economy:
 
         Returns:
             An `EconomyState` describing the resulting state. Equilibrium results
-            include diagnostics; floor unaffordability and unfunded losses are flags
-            and do not prevent numerical convergence.
+            include diagnostics; floor unaffordability and unsubsidized losses are flags
+            and do not prevent numerical convergence. With subsidies enabled,
+            operating losses exceeding household income raise EquilibriumError
+            with status insufficient_income and the failing pre-tax snapshot.
 
         Raises:
             ValueError: If *method* is unsupported, if
@@ -793,6 +812,14 @@ class Economy:
                 failures, or failed final verification; retains the last evaluated state.
         """
 
+        if subsidize_operating_losses is None:
+            subsidize_operating_losses = method == "equilibrium"
+        if not isinstance(subsidize_operating_losses, (bool, np.bool_)):
+            raise TypeError("subsidize_operating_losses must be a boolean.")
+        if subsidize_operating_losses and method != "equilibrium":
+            raise ValueError(
+                "subsidize_operating_losses requires method='equilibrium'."
+            )
         if method == "equilibrium":
             _equilibrium._validate_equilibrium_tolerances(rtol, atol)
             if (
@@ -857,7 +884,10 @@ class Economy:
             )
             return _equilibrium._solve_equilibrium(
                 self,
-                initial.context,
+                replace(
+                    initial.context,
+                    subsidize_operating_losses=subsidize_operating_losses,
+                ),
                 initial.pop_wealth if initial_wealth is None else initial_wealth,
                 max_iterations=max_iterations,
                 rtol=rtol,

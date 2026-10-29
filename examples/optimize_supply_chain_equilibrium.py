@@ -22,6 +22,7 @@ if __package__:
         SUPPLY_CHAIN_EQUILIBRIUM_DIR,
         SUPPLY_CHAINS_DIR,
     )
+    from .optimize_equilibrium import _evaluate_start
 else:
     from __init__ import (
         BUY_PACKAGES_DIR,
@@ -31,6 +32,7 @@ else:
         SUPPLY_CHAIN_EQUILIBRIUM_DIR,
         SUPPLY_CHAINS_DIR,
     )
+    from optimize_equilibrium import _evaluate_start
 
 from vic3_analysis import (
     Economy,
@@ -235,6 +237,7 @@ def _baseline_summary(
         initial_average_wealth=state.average_wealth,
         initial_gdp_weekly=state.gdp_weekly,
         initial_annual_gdp=state.gdp(annual=True),
+        initial_equilibrium_status=diagnostics.status,
         gdp_weekly_change=np.nan,
         search_success=None,
         search_status=None,
@@ -254,6 +257,7 @@ def run(
     *,
     log_every: int = 100,
     resume: bool = False,
+    subsidize_operating_losses: bool = True,
     loss_reduction: float = 0.5,
     max_iterations: int | None = None,
 ) -> tuple[Economy, EconomyState]:
@@ -261,6 +265,8 @@ def run(
 
     Each search gets ``max_evaluations`` trials. Equal GDP continues; an optional
     ``max_iterations`` bounds the number of local searches on plateaus.
+    ``subsidize_operating_losses`` enables income-tax-funded operating losses
+    for every evaluation, including saved baselines and restarts.
     """
     if max_iterations is not None and (
         isinstance(max_iterations, (bool, np.bool_))
@@ -303,7 +309,9 @@ def run(
             "target_base_value": 100_000.0,
         }
     )
-    problem = optimizer.compile(scenario)
+    problem = optimizer.compile(
+        scenario, subsidize_operating_losses=subsidize_operating_losses
+    )
     best_state: EconomyState | None = None
     best_levels: np.ndarray | None = None
     best_iteration = 0
@@ -311,17 +319,24 @@ def run(
     history: list[pd.DataFrame] = []
     if resume:
         saved_levels = _load_saved_levels(problem, SUPPLY_CHAIN_EQUILIBRIUM_DIR)
-        best_state = copy(problem.evaluate(saved_levels))
-        best_levels = saved_levels.copy()
-        previous_gdp = best_state.gdp_weekly
-        initial, previous = _adjust_levels(
-            problem, saved_levels, best_state, loss_reduction
-        )
-        for column in ("previous_level", "previous_terminal_surplus"):
-            chains[column] = previous[column].to_numpy()
-        reduced_count = int(
-            np.count_nonzero(initial < previous["previous_level"].to_numpy())
-        )
+        saved_state = _evaluate_start(problem, saved_levels)
+        if saved_state is None:
+            initial = saved_levels.copy()
+            chains["previous_level"] = saved_levels
+            chains["previous_terminal_surplus"] = np.nan
+            reduced_count = 0
+        else:
+            best_state = copy(saved_state)
+            best_levels = saved_levels.copy()
+            previous_gdp = best_state.gdp_weekly
+            initial, previous = _adjust_levels(
+                problem, saved_levels, best_state, loss_reduction
+            )
+            for column in ("previous_level", "previous_terminal_surplus"):
+                chains[column] = previous[column].to_numpy()
+            reduced_count = int(
+                np.count_nonzero(initial < previous["previous_level"].to_numpy())
+            )
     else:
         initial = _initial_levels(optimizer)
         reduced_count = 0
@@ -333,10 +348,14 @@ def run(
         iteration += 1
         iteration_started_at = datetime.now(UTC).isoformat()
         iteration_started = perf_counter()
-        initial_state = problem.evaluate(initial)
+        initial_state = _evaluate_start(problem, initial)
         print(
             f"Iteration {iteration} initial annual equilibrium GDP: "
-            f"{initial_state.gdp(annual=True):,.2f}"
+            + (
+                "unavailable"
+                if initial_state is None
+                else f"{initial_state.gdp(annual=True):,.2f}"
+            )
         )
         state = optimizer.solve_problem(
             problem,
@@ -349,6 +368,7 @@ def run(
             raise RuntimeError("Supply-chain optimizer did not retain diagnostics.")
         total_trials += int(result.nfev)
         row = optimizer.summary().assign(
+            subsidize_operating_losses=subsidize_operating_losses,
             recipe_configuration="era_5_automation",
             max_evaluations=max_evaluations,
             iteration=iteration,
@@ -357,11 +377,22 @@ def run(
                 if iteration > 1
                 else ("saved_solution" if resume else "equal_chains")
             ),
-            loss_reduction=loss_reduction if resume or iteration > 1 else 0.0,
+            loss_reduction=loss_reduction
+            if iteration > 1 or (resume and best_state is not None)
+            else 0.0,
             reduced_chain_count=reduced_count,
-            initial_average_wealth=initial_state.average_wealth,
-            initial_gdp_weekly=initial_state.gdp_weekly,
-            initial_annual_gdp=initial_state.gdp(annual=True),
+            initial_average_wealth=np.nan
+            if initial_state is None
+            else initial_state.average_wealth,
+            initial_gdp_weekly=np.nan
+            if initial_state is None
+            else initial_state.gdp_weekly,
+            initial_annual_gdp=np.nan
+            if initial_state is None
+            else initial_state.gdp(annual=True),
+            initial_equilibrium_status="insufficient_income"
+            if initial_state is None
+            else "converged",
             gdp_weekly_change=(
                 np.nan if previous_gdp is None else state.gdp_weekly - previous_gdp
             ),
@@ -438,6 +469,12 @@ def main() -> None:
         help="Start from saved chain levels, reducing loss-making terminal producers' chains.",
     )
     parser.add_argument(
+        "--subsidize-operating-losses",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Fund operating losses by taxing all household income proportionally (default: enabled); no payroll guarantee.",
+    )
+    parser.add_argument(
         "--loss-reduction",
         type=float,
         default=0.5,
@@ -483,6 +520,7 @@ def main() -> None:
         args.max_evaluations,
         log_every=args.log_every,
         resume=args.resume,
+        subsidize_operating_losses=args.subsidize_operating_losses,
         loss_reduction=args.loss_reduction,
         max_iterations=args.max_iterations,
     )

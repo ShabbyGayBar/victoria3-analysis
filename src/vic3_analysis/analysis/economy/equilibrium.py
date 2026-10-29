@@ -28,7 +28,8 @@ from vic3_analysis.analysis.economy.consumption import (
     _validate_goods_buy_packages,
 )
 from vic3_analysis.analysis.economy.income import (
-    _pop_income_from_arrays,
+    _InsufficientIncomeError,
+    _pop_income_and_tax_from_arrays,
     _PopIncomeCoefficients,
     _prepare_pop_income,
 )
@@ -61,6 +62,16 @@ class _WealthEvaluation:
     pop_income: np.ndarray
     pop_expenses: np.ndarray
     pop_balance: np.ndarray
+    pop_income_tax: np.ndarray
+    subsidies_funded: bool = True
+
+
+class _UnfundedWealthError(ValueError):
+    """Carry the failing evaluation before any taxes or subsidies are paid."""
+
+    def __init__(self, message: str, evaluation: _WealthEvaluation):
+        super().__init__(message)
+        self.evaluation = evaluation
 
 
 @dataclass
@@ -162,14 +173,31 @@ def _evaluate_prepared_wealth(
             ),
             "calculated market_prices",
         )
-        income = _pop_income_from_arrays(economy, context, prices, income_coefficients)
         expenses = _pop_expenses_from_arrays(
             occupied, inverse, cell_scales, selected, prices
         )
+        try:
+            income, tax = _pop_income_and_tax_from_arrays(
+                economy, context, prices, income_coefficients
+            )
+        except _InsufficientIncomeError as error:
+            raise _UnfundedWealthError(
+                str(error),
+                _WealthEvaluation(
+                    wealth,
+                    demand,
+                    prices,
+                    error.gross_income,
+                    expenses,
+                    error.gross_income - expenses,
+                    np.zeros_like(error.gross_income),
+                    subsidies_funded=False,
+                ),
+            ) from error
         balance = income - expenses
     if not np.isfinite(balance).all():
         raise ValueError("calculated pop_balance must contain finite values.")
-    return _WealthEvaluation(wealth, demand, prices, income, expenses, balance)
+    return _WealthEvaluation(wealth, demand, prices, income, expenses, balance, tax)
 
 
 def _freeze_wealth(
@@ -183,6 +211,7 @@ def _freeze_wealth(
             evaluation.pop_buy_orders,
             evaluation.pop_income,
             evaluation.pop_expenses,
+            pop_income_tax=evaluation.pop_income_tax,
         ),
     )
 
@@ -364,6 +393,8 @@ def _equilibrium_diagnostics(
     scale = np.maximum(input_value, output_value)
     material = losses > atol
     material[material] = (losses[material] - atol) / scale[material] > rtol
+    if context.subsidize_operating_losses and evaluation.subsidies_funded:
+        material[:] = False
     return EquilibriumDiagnostics(
         status="max_iterations",
         iterations=iterations,
@@ -402,16 +433,33 @@ def _verify_equilibrium(
         context.non_pop_buy_orders + needs, context.sell_orders
     )
     state = replace(state, market=MarketState(context, prices))
-    income = economy.pop_income(state)
     expenses = economy.pop_expenses(state)
+    try:
+        income = economy.pop_income(state)
+        tax = economy.pop_income_tax(state)
+    except _InsufficientIncomeError as error:
+        raise _UnfundedWealthError(
+            str(error),
+            _WealthEvaluation(
+                evaluation.pop_wealth,
+                needs,
+                prices,
+                error.gross_income,
+                expenses,
+                error.gross_income - expenses,
+                np.zeros_like(error.gross_income),
+                subsidies_funded=False,
+            ),
+        ) from error
     balance = income - expenses
     verified = _WealthEvaluation(
-        evaluation.pop_wealth, needs, prices, income, expenses, balance
+        evaluation.pop_wealth, needs, prices, income, expenses, balance, tax
     )
     for name in (
         "pop_buy_orders",
         "market_prices",
         "pop_income",
+        "pop_income_tax",
         "pop_expenses",
         "pop_balance",
     ):
@@ -511,7 +559,10 @@ def _iterate_equilibrium(
     _validate_iteration_context(economy, context)
     wealth = _validate_wealth_assignment(economy, context, initial_wealth)
     coefficients = _prepare_pop_income(economy, context)
-    evaluation = _evaluate_prepared_wealth(economy, context, wealth, coefficients)
+    try:
+        evaluation = _evaluate_prepared_wealth(economy, context, wealth, coefficients)
+    except _UnfundedWealthError as error:
+        raise _funding_failure(economy, context, error, 0, rtol, atol) from error
     transition = _wealth_transition(
         economy,
         context,
@@ -549,6 +600,10 @@ def _iterate_equilibrium(
                     ),
                     status="converged",
                 )
+            except _UnfundedWealthError as error:
+                raise _funding_failure(
+                    economy, context, error, diagnostics.iterations, rtol, atol
+                ) from error
             except (ValueError, FloatingPointError, OverflowError) as exc:
                 failure = replace(diagnostics, status="verification_failed")
                 raise EquilibriumError(
@@ -601,6 +656,10 @@ def _iterate_equilibrium(
                 rtol,
                 atol,
             )
+        except _UnfundedWealthError as error:
+            raise _funding_failure(
+                economy, context, error, diagnostics.iterations + 1, rtol, atol
+            ) from error
         except (ValueError, FloatingPointError, OverflowError) as exc:
             failure = replace(diagnostics, status="evaluation_failed")
             raise EquilibriumError(
@@ -613,3 +672,33 @@ def _iterate_equilibrium(
             candidate_diagnostics,
         )
         _log_equilibrium_iteration(diagnostics)
+
+
+def _funding_failure(
+    economy: Economy,
+    context: EconomyContext,
+    error: _UnfundedWealthError,
+    iterations: int,
+    rtol: float,
+    atol: float,
+) -> EquilibriumError:
+    """Describe the failing wealth/prices, rather than a previous funded state."""
+    evaluation = error.evaluation
+    transition = _wealth_transition(
+        economy,
+        context,
+        evaluation.pop_wealth,
+        evaluation.market_prices,
+        evaluation.pop_income,
+        rtol,
+        atol,
+    )
+    diagnostics = replace(
+        _equilibrium_diagnostics(
+            economy, context, evaluation, transition, iterations, rtol, atol
+        ),
+        status="insufficient_income",
+    )
+    return EquilibriumError(
+        str(error), _equilibrium_snapshot(economy, context, evaluation, diagnostics)
+    )

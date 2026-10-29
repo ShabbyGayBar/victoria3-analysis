@@ -3399,6 +3399,7 @@ def wealth_context() -> EconomyContext:
         goods_export=np.zeros(3),
         pops=np.array([[10_000.0, 5000.0], [5000.0, 0.0]]),
         workforce_ratio=0.5,
+        subsidize_operating_losses=False,
         goods_buy_packages=GoodsBuyPackages(
             wealth=np.array([1, 2]),
             quantities=np.array([[0.0, 2.0, 1.0], [0.0, 4.0, 2.0]]),
@@ -3979,7 +3980,10 @@ def test_equilibrium_dependents_and_financial_flags(
     loss_model = replace(equilibrium_economy, df_production=production)
     caplog.set_level("DEBUG", logger="vic3_analysis.analysis.economy.equilibrium")
     flagged = loss_model.solve(
-        np.ones(1), method="equilibrium", goods_import=np.array([10.0])
+        np.ones(1),
+        method="equilibrium",
+        goods_import=np.array([10.0]),
+        subsidize_operating_losses=False,
     )
     assert flagged.equilibrium_diagnostics == EquilibriumDiagnostics(
         "converged",
@@ -3993,7 +3997,11 @@ def test_equilibrium_dependents_and_financial_flags(
     )
     _assert_evaluated_state(loss_model, flagged)
     no_material_loss = loss_model.solve(
-        np.ones(1), method="equilibrium", goods_import=np.array([10.0]), atol=0.3
+        np.ones(1),
+        method="equilibrium",
+        goods_import=np.array([10.0]),
+        atol=0.3,
+        subsidize_operating_losses=False,
     )
     assert no_material_loss.equilibrium_diagnostics == EquilibriumDiagnostics(
         "converged", 0
@@ -4056,7 +4064,12 @@ def test_equilibrium_evaluation_failure_preserves_preceding_state(
     with pytest.raises(
         EquilibriumError, match="no positive recipient weight"
     ) as caught:
-        model.solve(np.ones(2), method="equilibrium", goods_export=np.array([1.3, 0.0]))
+        model.solve(
+            np.ones(2),
+            method="equilibrium",
+            goods_export=np.array([1.3, 0.0]),
+            subsidize_operating_losses=False,
+        )
     error = caught.value
     assert error.diagnostics.status == "evaluation_failed"
     assert error.diagnostics.iterations == 0
@@ -4325,6 +4338,7 @@ def test_equilibrium_vanilla(economy: Economy):
         result = economy.solve(
             _first_producing_levels(economy),
             method="equilibrium",
+            subsidize_operating_losses=False,
             workforce_ratio=0.25,
             max_iterations=3,
         )

@@ -199,6 +199,23 @@ The linear scenario region must be feasible and bounded. Capping every
 building is one way to ensure boundedness. Shared constraints apply to each
 candidate's building levels, with fixed trade and throughput assumptions.
 `EquilibriumOptimizer` permits any `min_goods_balance` setting.
+
+Equilibrium optimization funds operating losses with a proportional tax on all
+household income, including dependent earnings, by default. Pass
+`subsidize_operating_losses=False` to `compile()` or `solve()` to disable it.
+Compiled problems retain the policy
+for every evaluation and final verification. Both `EquilibriumOptimizer` and
+`SupplyChainEquilibriumOptimizer` support it. Trials whose operating losses exceed
+all household income are rejected and counted as `insufficient_income` failures.
+These trials receive a finite penalty based on the unfunded fraction of their
+operating losses. Smaller shortfalls score better, guiding search toward a
+fundable mix even when the starting point fails. Every such penalty remains
+worse than every converged objective score. Failed snapshots are never eligible
+as returned solutions, and trial budgets and final verification still apply.
+The tax lowers disposable income used for wealth and demand; objective formulas
+are unchanged. There is no guaranteed payroll. See
+[tax-funded operating losses](economy.md#tax-funded-operating-losses).
+
 Household consumption is calculated
 endogenously, while `goods_import` and `goods_export` specify fixed external orders.
 

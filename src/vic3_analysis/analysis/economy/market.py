@@ -113,6 +113,7 @@ def _solve_nominal(
         goods_export=goods_export,
         pops=pops,
         workforce_ratio=workforce_ratio,
+        subsidize_operating_losses=False,
     )
     return EconomyState(
         context=context,

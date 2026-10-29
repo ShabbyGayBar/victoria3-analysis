@@ -52,6 +52,26 @@ The default hard trial budget is 20,000 per local search:
 uv run python -m examples.optimize_equilibrium --max-iterations 10
 ```
 
+Proportional income tax funds operating losses by default. Disable it with:
+
+```bash
+uv run python -m examples.optimize_equilibrium --no-subsidize-operating-losses --max-iterations 10
+```
+
+The enabled policy taxes cooperative and dependent income without guaranteeing
+payroll, and applies to saved baselines and every restart. `--resume` uses the
+current invocation's policy, which defaults to enabled; `summary.csv` records it
+in `subsidize_operating_losses`. Imported calls also default to enabled; use
+`run(..., subsidize_operating_losses=False)` to disable it. If the initial or saved
+mix cannot fund its losses, the example still starts the optimizer. Rejected
+trials receive a penalty based on their funding shortfall; only verified, funded
+equilibria can become the best solution. An unfunded saved mix is not retained as
+a baseline. The summary records `initial_equilibrium_status=insufficient_income`
+and leaves its initial wealth/GDP metrics empty. If no valid result is found
+within the trial budget, the search fails without overwriting exports. Other
+initialization errors still propagate. See
+[tax-funded operating losses](../guides/economy.md#tax-funded-operating-losses).
+
 Direct-file execution is also supported. A short run can validate the pipeline
 and regenerate reviewable snapshots:
 

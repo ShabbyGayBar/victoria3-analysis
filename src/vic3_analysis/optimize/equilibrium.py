@@ -53,6 +53,7 @@ class EquilibriumProblem(_CompiledProblem):
 
     warm_start: LinearProblem = field(repr=False, compare=False)
     initial_wealth: np.ndarray = field(repr=False, compare=False)
+    subsidize_operating_losses: bool = field(default=True, kw_only=True)
     max_iterations: int = 1000
     rtol: float = 1e-9
     atol: float = 1e-8
@@ -60,6 +61,8 @@ class EquilibriumProblem(_CompiledProblem):
     def __post_init__(self) -> None:
         """Freeze wealth and validate equilibrium controls and alignment."""
         super().__post_init__()
+        if not isinstance(self.subsidize_operating_losses, (bool, np.bool_)):
+            raise TypeError("subsidize_operating_losses must be a boolean.")
         _validate_equilibrium_tolerances(self.rtol, self.atol)
         if (
             isinstance(self.max_iterations, (bool, np.bool_))
@@ -97,6 +100,7 @@ class EquilibriumProblem(_CompiledProblem):
             throughput_multipliers=self.throughput_multipliers,
             workforce_ratio=self.scenario.workforce_ratio,
             initial_wealth=self.initial_wealth,
+            subsidize_operating_losses=self.subsidize_operating_losses,
             max_iterations=self.max_iterations,
             rtol=self.rtol,
             atol=self.atol,
@@ -222,6 +226,18 @@ class _Search:
             self.last_error = error
             self.last_equilibrium = status
             self.last_inner_iterations = error.diagnostics.iterations
+            if status == "insufficient_income":
+                # The failed snapshot contains gross income and no tax paid.
+                # A relative funding gap guides restoration without making an
+                # unfunded trial competitive with any converged metric (whose
+                # transformed score lies in [-pi/2, pi/2]). Other failures keep
+                # the larger, constant pi penalty.
+                income = error.state.pop_income_before_tax
+                if income is not None:
+                    losses = float(error.state.building_deficit.sum())
+                    total_income = float(income.sum())
+                    if np.isfinite(losses) and losses > total_income >= 0:
+                        self.last_value = 2.0 + (losses - total_income) / losses
             return self.last_value
         value = -_metric(state, self.problem.scenario.objective)
         self.current_metric = -value
@@ -297,6 +313,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         scenario: Scenario,
         *,
         initial_wealth: np.ndarray | None = None,
+        subsidize_operating_losses: bool = True,
         max_iterations: int = 1000,
         rtol: float = 1e-9,
         atol: float = 1e-8,
@@ -306,6 +323,8 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         Supports ``gdp``, ``gdp_per_capita``, and ``average_wealth``. Household
         consumption is endogenous; imports and exports are fixed external orders.
         Goods-balance floors include trade and exclude household consumption.
+        ``subsidize_operating_losses`` funds losses through proportional taxes
+        on cooperative and dependent income, without guaranteeing payroll.
         """
         if scenario.objective not in ("gdp", "gdp_per_capita", "average_wealth"):
             raise ValueError(
@@ -349,6 +368,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
             equality_slices=warm_start.equality_slices,
             warm_start=warm_start,
             initial_wealth=initial_wealth,
+            subsidize_operating_losses=subsidize_operating_losses,
             max_iterations=max_iterations,
             rtol=rtol,
             atol=atol,
@@ -364,6 +384,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         options: Mapping[str, object] | None = None,
         log_every: int = 100,
         initial_wealth: np.ndarray | None = None,
+        subsidize_operating_losses: bool = True,
         max_iterations: int = 1000,
         rtol: float = 1e-9,
         atol: float = 1e-8,
@@ -373,6 +394,8 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         ``options`` accepts COBYLA's ``rhobeg``, ``tol``, ``catol``, ``disp``,
         and ``f_target`` plus a hard ``maxiter`` trial limit (default 20,000).
         ``max_iterations`` separately limits each household equilibrium solve.
+        ``subsidize_operating_losses`` enables income-tax-funded operating losses;
+        trials needing more than all household income are rejected.
         ``log_every`` sets the trial interval for INFO progress summaries when
         this module's logger is enabled; it must be a positive integer.
         See ``solve_problem`` for search termination and failure diagnostics.
@@ -380,6 +403,7 @@ class EquilibriumOptimizer(BaseOptimizer[EquilibriumProblem]):
         problem = self.compile(
             scenario,
             initial_wealth=initial_wealth,
+            subsidize_operating_losses=subsidize_operating_losses,
             max_iterations=max_iterations,
             rtol=rtol,
             atol=atol,
