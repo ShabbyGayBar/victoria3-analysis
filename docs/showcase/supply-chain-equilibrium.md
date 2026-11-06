@@ -131,7 +131,10 @@ contains:
   Trial totals follow the optimizer's counting convention: initialization counts,
   but final verification and separate baseline/starting-point evaluations do not.
 
-<!-- table-preview: artifacts/analyses/optimization/supply_chain_equilibrium/summary.csv | columns=annual_gdp,average_wealth,employment,trial_evaluations,search_success,equilibrium_status | rows=1 -->
+The committed snapshot was generated with the earlier `average_wealth`
+objective. Rerun the example to generate results with the current GDP objective.
+
+<!-- table-preview: artifacts/analyses/optimization/supply_chain_equilibrium/summary.csv | columns=objective,annual_gdp,average_wealth,employment,trial_evaluations,search_success,equilibrium_status | rows=1 -->
 
 [Download matrix](../artifacts/analyses/optimization/supply_chain_equilibrium/chain_matrix.csv)
 · [Download chain levels](../artifacts/analyses/optimization/supply_chain_equilibrium/chains.csv)

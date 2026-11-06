@@ -134,11 +134,14 @@ def test_saved_matrix_and_chain_levels_reproduce_building_report():
     assert summary.loc[0, "chain_count"] == len(chains)
     assert summary.loc[0, "configuration_count"] == len(matrix)
     assert summary.loc[0, "equilibrium_status"] == "converged"
-    assert summary.loc[0, "objective"] == "gdp"
-    final_gdp, initial_gdp = summary[["gdp_weekly", "initial_gdp_weekly"]].to_numpy(
+    # Saved snapshots retain the objective used when they were generated.
+    objective = summary.loc[0, "objective"]
+    assert objective in ("gdp", "average_wealth")
+    metric = "gdp_weekly" if objective == "gdp" else "average_wealth"
+    final_value, initial_value = summary[[metric, f"initial_{metric}"]].to_numpy(
         dtype=float
     )[0]
-    assert final_gdp >= initial_gdp
+    assert final_value >= initial_value
 
 
 def test_selected_recipes_preserve_fixed_order_and_skip_other_columns(

@@ -291,7 +291,7 @@ def run(
         ),
     )
     scenario = Scenario(
-        objective="average_wealth",
+        objective="gdp",
         employment_cap=1_000_000,
         workforce_ratio=0.4,
         banned_building_groups=DEFAULT_BANNED_BGS,

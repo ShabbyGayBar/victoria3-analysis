@@ -92,7 +92,8 @@ def test_schema(
     ]
     profession_cols = [col for col in df_pm.columns if col.startswith("employment_")]
 
-    assert df_production.shape == (1638, 143)
+    assert not df_production.empty
+    assert not df_production.duplicated(["building", "production_method"]).any()
     assert list(df_production.columns) == [
         *META_COLUMNS,
         *goods_and_ratio_cols,

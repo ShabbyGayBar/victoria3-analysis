@@ -261,6 +261,7 @@ writing new files. The companion `buildings.csv` uses the
 | `objective` | String / category | Scenario objective, currently `average_wealth`. | Older snapshots may use `gdp`; GDP remains a reported metric. |
 | `employment_cap` | Integer / workers | Upper bound on employed workers, 1,000,000. | Does not require full employment. |
 | `workforce_ratio` | Float / fraction | Workers divided by total population, 0.4. | Shared uniformly across households. |
+| `subsidize_operating_losses` | Boolean | Whether a uniform household income tax funds operating losses. | Defaults to true; applies to every equilibrium evaluation, including saved baselines and restarts. |
 | `banned_building_groups` | String / identifiers | Semicolon-separated `DEFAULT_BANNED_BGS`. | Excluded configurations have zero levels. |
 | `min_net_infrastructure` | Float or empty / infrastructure units | Scenario minimum infrastructure generation minus consumption. | Empty in both equilibrium examples: infrastructure is unconstrained. If configured elsewhere, zero prevents deficits; positive values require surplus; negative values allow a bounded deficit. |
 | `min_net_infrastructure_usage` | Float / infrastructure units | Historical minimum consumption minus generation. | Present only in older snapshots. Replaced by `min_net_infrastructure`, which uses the opposite sign convention; the old name is no longer a scenario parameter. |

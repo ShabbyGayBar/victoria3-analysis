@@ -298,7 +298,7 @@ all goods' graphs and snapshots in memory.
 | `analyses/supply_chains/era_3_construction/<good>/` | Detailed files below for successful solves |
 | `analyses/supply_chains/era_5_automation/<good>/` | Same reports, plots, and diagrams |
 | `analyses/supply_chains/cangshulun/<good>/` | Same reports, plots, and diagrams |
-| `analyses/supply_chains/<configuration>/` | `summary.csv`, combining that configuration's selected goods |
+| `analyses/supply_chains/<configuration>/` | `summary.csv`, combining that configuration's selected goods, and `building_levels.csv`, the complete production-unit levels for each selected good |
 | `analyses/supply_chains/comparison/` | `summary.csv`, `pop.svg`, `construction_points.svg`, `gdp_per_capita.svg`, covering all selected goods and presets |
 | `analyses/supply_chains/cangshulun_video/` | Latest complete `summary.csv` and frozen selected-column `summary_1.12.csv`; ordinary generation updates only `summary.csv` |
 
@@ -317,3 +317,7 @@ shared with the video export. The other detailed CSVs retain their
 public report schemas. Cross-good summaries sit at configuration level.
 A selected-good run replaces the configuration summaries and combined
 comparison with that run's selection; other goods' directories remain.
+Each configuration's `building_levels.csv` is also replaced for that selection.
+Its first column, `config`, identifies the building and PM combination, followed
+by one column per selected good. Unused production units have zero levels;
+failed solves have blank cells throughout their good's column.
