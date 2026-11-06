@@ -1,0 +1,3215 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Building, market, population, and optimization report columns.">
+      
+      
+      
+        <link rel="canonical" href="https://shabbygaybar.github.io/victoria3-analysis/data-dictionary/economy/">
+      
+      
+        <link rel="prev" href="../production/">
+      
+      
+        <link rel="next" href="../supply-chain/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Economy reports - Victoria 3 Analysis</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#economy-reports" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Victoria 3 Analysis" class="md-header__button md-logo" aria-label="Victoria 3 Analysis" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m16 11.78 4.24-7.33 1.73 1-5.23 9.05-6.51-3.75L5.46 19H22v2H2V3h2v14.54L9.5 8z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Victoria 3 Analysis
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Economy reports
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="deep-orange"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ShabbyGayBar/victoria3-analysis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ShabbyGayBar/victoria3-analysis
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../showcase/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Showcase
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Data dictionary
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../roadmap/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Victoria 3 Analysis" class="md-nav__button md-logo" aria-label="Victoria 3 Analysis" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m16 11.78 4.24-7.33 1.73 1-5.23 9.05-6.51-3.75L5.46 19H22v2H2V3h2v14.54L9.5 8z"/></svg>
+
+    </a>
+    Victoria 3 Analysis
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ShabbyGayBar/victoria3-analysis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ShabbyGayBar/victoria3-analysis
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsing game data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../showcase/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Showcase
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Showcase
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/parsed-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsed data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/production-unit-rankings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-unit rankings (Chinese, 1.15)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/buy-packages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Buy packages (1.15)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/supply-chains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/resource-limited-optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Resource-limited optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/equilibrium-optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Equilibrium optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/supply-chain-equilibrium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain equilibrium
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data dictionary
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data dictionary
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parser outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production configurations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy reports
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot ownership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historical-building-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Historical building registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-flows-and-cooperative-income" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State flows and cooperative income
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#household-consumption-calculations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Household consumption calculations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#equilibrium-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Equilibrium diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#market-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#population-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Population report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#equilibrium-optimization-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Equilibrium optimization summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#japan-optimization-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Japan optimization comparison
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Japan optimization comparison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-columns-in-the-committed-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional columns in the committed snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supply-chain-equilibrium-exports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supply-chain equilibrium exports
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/parsing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parsing and utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/economy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy and production
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply chains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/economy-dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Economy dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/supply-chain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supply-chain design references
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repository structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot ownership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#historical-building-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Historical building registry
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-flows-and-cooperative-income" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State flows and cooperative income
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#household-consumption-calculations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Household consumption calculations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#equilibrium-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Equilibrium diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#market-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Market report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#population-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Population report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#equilibrium-optimization-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Equilibrium optimization summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#japan-optimization-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Japan optimization comparison
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Japan optimization comparison">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-columns-in-the-committed-snapshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional columns in the committed snapshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supply-chain-equilibrium-exports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supply-chain equilibrium exports
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Data dictionary
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="economy-reports">Economy reports<a class="headerlink" href="#economy-reports" title="Permanent link">&para;</a></h1>
+<p>These reports export a supplied <code>EconomyState</code>; they do not solve a new
+scenario. Totals include the entire modeled economy. Monetary values use its
+state prices, which are base prices in nominal mode and national market prices
+in market and equilibrium modes. See <a href="../">shared conventions</a>.</p>
+<h2 id="snapshot-ownership">Snapshot ownership<a class="headerlink" href="#snapshot-ownership" title="Permanent link">&para;</a></h2>
+<p><code>EconomyState</code> composes <code>context: EconomyContext</code>, <code>market: MarketState</code>, and
+<code>households: PopState</code>. Flat reads forward to these components. Market and
+complete state reference the exact same context object; replacing only market
+or household results shares the fixed arrays.</p>
+<table>
+<thead>
+<tr>
+<th>Owner</th>
+<th>Stored quantities</th>
+<th>Derived quantities</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EconomyContext</code></td>
+<td>Building levels, realized flows, gross imports and exports, worker counts, workforce ratio</td>
+<td>Net trade, input/output totals, sell orders, industrial/export orders, population totals</td>
+</tr>
+<tr>
+<td><code>MarketState</code></td>
+<td>Shared context and prices</td>
+<td>Building surplus/deficit, GDP</td>
+</tr>
+<tr>
+<td><code>PopState</code></td>
+<td>Wealth, demand, optional weekly income/expenses</td>
+<td>Weekly balance (<code>income - expenses</code>), or <code>None</code> when either is absent</td>
+</tr>
+<tr>
+<td><code>EconomyState</code></td>
+<td>Component references, optional equilibrium diagnostics</td>
+<td>Total buy orders, wealth summaries, per-capita reports</td>
+</tr>
+</tbody>
+</table>
+<p><code>EconomyState.pop_buy_orders</code> forwards to the read-only, goods-aligned
+<code>PopState.pop_buy_orders</code> array of weekly household demand. Total <code>buy_orders</code>
+adds these population orders to <code>non_pop_buy_orders</code>.</p>
+<p>Prepared context fields default to <code>None</code>: <code>goods_buy_packages</code> is an immutable
+<code>GoodsBuyPackages</code> object whose read-only <code>quantities</code> array is wealth-by-goods float64
+in <code>goods_index</code> column order, and whose read-only <code>wealth</code> array contains
+ascending positive int64 wealth labels;
+<code>consumption_scales</code> is read-only float64, shaped like worker counts.
+<code>prepare_context()</code> fills missing fields explicitly. Nominal/market solving
+leaves these and household finances unevaluated. <code>Economy.df_buy_packages</code>
+continues to hold raw category budgets, distinct from prepared goods quantities.</p>
+<p><code>goods_buy_packages()</code> returns the same <code>GoodsBuyPackages</code> representation, reusing
+prepared baskets when available. <code>df_goods_buy_packages(source)</code> exports a state,
+context, or basket object as an independent DataFrame: an ascending int64 index
+named <code>wealth</code>, and float64 goods-quantity columns in <code>goods_index</code> order.</p>
+<h2 id="building-registry">Building registry<a class="headerlink" href="#building-registry" title="Permanent link">&para;</a></h2>
+<p><code>Economy.df_buildings(state)</code> returns one row per configuration with level
+strictly greater than zero, sorted by <code>level</code> descending. It does not aggregate
+different configurations of the same building type. The returned DataFrame is
+independent and mutable; editing it does not change the economy or state.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>building</code></td>
+<td>String / building key</td>
+<td>Building key from the aligned production-table row.</td>
+<td>Replaces the building portion of the former combined <code>key</code> column.</td>
+</tr>
+<tr>
+<td><code>production_method</code></td>
+<td>String / PM combination</td>
+<td>Complete production-method combination from the aligned production-table row.</td>
+<td>Multiple PM keys remain joined by <code>+</code>; configurations are not aggregated.</td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td>Float / building levels</td>
+<td>Solved level for that configuration.</td>
+<td>Fractional levels are allowed; zero/negative levels are filtered out.</td>
+</tr>
+<tr>
+<td><code>construction_cost</code></td>
+<td>Float / construction points</td>
+<td>Per-level construction coefficient times <code>level</code>.</td>
+<td>Zero-cost configurations can have positive levels.</td>
+</tr>
+<tr>
+<td><code>building_surplus</code></td>
+<td>Float / £ per week</td>
+<td><code>state.building_surplus</code>: realized goods value added before wages at state prices.</td>
+<td>Negative values are retained.</td>
+</tr>
+<tr>
+<td><code>profit_per_capita</code></td>
+<td>Float / £ per worker per week</td>
+<td><code>building_surplus / employment</code>.</td>
+<td>Excludes dependents regardless of <code>workforce_ratio</code>; NaN for zero employment.</td>
+</tr>
+<tr>
+<td><code>employment</code></td>
+<td>Float / workers</td>
+<td>Row sum of <code>state.pops</code>.</td>
+<td>Realized total across all professions.</td>
+</tr>
+<tr>
+<td><code>goods_&lt;good&gt;</code></td>
+<td>Float / units per week</td>
+<td>Aligned column of <code>state.building_goods_flow</code>.</td>
+<td>Positive outputs, negative inputs; already includes levels and throughput.</td>
+</tr>
+<tr>
+<td><code>employment_&lt;profession&gt;</code></td>
+<td>Float / workers</td>
+<td>Aligned column of <code>state.pops</code>.</td>
+<td>Already includes building levels; excludes dependents.</td>
+</tr>
+</tbody>
+</table>
+<p>Columns follow the order above, with all <code>goods_&lt;good&gt;</code> columns in
+<code>Economy.goods_index</code> order, then all <code>employment_&lt;profession&gt;</code> columns in
+<code>Economy.pop_index</code> order. Entirely zero columns are retained, including when
+the report has no rows. Building and PM columns use game keys rather than
+localized names; the former combined <code>key</code> column is removed.</p>
+<h2 id="historical-building-registry">Historical building registry<a class="headerlink" href="#historical-building-registry" title="Permanent link">&para;</a></h2>
+<p>The committed <code>artifacts/analyses/optimization/equilibrium/buildings.csv</code>
+uses the earlier three-column schema: <code>key</code>, <code>level</code>, and <code>construction_cost</code>.
+Level and construction cost retain the meanings above. New exports use the
+expanded <a href="#building-registry">building registry</a> schema.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>String / configuration identifier</td>
+<td><code>building + "+" + production_method</code> from <code>Economy.building_index</code>.</td>
+<td>Historical snapshot only; current reports provide separate building and PM columns.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="state-flows-and-cooperative-income">State flows and cooperative income<a class="headerlink" href="#state-flows-and-cooperative-income" title="Permanent link">&para;</a></h2>
+<p><code>EconomyContext.goods_import</code> and <code>goods_export</code> are read-only float64 vectors
+aligned to <code>goods_index</code>, holding non-negative weekly gross trade quantities.
+A good may have both import and export orders. <code>EconomyState</code> forwards both
+arrays; <code>imports</code> and <code>exports</code> alias the respective arrays on context and state.
+The cached read-only <code>goods_trade_flow</code> vector is <code>goods_import - goods_export</code>.
+Market orders use the gross quantities independently.</p>
+<p><code>EconomyState.building_goods_flow</code> is a read-only float64 matrix with rows
+aligned to <code>building_index</code> and columns to <code>goods_index</code>. Values are realized
+weekly signed quantities after building levels, throughput, and economy of
+scale: positive for outputs and negative for inputs. Aggregate input/output
+attributes are derived from this matrix. The flow matrix is owned by
+<code>EconomyContext</code>; aggregate inputs/outputs are cached there, while financial
+aggregates are cached on <code>MarketState</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Attribute / result</th>
+<th>Shape / unit</th>
+<th>Meaning / calculation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>building_goods_input</code></td>
+<td>Goods / units per week</td>
+<td><code>maximum(-building_goods_flow, 0).sum(axis=0)</code>.</td>
+</tr>
+<tr>
+<td><code>building_goods_output</code></td>
+<td>Goods / units per week</td>
+<td><code>maximum(building_goods_flow, 0).sum(axis=0)</code>.</td>
+</tr>
+<tr>
+<td><code>building_surplus</code></td>
+<td>Configurations / £ per week</td>
+<td><code>building_goods_flow @ market_prices</code>, value added before wages; may be negative.</td>
+</tr>
+<tr>
+<td><code>building_deficit</code></td>
+<td>Configurations / £ per week</td>
+<td><code>maximum(-building_surplus, 0)</code>, operating losses before subsidies.</td>
+</tr>
+<tr>
+<td><code>pop_income(state)</code></td>
+<td>Configurations × professions / £ per week</td>
+<td>Positive surplus allocated by <code>pops * wage_weight</code>, plus <code>pops * dependents_per_worker * dependent_wage / 52</code>; household totals, not per-worker rates.</td>
+</tr>
+</tbody>
+</table>
+<p>The four state properties are cached, owned, read-only float64 arrays. Signs
+are split before aggregation to retain opposing flows between configurations;
+within-row flows retain the production table's signed-net convention.</p>
+<p>The income calculation returns a fresh writable matrix. It includes professions
+regardless of <code>paid_private_wage</code>, pays zero wages on zero/negative surplus, and
+does not pool configurations. Positive surplus with zero total recipient weight
+raises <code>ValueError</code>. With subsidies disabled, deficits have no funding source. Dependent earnings
+are exogenous and do not alter building surplus or production GDP. Missing
+dependent wages mean zero. Income excludes transfers, reserves, and subsistence
+income, and is untaxed unless operating-loss subsidies are enabled; it does not update
+<code>pop_balance</code> or wealth.</p>
+<h2 id="household-consumption-calculations">Household consumption calculations<a class="headerlink" href="#household-consumption-calculations" title="Permanent link">&para;</a></h2>
+<p>Let <code>s_ij = pops_ij / 10_000 * consumption_mult_j * (1 + 0.5 * dependents_per_worker)</code>
+and <code>Q_wg</code> be the <code>quantities</code> matrix from <code>goods_buy_packages(state)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Result</th>
+<th>Shape / unit</th>
+<th>Meaning / calculation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pop_consumption_scales(state)</code></td>
+<td>Configurations × professions / dimensionless</td>
+<td><code>s_ij</code>, multiples of a weekly basket for 10,000 standard workers. Missing profession multipliers default to one.</td>
+</tr>
+<tr>
+<td><code>pop_buy_orders(state, ...)</code></td>
+<td>Goods / units per week</td>
+<td><code>sum_ij(s_ij * Q[pop_wealth_ij, g])</code>.</td>
+</tr>
+<tr>
+<td><code>pop_expenses(state, ...)</code></td>
+<td>Configurations × professions / £ per week</td>
+<td><code>s_ij * sum_g(Q[pop_wealth_ij, g] * market_prices_g)</code>, household totals.</td>
+</tr>
+</tbody>
+</table>
+<p>All three return independent writable float64 arrays. Needs and expenses accept
+optional <code>goods_buy_packages: GoodsBuyPackages | None</code> and <code>consumption_scales</code>, independently. Each resolves
+explicit arguments first, then prepared context values, then calculation.
+Supplied scales
+are authoritative and already include all population factors; they must match
+the population shape, be finite and nonnegative, and be zero for empty cells.
+Unused profession multipliers are not validated when scales are supplied.
+Occupied cells require a basket even when their scale is zero; empty cells
+have zero expenses and need no defined wealth tier.</p>
+<p>Scales can be reused while population assumptions are fixed; baskets can be
+reused while production, trade, and substitution assumptions are fixed. Both
+allow wealth and market prices to change. Supplied baskets skip validation of
+unused goods flows, base prices, and raw need/package definitions. Expenses use
+finite nonnegative market prices, including zero. Non-finite calculated results
+are errors.</p>
+<p>Total expenses equal population demand valued at market prices when using the
+same inputs. These helpers do not update the state; compute weekly balances as
+<code>pop_income(state) - pop_expenses(state)</code>. Expenses exclude
+taxes, rationing, affordability restrictions, and wealth transitions.</p>
+<h2 id="equilibrium-diagnostics">Equilibrium diagnostics<a class="headerlink" href="#equilibrium-diagnostics" title="Permanent link">&para;</a></h2>
+<p><code>EconomyState.equilibrium_diagnostics</code> is <code>None</code> for nominal/market solves and
+manually composed snapshots unless explicitly supplied. Equilibrium successes
+and <code>EquilibriumError.state</code> carry immutable <code>EquilibriumDiagnostics</code>.
+<code>error.diagnostics</code> is the same object as on its retained state. All demand,
+prices, wealth, income, expenses, and balances in that state describe the same
+evaluation. Runtime calculation errors retain the preceding complete evaluation
+and chain the original error.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type / unit</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td>String</td>
+<td><code>converged</code>, <code>cycle</code>, <code>max_iterations</code>, <code>evaluation_failed</code>, <code>verification_failed</code>, or <code>insufficient_income</code>.</td>
+</tr>
+<tr>
+<td><code>iterations</code></td>
+<td>Integer / transition steps</td>
+<td>Completed transitions after initialization; excludes final verification. Initially stable wealth reports zero.</td>
+</tr>
+<tr>
+<td><code>increasing_cells</code></td>
+<td>Tuple of integer pairs</td>
+<td>Occupied configuration/profession coordinates requiring a permitted increase.</td>
+</tr>
+<tr>
+<td><code>decreasing_cells</code></td>
+<td>Tuple of integer pairs</td>
+<td>Occupied configuration/profession coordinates requiring a permitted decrease.</td>
+</tr>
+<tr>
+<td><code>unaffordable_floor_cells</code></td>
+<td>Tuple of integer pairs</td>
+<td>Occupied minimum-tier households below the lower affordability threshold; downward changes are blocked.</td>
+</tr>
+<tr>
+<td><code>loss_buildings</code></td>
+<td>Tuple of integers</td>
+<td>Configuration indices with unfunded losses exceeding <code>atol + rtol * max(output_value, input_value)</code>; empty when all operating losses are subsidized.</td>
+</tr>
+<tr>
+<td><code>cycle_start</code></td>
+<td>Integer or <code>None</code> / iteration index</td>
+<td>First appearance of the repeated wealth assignment, counting initialization as zero.</td>
+</tr>
+<tr>
+<td><code>cycle_length</code></td>
+<td>Integer or <code>None</code> / transition steps</td>
+<td>Detected cycle period; only populated with <code>cycle_start</code> for cycles.</td>
+</tr>
+</tbody>
+</table>
+<p>Coordinates use <code>Economy.building_index</code> and <code>Economy.pop_index</code> in row-major
+order. Loss values follow the current signed-net production-flow convention
+and use weekly pounds; household affordability uses weekly group totals.
+<code>converged</code> means no permitted wealth changes remain, including at boundaries.
+It does not guarantee affordability or self-financing buildings: the two
+financial flags do not change success status. Setup and initial-evaluation
+errors other than insufficient income raise <code>ValueError</code> without a partial result.</p>
+<p>Equilibrium solves, optimizers, and direct contexts default to
+<code>subsidize_operating_losses=True</code>; pass <code>False</code> to disable the policy. Nominal and
+market solves default to disabled. With the policy enabled, <code>pop_income</code> is disposable income after
+the uniform tax funding all operating losses. The optional <code>pop_income_tax</code>
+matrix stores weekly household taxes, and <code>pop_income_before_tax</code> derives gross
+income as income plus tax. All three follow configuration × profession order;
+the tax includes dependent earnings. Evaluated untaxed snapshots store zero
+taxes; unevaluated snapshots use <code>None</code>. The context retains the policy flag.
+<code>Economy.pop_income_tax(state)</code> recalculates taxes without modifying the state.</p>
+<p>An <code>insufficient_income</code> error occurs when losses exceed total gross income.
+Unlike other initial evaluation errors, it carries the failing snapshot even at
+initialization. This unsuccessful snapshot records pre-tax income and zero tax
+collected. Its iteration count identifies the failing wealth assignment.</p>
+<h2 id="market-report">Market report<a class="headerlink" href="#market-report" title="Permanent link">&para;</a></h2>
+<p><code>Economy.df_market(state)</code> returns one row per good with positive sell <strong>or</strong>
+buy orders, sorted by sell orders descending. Goods quantities are weekly;
+they include throughput effects already applied to the state. “Gross” input
+and output totals are reconstructed from production-table net coefficients.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>goods</code></td>
+<td>String / identifier</td>
+<td>Good key aligned with <code>Economy.goods_index</code>.</td>
+<td>Includes only goods surviving the order filter.</td>
+</tr>
+<tr>
+<td><code>market_prices</code></td>
+<td>Float / £ per goods unit</td>
+<td>Price in the supplied state.</td>
+<td>Base price in nominal mode; market mode derives it from buy/sell orders.</td>
+</tr>
+<tr>
+<td><code>market_prices_variance</code></td>
+<td>Float / percent price change</td>
+<td><code>100 * (market_prices / base_prices - 1)</code>.</td>
+<td><code>20</code> means +20%; not statistical variance. Ordinary division at zero base price.</td>
+</tr>
+<tr>
+<td><code>sell_orders</code></td>
+<td>Float / goods units per week</td>
+<td><code>building_goods_output + imports</code>.</td>
+<td>Zero is valid when only buy orders are positive.</td>
+</tr>
+<tr>
+<td><code>buy_orders</code></td>
+<td>Float / goods units per week</td>
+<td><code>building_goods_input + exports + pop_needs</code>.</td>
+<td>Zero is valid when only sell orders are positive.</td>
+</tr>
+<tr>
+<td><code>building_goods_input</code></td>
+<td>Float / goods units per week</td>
+<td>Sum of configuration levels times adjusted nonnegative input coefficients.</td>
+<td>Positive consumption magnitude, unlike signed production-table goods columns.</td>
+</tr>
+<tr>
+<td><code>building_goods_output</code></td>
+<td>Float / goods units per week</td>
+<td>Sum of configuration levels times adjusted nonnegative output coefficients.</td>
+<td>Positive production magnitude.</td>
+</tr>
+<tr>
+<td><code>imports</code></td>
+<td>Float / goods units per week</td>
+<td>The good's <code>state.goods_import</code> quantity.</td>
+<td>Non-negative; may coexist with exports.</td>
+</tr>
+<tr>
+<td><code>exports</code></td>
+<td>Float / goods units per week</td>
+<td>The good's <code>state.goods_export</code> quantity.</td>
+<td>Non-negative; may coexist with imports.</td>
+</tr>
+<tr>
+<td><code>pop_needs</code></td>
+<td>Float / goods units per week</td>
+<td>Population-demand orders from <code>state.pop_buy_orders</code>.</td>
+<td>Zero in nominal/market solves; calculated from wealth baskets by household evaluation and equilibrium solving.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="population-report">Population report<a class="headerlink" href="#population-report" title="Permanent link">&para;</a></h2>
+<p><code>Economy.df_pop(state)</code> returns one row per profession with positive employment,
+sorted by employment descending and with its index reset. Let <code>n_ij</code> be workers
+of profession <code>j</code> in configuration <code>i</code>, and <code>w_ij</code> their stored wealth level.
+Let <code>r = state.workforce_ratio</code> and <code>d = state.dependents_per_worker = (1-r)/r</code>.
+<code>total_employment</code> sums workers; <code>total_population</code> divides that sum by <code>r</code>.
+Both direct contexts and <code>solve()</code> default to <code>r=1.0</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>profession</code></td>
+<td>String / identifier</td>
+<td>Profession key aligned with <code>Economy.pop_index</code>.</td>
+<td>Zero-employment professions are omitted.</td>
+</tr>
+<tr>
+<td><code>employment</code></td>
+<td>Float / workers</td>
+<td><code>sum_i(n_ij)</code>.</td>
+<td>Includes the whole system, not just one terminal chain.</td>
+</tr>
+<tr>
+<td><code>employment_share</code></td>
+<td>Float / fraction</td>
+<td>Profession employment divided by all modeled employment.</td>
+<td>State returns zeros for zero total employment; such a report has no positive-employment rows.</td>
+</tr>
+<tr>
+<td><code>dependents</code></td>
+<td>Float / people</td>
+<td><code>sum_i(n_ij) * d</code>.</td>
+<td>Derived using the same economy-wide ratio for every profession.</td>
+</tr>
+<tr>
+<td><code>population</code></td>
+<td>Float / people</td>
+<td><code>sum_i(n_ij) / r</code>.</td>
+<td>Workers plus dependents.</td>
+</tr>
+<tr>
+<td><code>avg_wealth</code></td>
+<td>Float / wealth level</td>
+<td><code>sum_i(w_ij * n_ij) / sum_i(n_ij)</code>.</td>
+<td>State returns zero for a profession without employment. Nominal/market modes use starting tiers; equilibrium mode iterates them.</td>
+</tr>
+<tr>
+<td><code>total_wealth</code></td>
+<td>Float / population-weighted wealth levels</td>
+<td><code>sum_i(w_ij * n_ij) / r</code>.</td>
+<td>Dependents share household wealth; not a stock of money or GDP.</td>
+</tr>
+<tr>
+<td><code>pop_balance</code></td>
+<td>Float / £ per week</td>
+<td>Sum of derived household income minus expenses over configurations for this profession.</td>
+<td><code>NaN</code> until both income and expenses are supplied on <code>PopState</code>; nominal and market solves leave them as <code>None</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><code>state.average_wealth_by_profession</code> contains profession averages, while
+<code>state.total_wealth_by_profession</code> caches employment-weighted wealth sums,
+excluding dependents. The report divides those sums by the workforce ratio for
+its population-weighted <code>total_wealth</code> column. Because dependents share household
+wealth and the workforce ratio is
+uniform, <code>state.average_wealth</code> equals total wealth divided by total population
+and supplies <code>state.wealth_distribution["mean"]</code>. Both return zero for an empty
+population.</p>
+<h2 id="equilibrium-optimization-summary">Equilibrium optimization summary<a class="headerlink" href="#equilibrium-optimization-summary" title="Permanent link">&para;</a></h2>
+<p><code>examples/optimize_equilibrium.py</code> writes one row per completed local search to
+<code>artifacts/analyses/optimization/equilibrium/summary.csv</code>, including the worse
+attempt that ends iteration. The current objective is average wealth. A resumed
+invocation includes iteration zero for the re-evaluated saved solution, with
+empty search diagnostics. <code>is_best</code> identifies the earliest highest-objective
+state exported in the solution files. Each local search gets a fresh trial
+budget; equal objectives continue until a strict decrease or the optional
+iteration cap. A budget-limited search may return a verified state with an
+unsuccessful search status. Validation and equilibrium errors propagate without
+writing new files. The companion <code>buildings.csv</code> uses the
+<a href="#building-registry">building registry</a> schema above.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>objective</code></td>
+<td>String / category</td>
+<td>Scenario objective, currently <code>average_wealth</code>.</td>
+<td>Older snapshots may use <code>gdp</code>; GDP remains a reported metric.</td>
+</tr>
+<tr>
+<td><code>employment_cap</code></td>
+<td>Integer / workers</td>
+<td>Upper bound on employed workers, 1,000,000.</td>
+<td>Does not require full employment.</td>
+</tr>
+<tr>
+<td><code>workforce_ratio</code></td>
+<td>Float / fraction</td>
+<td>Workers divided by total population, 0.4.</td>
+<td>Shared uniformly across households.</td>
+</tr>
+<tr>
+<td><code>subsidize_operating_losses</code></td>
+<td>Boolean</td>
+<td>Whether a uniform household income tax funds operating losses.</td>
+<td>Defaults to true; applies to every equilibrium evaluation, including saved baselines and restarts.</td>
+</tr>
+<tr>
+<td><code>banned_building_groups</code></td>
+<td>String / identifiers</td>
+<td>Semicolon-separated <code>DEFAULT_BANNED_BGS</code>.</td>
+<td>Excluded configurations have zero levels.</td>
+</tr>
+<tr>
+<td><code>min_net_infrastructure</code></td>
+<td>Float or empty / infrastructure units</td>
+<td>Scenario minimum infrastructure generation minus consumption.</td>
+<td>Empty in both equilibrium examples: infrastructure is unconstrained. If configured elsewhere, zero prevents deficits; positive values require surplus; negative values allow a bounded deficit.</td>
+</tr>
+<tr>
+<td><code>min_net_infrastructure_usage</code></td>
+<td>Float / infrastructure units</td>
+<td>Historical minimum consumption minus generation.</td>
+<td>Present only in older snapshots. Replaced by <code>min_net_infrastructure</code>, which uses the opposite sign convention; the old name is no longer a scenario parameter.</td>
+</tr>
+<tr>
+<td><code>min_goods_balance</code></td>
+<td>Float or empty / weekly goods units</td>
+<td>Minimum building output + imports − building inputs − exports, for every good.</td>
+<td>Excludes household consumption; empty means <code>None</code>, disabling the floor.</td>
+</tr>
+<tr>
+<td><code>throughput_multiplier</code></td>
+<td>Float / multiplier</td>
+<td>Common fixed multiplier, 1.0.</td>
+<td>No throughput bonus.</td>
+</tr>
+<tr>
+<td><code>economy_of_scale_level_cap</code></td>
+<td>Float / building levels</td>
+<td>Economy-of-scale cap, zero.</td>
+<td>Level-dependent bonuses are disabled.</td>
+</tr>
+<tr>
+<td><code>configuration_count</code></td>
+<td>Integer / configurations</td>
+<td>Number of configurations in the selected production basis.</td>
+<td>Includes configurations with zero returned levels.</td>
+</tr>
+<tr>
+<td><code>construction_cost</code></td>
+<td>Float / construction points</td>
+<td>Model construction cost at this row's returned levels.</td>
+<td>Uses the current production coefficients.</td>
+</tr>
+<tr>
+<td><code>arable_land_consumption</code></td>
+<td>Float / land units</td>
+<td>Model arable-land consumption at this row's returned levels.</td>
+<td>No arable-land cap is added by this example.</td>
+</tr>
+<tr>
+<td><code>max_evaluations</code></td>
+<td>Integer / trials</td>
+<td>Requested hard budget for each local search.</td>
+<td>Separate starting-point/baseline evaluations and final verification are additional solves.</td>
+</tr>
+<tr>
+<td><code>initial_equilibrium_status</code></td>
+<td>String / category</td>
+<td><code>converged</code> or <code>insufficient_income</code> for the starting mix.</td>
+<td>An unfunded start is passed to the optimizer without accepting it as a valid baseline.</td>
+</tr>
+<tr>
+<td><code>initial_gdp_weekly</code></td>
+<td>Float / £ per week</td>
+<td>GDP at this search's initial mix after household equilibrium.</td>
+<td>Empty for an unfunded start, as are initial annual GDP and average wealth. Uses the same scenario and wealth seed as search trials; baseline rows use their own state.</td>
+</tr>
+<tr>
+<td><code>initial_annual_gdp</code></td>
+<td>Float / £ per year</td>
+<td><code>52 * initial_gdp_weekly</code>.</td>
+<td>Baseline for comparison with the final state.</td>
+</tr>
+<tr>
+<td><code>gdp_weekly</code></td>
+<td>Float / £ per week</td>
+<td>This row's returned equilibrium GDP.</td>
+<td>Selection uses the scenario objective, which may differ from GDP.</td>
+</tr>
+<tr>
+<td><code>annual_gdp</code></td>
+<td>Float / £ per year</td>
+<td><code>52 * gdp_weekly</code>.</td>
+<td>Includes all modeled production.</td>
+</tr>
+<tr>
+<td><code>employment</code></td>
+<td>Float / workers</td>
+<td>Returned state's total employed workers.</td>
+<td>At most the cap within solver tolerance.</td>
+</tr>
+<tr>
+<td><code>population</code></td>
+<td>Float / people</td>
+<td><code>employment / workforce_ratio</code>.</td>
+<td>Includes dependents.</td>
+</tr>
+<tr>
+<td><code>gdp_per_capita</code></td>
+<td>Float / £ per person per year</td>
+<td>Annual GDP divided by total population.</td>
+<td>Zero for an empty population.</td>
+</tr>
+<tr>
+<td><code>average_wealth</code></td>
+<td>Float / wealth tier</td>
+<td>Population-weighted household wealth tier.</td>
+<td>Equal to employment-weighted wealth with a uniform workforce ratio.</td>
+</tr>
+<tr>
+<td><code>net_infrastructure_usage</code></td>
+<td>Float / infrastructure units</td>
+<td>Consumption minus generation: levels dotted with the model infrastructure vector.</td>
+<td>Diagnostic in both equilibrium examples; positive values are permitted. When a minimum is configured elsewhere, at most <code>-min_net_infrastructure</code> within solver tolerance.</td>
+</tr>
+<tr>
+<td><code>search_success</code></td>
+<td>Boolean</td>
+<td>Optimizer search success flag.</td>
+<td>Can be false for a saved, converged household equilibrium.</td>
+</tr>
+<tr>
+<td><code>search_status</code></td>
+<td>Integer / code</td>
+<td>Optimizer termination code.</td>
+<td>Interpret together with <code>search_message</code>.</td>
+</tr>
+<tr>
+<td><code>search_message</code></td>
+<td>String / diagnostic text</td>
+<td>Search termination message.</td>
+<td>Explicitly reports budget exhaustion.</td>
+</tr>
+<tr>
+<td><code>trial_evaluations</code></td>
+<td>Integer / trials</td>
+<td>Optimizer <code>result.nfev</code>.</td>
+<td>Includes rejected physical trials; consecutive repeated points reuse a score.</td>
+</tr>
+<tr>
+<td><code>equilibrium_evaluations</code></td>
+<td>Integer / inner attempts</td>
+<td>Household solves attempted by the search.</td>
+<td>Excludes the separate baseline and final verification.</td>
+</tr>
+<tr>
+<td><code>failed_equilibrium_evaluations</code></td>
+<td>Integer / inner failures</td>
+<td>Sum of trial equilibrium failures across diagnostic statuses.</td>
+<td>Failed trials are skipped while search continues.</td>
+</tr>
+<tr>
+<td><code>equilibrium_status</code></td>
+<td>String / category</td>
+<td>Household solver status for the returned state.</td>
+<td>Always <code>converged</code> in a saved result.</td>
+</tr>
+<tr>
+<td><code>equilibrium_iterations</code></td>
+<td>Integer / transitions</td>
+<td>Household transition steps in the fresh final solve.</td>
+<td>Initialization and final accounting verification are excluded.</td>
+</tr>
+<tr>
+<td><code>loss_buildings_count</code></td>
+<td>Integer / configurations</td>
+<td>Number of materially loss-making configurations.</td>
+<td>A financial flag, without implicit financing.</td>
+</tr>
+<tr>
+<td><code>unaffordable_floor_cells_count</code></td>
+<td>Integer / household cells</td>
+<td>Number of configuration/profession cells unable to afford the lowest tier.</td>
+<td>A financial flag that does not prevent numerical convergence.</td>
+</tr>
+<tr>
+<td><code>iteration</code></td>
+<td>Integer / searches</td>
+<td>One-based local-search number.</td>
+<td>Zero identifies the re-evaluated saved baseline on resume.</td>
+</tr>
+<tr>
+<td><code>initialization</code></td>
+<td>String / category</td>
+<td><code>equal_configurations</code>, <code>saved_solution</code>, or <code>previous_iteration</code>.</td>
+<td>The fresh initial mix scales equal allowed configuration levels to the employment cap without balancing infrastructure.</td>
+</tr>
+<tr>
+<td><code>initial_average_wealth</code></td>
+<td>Float / wealth tier</td>
+<td>Average wealth at this search's starting levels.</td>
+<td>Baseline rows use their own state.</td>
+</tr>
+<tr>
+<td><code>loss_reduction</code></td>
+<td>Float / fraction</td>
+<td>Fraction applied to loss-making configurations before this search.</td>
+<td>Defaults to 0.5; zero for a fresh first search or baseline row.</td>
+</tr>
+<tr>
+<td><code>reduced_configuration_count</code></td>
+<td>Integer / configurations</td>
+<td>Number of levels actually reduced before this search.</td>
+<td>No employment rescaling is applied.</td>
+</tr>
+<tr>
+<td><code>objective_value</code></td>
+<td>Float / objective units</td>
+<td>Returned objective in the optimizer's units, currently average wealth.</td>
+<td>GDP-based objectives, if configured, use weekly units.</td>
+</tr>
+<tr>
+<td><code>objective_change</code></td>
+<td>Float / objective units</td>
+<td>Objective minus the preceding search's value, or saved baseline for a first resumed search.</td>
+<td>Empty without a predecessor; a strict negative value ends iteration.</td>
+</tr>
+<tr>
+<td><code>gdp_weekly_change</code></td>
+<td>Float / £ per week</td>
+<td>GDP minus the preceding search's GDP, or saved baseline on first resume.</td>
+<td>Diagnostic only when maximizing wealth; empty without a predecessor.</td>
+</tr>
+<tr>
+<td><code>started_at_utc</code></td>
+<td>String / ISO timestamp</td>
+<td>UTC start time for this search.</td>
+<td>Baseline rows record invocation setup start.</td>
+</tr>
+<tr>
+<td><code>elapsed_seconds</code></td>
+<td>Float / seconds</td>
+<td>Search duration including starting-point evaluation.</td>
+<td>Baseline rows cover setup through saved-state evaluation and adjustment.</td>
+</tr>
+<tr>
+<td><code>is_best</code></td>
+<td>Boolean</td>
+<td>True only for the earliest highest-objective row.</td>
+<td>All solution reports use that row's state.</td>
+</tr>
+<tr>
+<td><code>completed_iterations</code></td>
+<td>Integer / searches</td>
+<td>Total completed local searches in the invocation.</td>
+<td>Excludes the saved baseline; repeated on all rows.</td>
+</tr>
+<tr>
+<td><code>total_trial_evaluations</code></td>
+<td>Integer / trials</td>
+<td>Sum of local-search trial counts.</td>
+<td>Excludes separate baseline/starting evaluations and final verification; repeated on all rows.</td>
+</tr>
+<tr>
+<td><code>total_elapsed_seconds</code></td>
+<td>Float / seconds</td>
+<td>Invocation elapsed time through summary preparation.</td>
+<td>Excludes CSV writes; repeated on all rows.</td>
+</tr>
+<tr>
+<td><code>best_iteration</code></td>
+<td>Integer / searches</td>
+<td>Selected best row's iteration number.</td>
+<td>Zero when the saved baseline wins; repeated on all rows.</td>
+</tr>
+<tr>
+<td><code>max_iterations</code></td>
+<td>Integer or empty / searches</td>
+<td>Optional cap on completed local searches.</td>
+<td>Empty means unlimited.</td>
+</tr>
+<tr>
+<td><code>stop_reason</code></td>
+<td>String / category</td>
+<td><code>objective_worsened</code> or <code>max_iterations</code>.</td>
+<td>A strict decrease takes precedence if both conditions apply.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="japan-optimization-comparison">Japan optimization comparison<a class="headerlink" href="#japan-optimization-comparison" title="Permanent link">&para;</a></h2>
+<p>The current <code>examples/optimize_jap.py</code> writes <code>optimize_jap.csv</code>, one row per employment-cap
+scenario, in increasing cap order. It solves a nominal autarkic era-5 economy
+with selected Japanese state-region resource and arable-land limits and the
+example's banned building groups. Its <code>employment</code> and other totals are
+whole-system values.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>employment_cap</code></td>
+<td>Integer / workers</td>
+<td>Scenario upper bound on total modeled employment.</td>
+<td>Retained on both success and failure; not the realized employment.</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>String / category</td>
+<td><code>success</code> or <code>failure</code> for the solve.</td>
+<td>Failure records a caught <code>ValueError</code>.</td>
+</tr>
+<tr>
+<td><code>annual_gdp</code></td>
+<td>Float / £ per year</td>
+<td><code>52 * state.gdp_weekly</code>, using base prices in this example.</td>
+<td>NaN on failure.</td>
+</tr>
+<tr>
+<td><code>employment</code></td>
+<td>Float / workers</td>
+<td>Sum of the state's employment array.</td>
+<td>NaN on failure.</td>
+</tr>
+<tr>
+<td><code>construction_cost</code></td>
+<td>Float / construction points</td>
+<td>Solved levels dotted with per-level construction coefficients.</td>
+<td>NaN on failure.</td>
+</tr>
+<tr>
+<td><code>gdp_per_capita</code></td>
+<td>Float / £ per worker per year</td>
+<td>Annual GDP divided by modeled employment.</td>
+<td>Zero for zero employment on a successful state; NaN on failure.</td>
+</tr>
+<tr>
+<td><code>arable_land_consumption</code></td>
+<td>Float / arable-land units</td>
+<td>Solved levels dotted with the model's arable-land coefficients.</td>
+<td>NaN on failure. Recognized agricultural building groups consume one unit per level; others zero.</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>String / diagnostic text</td>
+<td>Caught exception message.</td>
+<td>Empty string on success; no economic metric is inferred from a failure.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="additional-columns-in-the-committed-snapshot">Additional columns in the committed snapshot<a class="headerlink" href="#additional-columns-in-the-committed-snapshot" title="Permanent link">&para;</a></h3>
+<p>The committed <code>artifacts/analyses/optimization/japan/employment_sweep.csv</code> was generated by an earlier version of
+the example (the generator at commit <code>7e3365c</code> used <code>compare_scenarios</code>). It
+has no <code>status</code> column: an empty <code>error</code> indicates success. Shared metrics have
+the meanings above, except the earlier per-capita calculation returned
+infinity when successful employment was zero. These additional columns are
+still documented for readers of that snapshot; the current generator does
+not emit them.</p>
+<table>
+<thead>
+<tr>
+<th>Column or family</th>
+<th>Type / unit</th>
+<th>Meaning / calculation</th>
+<th>Presence / edge cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>objective</code></td>
+<td>String / category</td>
+<td>Scenario objective, <code>gdp</code> in the Japan snapshot.</td>
+<td>Snapshot-only; retained on failure.</td>
+</tr>
+<tr>
+<td><code>gdp_per_construction</code></td>
+<td>Float / £ per year per construction point</td>
+<td>Annual GDP divided by solved construction cost.</td>
+<td>Snapshot-only; zero for nonpositive construction cost, NaN on failure.</td>
+</tr>
+<tr>
+<td><code>era_cap</code></td>
+<td>Integer or None / era limit</td>
+<td>Scenario's maximum allowed technology era, 5 in this snapshot.</td>
+<td>Snapshot-only; retained on failure.</td>
+</tr>
+<tr>
+<td><code>level_&lt;building&gt;</code></td>
+<td>Float / building levels</td>
+<td>Sum of solved levels across configurations of a resource-limited building type; e.g. <code>level_building_coal_mine</code>.</td>
+<td>Snapshot-only family in first-seen building order; zero if unbuilt, NaN on failure.</td>
+</tr>
+</tbody>
+</table>
+<p>The recognized groups are <code>bg_staple_crops</code>, <code>bg_ranching</code>, <code>bg_agriculture</code>,
+<code>bg_plantations</code>, <code>bg_subsistence_agriculture</code>, and <code>bg_subsistence_ranching</code>.
+The coefficient uses immediate <code>building_group</code> membership, not <code>land_usage</code>
+or ancestor traversal; a missing group column gives all-zero coefficients.</p>
+<p>These legacy fields were traced to the earlier comparison implementation;
+their presence does not imply that the current example and stored snapshot
+share the same output schema.</p>
+<p>For the report APIs, see the
+<a href="../../api/economy/">economy API</a>. The
+<a href="../../showcase/resource-limited-optimization/">resource-limited optimization showcase</a>
+describes the Japan experiment.</p>
+<h2 id="supply-chain-equilibrium-exports">Supply-chain equilibrium exports<a class="headerlink" href="#supply-chain-equilibrium-exports" title="Permanent link">&para;</a></h2>
+<p>The separate <code>examples/optimize_supply_chain_equilibrium.py</code> example exports:</p>
+<p>Its input recipes come from <code>era_5_automation/building_levels.csv</code>, exported by
+the supply-chain comparison example. Rows are aligned to the full production
+table before units unused by all selected recipes are removed. Each retained
+coefficient is used without normalization. The example trusts the saved input
+and selects its hard-coded <code>ALLOWED_CHAIN_GOODS</code> without reading the adjacent
+<code>summary.csv</code>. Target metadata assumes £100,000 per recipe and derives target
+quantities from goods base prices. Chain metadata follows the optimizer's
+column order.</p>
+<table>
+<thead>
+<tr>
+<th>File / column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chain_matrix.csv</code>: <code>config</code></td>
+<td>Building plus production-method key; rows follow the selected production table.</td>
+</tr>
+<tr>
+<td><code>chain_matrix.csv</code>: terminal-good columns</td>
+<td>Building-level coefficients for one saved chain recipe. Columns follow the example's <code>ALLOWED_CHAIN_GOODS</code> order.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>good</code></td>
+<td>Terminal good identifying a matrix column.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>target_quantity</code></td>
+<td>Weekly terminal export orders used to generate one recipe. Imports and coproducts affect the required domestic output.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>target_base_value</code></td>
+<td>Terminal target quantity times base price; £100,000 per saved recipe.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>initial_level</code></td>
+<td>Starting multiplier of the saved recipe for the invocation, after any resume reduction.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>level</code></td>
+<td>Best verified chain multiplier across local searches and the eligible saved baseline.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>previous_level</code></td>
+<td>Saved chain multiplier before reducing losses; present on resumed runs.</td>
+</tr>
+<tr>
+<td><code>chains.csv</code>: <code>previous_terminal_surplus</code></td>
+<td>Recipe-attributed weekly operating surplus of terminal-good producers at the re-evaluated saved solution, including coproduct revenue; present on resumed runs.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>recipe_configuration</code></td>
+<td>Source collection, <code>era_5_automation</code>.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>chain_count</code></td>
+<td>Number of chain decision variables.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>configuration_count</code></td>
+<td>Number of building-configuration rows in the basis.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>iteration</code></td>
+<td>One-based local-search number; zero identifies the re-evaluated saved baseline on resumed invocations.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>initial_average_wealth</code>, <code>initial_gdp_weekly</code>, <code>initial_annual_gdp</code></td>
+<td>Metrics at that local search's starting vector; baseline rows use their own state.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>initialization</code></td>
+<td><code>equal_chains</code> for a fresh first search, <code>saved_solution</code> for a resume baseline/first search, or <code>previous_iteration</code> for subsequent searches.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>loss_reduction</code></td>
+<td>Fraction applied to loss-making chains before this search. Equal-chain initialization and baseline rows record zero.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>reduced_chain_count</code></td>
+<td>Number of chain levels actually reduced before this search.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>max_evaluations</code></td>
+<td>Hard trial budget for each local search.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>gdp_weekly_change</code></td>
+<td>Returned weekly GDP minus the preceding search's GDP, or the saved baseline's GDP for the first resumed search; empty without a predecessor.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>started_at_utc</code>, <code>elapsed_seconds</code></td>
+<td>UTC ISO timestamp and elapsed seconds for this search including its starting-point evaluation; baseline rows describe invocation setup through saved-state evaluation and adjustment.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>is_best</code></td>
+<td>True only for the earliest highest-GDP row, whose state is exported in the solution reports.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>completed_iterations</code></td>
+<td>Total completed local searches, excluding the saved baseline; repeated on every row.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>total_trial_evaluations</code></td>
+<td>Sum of local-search trial counts, excluding separate baseline/starting evaluations and final verification; repeated on every row.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>total_elapsed_seconds</code></td>
+<td>Invocation elapsed seconds through summary preparation, excluding CSV writes; repeated on every row.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>best_iteration</code></td>
+<td>Selected best row's iteration number, including zero when the saved baseline wins; repeated on every row.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>max_iterations</code></td>
+<td>Optional cap on completed local searches; empty means unlimited.</td>
+</tr>
+<tr>
+<td><code>summary.csv</code>: <code>stop_reason</code></td>
+<td><code>objective_worsened</code> for a strict decrease from the preceding result, otherwise <code>max_iterations</code> when the configured cap is reached; repeated on every row.</td>
+</tr>
+</tbody>
+</table>
+<p>Each summary row describes its own returned state, including the worse search
+that triggers stopping. Equal GDP continues iteration; ties select the earliest
+best state. Baseline rows have empty search diagnostics, retaining their current
+economic and household-equilibrium metrics. Other summary columns follow the
+<a href="#equilibrium-optimization-summary">equilibrium optimization summary</a>.
+<code>buildings.csv</code> follows the <a href="#building-registry">building registry</a>, including
+only positive building levels and sorting by level. Reconstruct those levels
+by multiplying the labeled matrix by <code>chains.csv</code>'s <code>level</code> column, then align
+by <code>building + "+" + production_method</code>.</p>
+<p><code>market.csv</code>, <code>pop.csv</code>, and <code>goods_buy_packages.csv</code> use the same full report
+exports as <code>examples/optimize_equilibrium.py</code>: <code>Economy.df_market(state)</code>,
+<code>Economy.df_pop(state)</code>, and <code>Economy.df_goods_buy_packages(state)</code> with the
+wealth index reset to a CSV column.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.tabs.link", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

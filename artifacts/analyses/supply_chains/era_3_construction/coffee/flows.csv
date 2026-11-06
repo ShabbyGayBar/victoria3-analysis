@@ -1,0 +1,2 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_coffee_plantation+coffee_plantation_dry_process+coffee_plantation_patio_drying+slave_exploitation_coffee+pm_road_carts,good:coffee,output,coffee,building_coffee_plantation+coffee_plantation_dry_process+coffee_plantation_patio_drying+slave_exploitation_coffee+pm_road_carts,35.0,2000.0,50.0,100000.0,True,False

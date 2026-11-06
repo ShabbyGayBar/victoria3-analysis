@@ -1,0 +1,131 @@
+flowchart LR
+    n0(("coal"))
+    n1(("copper"))
+    n2(("dye"))
+    n3(("electricity"))
+    n4(("engines"))
+    n5(("explosives"))
+    n6(("fertilizer"))
+    n7(("iron"))
+    n8(("merchant_marine ★"))
+    n9(("oil"))
+    n10(("paper"))
+    n11(("rubber"))
+    n12(("steamers"))
+    n13(("steel"))
+    n14(("sulfur"))
+    n15(("tools"))
+    n16(("transportation"))
+    n17(("wood"))
+    n18["building_chemical_plant<br/>lvl=0.03927 | active"]
+    n19["building_coal_mine<br/>lvl=0.5529 | active"]
+    n20["building_copper_mine<br/>lvl=0.1429 | active"]
+    n21["building_explosives_factory<br/>lvl=0.1536 | active"]
+    n22["building_iron_mine<br/>lvl=1.526 | active"]
+    n23["building_logging_camp<br/>lvl=0.01383 | active"]
+    n24["building_motor_industry<br/>lvl=1.327 | active"]
+    n25["building_oil_rig<br/>lvl=8.153 | active"]
+    n26["building_paper_mill<br/>lvl=0.04609 | active"]
+    n27["building_port<br/>lvl=66.67 | active"]
+    n28["building_power_plant<br/>lvl=2.222 | active"]
+    n29["building_railway<br/>lvl=1.87 | active"]
+    n30["building_rubber_plantation<br/>lvl=0.0658 | active"]
+    n31["building_shipyard<br/>lvl=4.167 | active"]
+    n32["building_steel_mill<br/>lvl=1.361 | active"]
+    n33["building_sulfur_mine<br/>lvl=0.08292 | active"]
+    n34["building_synthetics_plant<br/>lvl=0.005761 | active"]
+    n35["building_tooling_workshop<br/>lvl=0.4277 | active"]
+    n0 -.->|"0.5718"| n20
+    n0 -.->|"6.103"| n22
+    n0 -.->|"0.4609"| n26
+    n0 -.->|"54.45"| n32
+    n0 -.->|"0.3317"| n33
+    n1 -.->|"1.327"| n24
+    n1 -.->|"11.11"| n28
+    n1 -.->|"0.4277"| n35
+    n2 -.->|"0.4609"| n26
+    n3 -.->|"3.073"| n21
+    n3 -.->|"0.06913"| n23
+    n3 -.->|"6.637"| n24
+    n3 -->|"125"| n31
+    n3 -.->|"40.84"| n32
+    n3 -.->|"2.139"| n35
+    n4 -.->|"0.5529"| n19
+    n4 -.->|"0.1429"| n20
+    n4 -.->|"1.526"| n22
+    n4 -.->|"0.01383"| n23
+    n4 -.->|"81.53"| n25
+    n4 -.->|"22.22"| n28
+    n4 -.->|"11.22"| n29
+    n4 -.->|"0.329"| n30
+    n4 -->|"41.67"| n31
+    n4 -.->|"0.08292"| n33
+    n5 -.->|"5.529"| n19
+    n5 -.->|"1.429"| n20
+    n5 -.->|"15.26"| n22
+    n5 -.->|"0.8292"| n33
+    n6 -.->|"7.681"| n21
+    n6 -.->|"0.1728"| n34
+    n7 -.->|"1.178"| n18
+    n7 -.->|"136.1"| n32
+    n9 -.->|"0.7854"| n18
+    n9 -.->|"2.764"| n19
+    n9 -.->|"0.7147"| n20
+    n9 -.->|"7.628"| n22
+    n9 -.->|"0.05531"| n23
+    n9 -.->|"73"| n24
+    n9 -->|"666.7"| n27
+    n9 -.->|"44.44"| n28
+    n9 -.->|"14.96"| n29
+    n9 -.->|"0.4146"| n33
+    n9 -.->|"3.85"| n35
+    n10 -.->|"4.609"| n21
+    n11 -.->|"4.277"| n35
+    n12 -->|"333.3"| n27
+    n13 -.->|"66.37"| n24
+    n13 -->|"125"| n31
+    n13 -.->|"12.83"| n35
+    n14 -.->|"1.571"| n18
+    n14 -.->|"6.145"| n21
+    n14 -.->|"0.4609"| n26
+    n14 -.->|"0.1152"| n34
+    n15 -.->|"8.293"| n19
+    n15 -.->|"2.144"| n20
+    n15 -.->|"22.89"| n22
+    n15 -.->|"0.1383"| n23
+    n15 -.->|"5.309"| n24
+    n15 -.->|"0.2304"| n26
+    n15 -.->|"6.807"| n32
+    n15 -.->|"1.244"| n33
+    n16 -.->|"2.764"| n19
+    n16 -.->|"0.7147"| n20
+    n16 -.->|"7.628"| n22
+    n16 -.->|"0.1106"| n23
+    n16 -.->|"81.53"| n25
+    n16 -.->|"0.329"| n30
+    n16 -.->|"0.4146"| n33
+    n17 -.->|"1.383"| n26
+    n18 -.->|"7.854"| n6
+    n19 -.->|"61.92"| n0
+    n20 -.->|"12.86"| n1
+    n21 -.->|"23.04"| n5
+    n22 -.->|"137.3"| n7
+    n23 -.->|"1.383"| n17
+    n24 -.->|"159.3"| n4
+    n25 -.->|"815.3"| n9
+    n26 -.->|"4.609"| n10
+    n27 -->|"2000"| n8
+    n28 -.->|"177.8"| n3
+    n29 -.->|"93.49"| n16
+    n30 -.->|"4.277"| n11
+    n31 -->|"333.3"| n12
+    n32 -.->|"204.2"| n13
+    n33 -.->|"8.292"| n14
+    n34 -.->|"0.4609"| n2
+    n35 -.->|"47.05"| n15
+    class n0,n1,n2,n3,n4,n5,n6,n7,n9,n10,n11,n13,n14,n15,n16,n17,n18,n19,n20,n21,n22,n23,n24,n25,n26,n28,n29,n30,n32,n33,n34,n35 cyclic
+    class n19,n20,n22,n23,n25,n30,n33 resource
+    class n18,n19,n20,n21,n22,n23,n24,n25,n26,n27,n28,n29,n30,n31,n32,n33,n34,n35 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8
