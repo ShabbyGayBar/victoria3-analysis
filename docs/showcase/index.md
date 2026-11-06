@@ -20,20 +20,19 @@ script that regenerates the result.
 
     [:octicons-arrow-right-24: Browse parsed tables](parsed-data.md)
 
--   :material-account-group: **Buy packages**
+-   :material-account-group: **Buy packages — verified for 1.13.11 and 1.15**
 
     An illustrated guide to wealth, political strength, and all 15 population
-    needs, with a data table and 34 linear/log-scale plots.
+    needs, with an unchanged data table and 34 linear/log-scale plots pinned to a historical commit.
 
-    [:octicons-arrow-right-24: Read in English](buy-packages.md) ·
-    [阅读简体中文版](buy-packages-zh-CN.md)
+    [:octicons-arrow-right-24: Read the analysis](buy-packages.md)
 
--   :material-chart-bar: **Production-unit rankings（中文）**
+-   :material-chart-bar: **Production-unit rankings（中文，1.15）**
 
-    A Chinese-language comparison of nominal profit margin, profit per worker,
-    and profit per construction point across production configurations.
+    A Chinese-language comparison of nominal profit per worker and profit per
+    construction point, including changes since 1.13.11.
 
-    [:octicons-arrow-right-24: 阅读生产单元排行榜](production-unit-rankings.md)
+    [:octicons-arrow-right-24: 阅读 1.15 生产单元排行榜](production-unit-rankings.md)
 
 -   :material-source-branch: **Supply chains**
 

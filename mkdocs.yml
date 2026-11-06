@@ -60,6 +60,10 @@ validation:
     not_found: warn
     unrecognized_links: warn
 
+not_in_nav: |
+  /showcase/production-unit-rankings-1.13.11.md
+  /showcase/buy-packages-zh-CN.md
+
 hooks:
   - docs/hooks.py
 
@@ -142,9 +146,8 @@ nav:
   - Showcase:
       - showcase/index.md
       - Parsed data: showcase/parsed-data.md
-      - Production-unit rankings (Chinese): showcase/production-unit-rankings.md
-      - Buy packages (English): showcase/buy-packages.md
-      - Buy packages (简体中文): showcase/buy-packages-zh-CN.md
+      - Production-unit rankings (Chinese, 1.15): showcase/production-unit-rankings.md
+      - Buy packages (1.15): showcase/buy-packages.md
       - Supply chains: showcase/supply-chains.md
       - Resource-limited optimization: showcase/resource-limited-optimization.md
       - Equilibrium optimization: showcase/equilibrium-optimization.md

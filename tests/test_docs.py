@@ -10,10 +10,16 @@ import tomllib
 from collections import Counter
 from pathlib import Path
 
+from mkdocs.config import load_config
+
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 SRC_PACKAGE = ROOT / "src" / "vic3_analysis"
 SUBMODULE_INIT = "git submodule update --init --recursive"
+HISTORICAL_ARTIFACTS = (
+    "https://raw.githubusercontent.com/ShabbyGayBar/victoria3-analysis-artifacts/"
+    "19fdf73d3453da8c152e29223f826536c8e6b33c/datasets/"
+)
 
 
 def _require_artifact_checkout() -> None:
@@ -169,6 +175,111 @@ def test_showcase_pages_reference_registered_outputs() -> None:
                         )
                         and f"`{path.name}`" in markdown
                     )
+
+
+def test_rankings_editions_link_to_their_own_data() -> None:
+    """Edition navigation must not let the archived article consume latest data."""
+    latest_name = "production-unit-rankings.md"
+    archive_name = "production-unit-rankings-1.13.11.md"
+    latest = (DOCS / "showcase" / latest_name).read_text(encoding="utf-8")
+    archive = (DOCS / "showcase" / archive_name).read_text(encoding="utf-8")
+    assert f"]({archive_name})" in latest
+    assert f"]({latest_name})" in archive
+    assert "## 相比 1.13.11 的变化" in latest
+    assert "date: 2026-09-30" in archive
+    assert "game_version: 1.13.11" in archive
+    current_csv = "artifacts/datasets/production/production_table.csv"
+    historical_csv = f"{HISTORICAL_ARTIFACTS}production/production_table.csv"
+    assert f"](../{current_csv})" in latest
+    assert f"]({historical_csv})" in archive
+    assert f"]({historical_csv})" in latest
+    assert current_csv not in archive
+    assert "artifacts/datasets/versions/" not in archive + latest
+    config = load_config(config_file=str(ROOT / "mkdocs.yml"))
+    assert isinstance(config.nav, list)
+    showcase = next(
+        section["Showcase"]
+        for section in config.nav
+        if isinstance(section, dict) and "Showcase" in section
+    )
+    assert isinstance(showcase, list)
+    nav_paths = {
+        path
+        for entry in showcase
+        if isinstance(entry, dict)
+        for path in entry.values()
+        if isinstance(path, str)
+    }
+    landing = (DOCS / "showcase/index.md").read_text(encoding="utf-8")
+    assert config.not_in_nav is not None
+    for name in (archive_name, "buy-packages-zh-CN.md"):
+        assert f"showcase/{name}" not in nav_paths
+        assert config.not_in_nav.match_file(f"showcase/{name}")
+        assert f"]({name})" not in landing
+    for name in (latest_name, "buy-packages.md"):
+        assert f"showcase/{name}" in nav_paths
+        assert f"]({name})" in landing
+    english = (DOCS / "showcase/buy-packages.md").read_text(encoding="utf-8")
+    mandarin = (DOCS / "showcase/buy-packages-zh-CN.md").read_text(encoding="utf-8")
+    assert "](buy-packages-zh-CN.md)" in english
+    assert "](buy-packages.md)" in mandarin
+
+
+def test_shared_buy_package_articles_use_commit_pinned_assets() -> None:
+    """Historical charts and downloads stay pinned without requiring a history checkout."""
+    historical = f"{HISTORICAL_ARTIFACTS}parsed/buy_packages/"
+    current = "artifacts/datasets/parsed/buy_packages/"
+    metrics = [
+        "political_strength",
+        "total_popneeds",
+        "popneed_simple_clothing",
+        "popneed_basic_food",
+        "popneed_heating",
+        "popneed_household_items",
+        "popneed_standard_clothing",
+        "popneed_services",
+        "popneed_intoxicants",
+        "popneed_luxury_drinks",
+        "popneed_free_movement",
+        "popneed_communication",
+        "popneed_luxury_food",
+        "popneed_luxury_items",
+        "popneed_leisure",
+        "popneed_crude_items",
+        "popneed_stimulants",
+    ]
+    for name, preview_heading, exports_heading in (
+        (
+            "buy-packages.md",
+            "### Table preview",
+            "### Historical source and current exports",
+        ),
+        (
+            "buy-packages-zh-CN.md",
+            "### 数据预览",
+            "### 历史来源与当前生成结果",
+        ),
+    ):
+        markdown = (DOCS / "showcase" / name).read_text(encoding="utf-8")
+        article, exports = markdown.split(exports_heading)
+        assert "1.13.11" in article and "1.15" in article
+        assert current not in article
+        assert "artifacts/datasets/versions/" not in markdown
+        assert "table-preview:" not in article
+        assert f"]({historical}buy_packages.csv)" in article
+        urls = re.findall(r"https://raw\.githubusercontent\.com/[^\s)]+", article)
+        assert urls and all(url.startswith(historical) for url in urls)
+        figures = set(
+            re.findall(re.escape(historical) + r"figures/([^\s)]+\.svg)", article)
+        )
+        assert figures == {
+            f"{metric}{suffix}.svg" for metric in metrics for suffix in ("", "_log")
+        }
+        preview = article.split(preview_heading, 1)[1].split("\n### ", 1)[0]
+        rows = re.findall(r"^\| (\d+) \|.*$", preview, re.MULTILINE)
+        assert rows == ["1", "2", "3", "4", "5"]
+        assert f"](../{current}buy_packages.csv)" in exports
+        assert "19fdf73d3453da8c152e29223f826536c8e6b33c" in exports
 
 
 def test_api_reference_covers_package_exports_once() -> None:
