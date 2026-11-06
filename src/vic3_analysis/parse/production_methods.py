@@ -225,10 +225,10 @@ class ProductionMethodParser(Tree):
         ``dict``/``Tree`` values (such as ``building_modifiers``) are omitted.
         Total and per-profession employment and per-good net flows (positive =
         output, negative = input) are appended as columns at the end.  Goods
-        columns are prefixed with ``goods_`` to distinguish them from
-        attribute columns.  State modifiers (flattened across the
-        ``state_modifiers`` scaling blocks, e.g. ``state_infrastructure_add``)
-        are appended after the goods columns.
+        columns follow the goods table's row order and are prefixed with
+        ``goods_`` to distinguish them from attribute columns.  State modifiers
+        (flattened across the ``state_modifiers`` scaling blocks, e.g.
+        ``state_infrastructure_add``) are appended after the goods columns.
 
         Args:
             df_goods: Optional pre-parsed goods table.
@@ -259,7 +259,8 @@ class ProductionMethodParser(Tree):
         game_dir = self._game_dir
         if df_goods is None:
             df_goods = goods(game_dir)
-        goods_keys = set(df_goods["key"].tolist())
+        goods_key_order: list[str] = df_goods["key"].tolist()
+        goods_keys = set(goods_key_order)
 
         if df_buildings is None:
             buildings_tree = BuildingsParser(game_dir)
@@ -329,7 +330,7 @@ class ProductionMethodParser(Tree):
                         **pm_attrs.get(pm, {}),
                         "employment": emp.get("employment", 0),
                         **{k: emp.get(k, 0) for k in employment_profession_keys},
-                        **{f"goods_{gk}": flows.get(gk, 0) for gk in goods_keys},
+                        **{f"goods_{gk}": flows.get(gk, 0) for gk in goods_key_order},
                         **{k: state_mods.get(k, 0) for k in state_modifier_keys},
                     }
                     data.append(row)

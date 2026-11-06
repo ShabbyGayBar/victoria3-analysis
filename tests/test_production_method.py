@@ -3,7 +3,11 @@
 
 """Tests for :class:`vic3_analysis.ProductionMethodParser`."""
 
+import os
+import subprocess
+import sys
 from pathlib import Path
+from textwrap import dedent
 
 import pandas as pd
 import pytest
@@ -55,6 +59,13 @@ def test_goods_flows_support_modern_and_legacy_modifiers(
     )
 
     assert len(frame) == 1
+    assert frame.filter(like="goods_").columns.tolist() == [
+        "goods_tools",
+        "goods_coal",
+        "goods_small_arms",
+        "goods_grain",
+        "goods_wood",
+    ]
     assert frame.filter(like="goods_").iloc[0].to_dict() == {
         "goods_tools": -5,
         "goods_coal": 25.5,
@@ -62,6 +73,44 @@ def test_goods_flows_support_modern_and_legacy_modifiers(
         "goods_grain": -1.5,
         "goods_wood": 0,
     }
+
+
+def test_csv_header_is_stable_across_hash_seeds(tmp_path: Path) -> None:
+    _goods_parser(tmp_path, "goods_input_tools_add = 5")
+    script = dedent(
+        """
+        import sys
+
+        import pandas as pd
+
+        from vic3_analysis import ProductionMethodParser
+
+        frame = ProductionMethodParser(game_dir=sys.argv[1]).to_dataframe(
+            df_goods=pd.DataFrame(
+                {"key": ["tools", "coal", "small_arms", "grain", "wood"]}
+            ),
+            df_buildings=pd.DataFrame(
+                {"key": ["building_test"], "production_method_groups": [["pmg_test"]]}
+            ),
+            pmg_dict={"pmg_test": ["pm_test"]},
+        )
+        print(frame.to_csv(index=False).splitlines()[0])
+        """
+    )
+    headers: list[str] = []
+    for seed in ("1", "2"):
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(tmp_path)],
+            env={**os.environ, "PYTHONHASHSEED": seed},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+            timeout=30,
+        )
+        headers.append(result.stdout.strip())
+
+    assert headers[0] == headers[1]
 
 
 @pytest.mark.parametrize("prefix", ["goods", "building"])
