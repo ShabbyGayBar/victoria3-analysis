@@ -316,6 +316,7 @@ def run(
     best_levels: np.ndarray | None = None
     best_iteration = 0
     previous_gdp: float | None = None
+    previous_levels: np.ndarray | None = None
     history: list[pd.DataFrame] = []
     if resume:
         saved_levels = _load_saved_levels(problem, SUPPLY_CHAIN_EQUILIBRIUM_DIR)
@@ -329,6 +330,7 @@ def run(
             best_state = copy(saved_state)
             best_levels = saved_levels.copy()
             previous_gdp = best_state.gdp_weekly
+            previous_levels = best_levels
             initial, previous = _adjust_levels(
                 problem, saved_levels, best_state, loss_reduction
             )
@@ -422,7 +424,11 @@ def run(
         if max_iterations is not None and iteration >= max_iterations:
             stop_reason = "max_iterations"
             break
+        if previous_levels is not None and np.array_equal(result.x, previous_levels):
+            stop_reason = "solution_unchanged"
+            break
         previous_gdp = state.gdp_weekly
+        previous_levels = result.x.copy()
         initial, _ = _adjust_levels(problem, result.x, state, loss_reduction)
         reduced_count = int(np.count_nonzero(initial < result.x))
 
