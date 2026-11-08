@@ -1,0 +1,130 @@
+flowchart LR
+    n0(("coal"))
+    n1(("copper"))
+    n2(("dye"))
+    n3(("electricity"))
+    n4(("engines"))
+    n5(("explosives"))
+    n6(("fertilizer"))
+    n7(("glass"))
+    n8(("iron"))
+    n9(("oil"))
+    n10(("paper"))
+    n11(("porcelain ★"))
+    n12(("rubber"))
+    n13(("steel"))
+    n14(("sulfur"))
+    n15(("tools"))
+    n16(("transportation"))
+    n17(("wood"))
+    n18["building_chemical_plant<br/>lvl=0.9603 | active"]
+    n19["building_coal_mine<br/>lvl=0.536 | active"]
+    n20["building_copper_mine<br/>lvl=0.1434 | active"]
+    n21["building_explosives_factory<br/>lvl=0.2637 | active"]
+    n22["building_glassworks<br/>lvl=47.62 | active"]
+    n23["building_iron_mine<br/>lvl=1.586 | active"]
+    n24["building_logging_camp<br/>lvl=14.31 | active"]
+    n25["building_motor_industry<br/>lvl=1.723 | active"]
+    n26["building_oil_rig<br/>lvl=5.181 | active"]
+    n27["building_paper_mill<br/>lvl=0.07911 | active"]
+    n28["building_power_plant<br/>lvl=1.672 | active"]
+    n29["building_railway<br/>lvl=3.765 | active"]
+    n30["building_rubber_plantation<br/>lvl=0.4345 | active"]
+    n31["building_steel_mill<br/>lvl=1.139 | active"]
+    n32["building_sulfur_mine<br/>lvl=1.69 | active"]
+    n33["building_synthetics_plant<br/>lvl=5.962 | active"]
+    n34["building_tooling_workshop<br/>lvl=2.824 | active"]
+    n0 -.->|"0.5736"| n20
+    n0 -.->|"6.344"| n23
+    n0 -.->|"0.7911"| n27
+    n0 -.->|"45.57"| n31
+    n0 -.->|"6.76"| n32
+    n1 -.->|"1.723"| n25
+    n1 -.->|"8.358"| n28
+    n1 -.->|"2.824"| n34
+    n2 -->|"476.2"| n22
+    n2 -.->|"0.7911"| n27
+    n3 -.->|"5.274"| n21
+    n3 -.->|"71.55"| n24
+    n3 -.->|"8.616"| n25
+    n3 -.->|"34.18"| n31
+    n3 -.->|"14.12"| n34
+    n4 -.->|"0.536"| n19
+    n4 -.->|"0.1434"| n20
+    n4 -->|"95.24"| n22
+    n4 -.->|"1.586"| n23
+    n4 -.->|"14.31"| n24
+    n4 -.->|"51.81"| n26
+    n4 -.->|"16.72"| n28
+    n4 -.->|"22.59"| n29
+    n4 -.->|"2.172"| n30
+    n4 -.->|"1.69"| n32
+    n5 -.->|"5.36"| n19
+    n5 -.->|"1.434"| n20
+    n5 -.->|"15.86"| n23
+    n5 -.->|"16.9"| n32
+    n6 -.->|"13.18"| n21
+    n6 -.->|"178.9"| n33
+    n8 -.->|"28.81"| n18
+    n8 -.->|"113.9"| n31
+    n9 -.->|"19.21"| n18
+    n9 -.->|"2.68"| n19
+    n9 -.->|"0.717"| n20
+    n9 -->|"238.1"| n22
+    n9 -.->|"7.929"| n23
+    n9 -.->|"57.24"| n24
+    n9 -.->|"94.78"| n25
+    n9 -.->|"33.43"| n28
+    n9 -.->|"30.12"| n29
+    n9 -.->|"8.45"| n32
+    n9 -.->|"25.42"| n34
+    n10 -.->|"7.911"| n21
+    n12 -.->|"28.24"| n34
+    n13 -.->|"86.16"| n25
+    n13 -.->|"84.72"| n34
+    n14 -.->|"38.41"| n18
+    n14 -.->|"10.55"| n21
+    n14 -.->|"0.7911"| n27
+    n14 -.->|"119.2"| n33
+    n15 -.->|"8.041"| n19
+    n15 -.->|"2.151"| n20
+    n15 -->|"95.24"| n22
+    n15 -.->|"23.79"| n23
+    n15 -.->|"143.1"| n24
+    n15 -.->|"6.893"| n25
+    n15 -.->|"0.3955"| n27
+    n15 -.->|"5.696"| n31
+    n15 -.->|"25.35"| n32
+    n16 -.->|"2.68"| n19
+    n16 -.->|"0.717"| n20
+    n16 -.->|"7.929"| n23
+    n16 -.->|"114.5"| n24
+    n16 -.->|"51.81"| n26
+    n16 -.->|"2.172"| n30
+    n16 -.->|"8.45"| n32
+    n17 -->|"1429"| n22
+    n17 -.->|"2.373"| n27
+    n18 -.->|"192.1"| n6
+    n19 -.->|"60.04"| n0
+    n20 -.->|"12.91"| n1
+    n21 -.->|"39.55"| n5
+    n22 -->|"476.2"| n7
+    n22 -->|"1429"| n11
+    n23 -.->|"142.7"| n8
+    n24 -.->|"1431"| n17
+    n25 -.->|"206.8"| n4
+    n26 -.->|"518.1"| n9
+    n27 -.->|"7.911"| n10
+    n28 -.->|"133.7"| n3
+    n29 -.->|"188.2"| n16
+    n30 -.->|"28.24"| n12
+    n31 -.->|"170.9"| n13
+    n32 -.->|"169"| n14
+    n33 -.->|"477"| n2
+    n34 -.->|"310.6"| n15
+    class n0,n1,n2,n3,n4,n5,n6,n8,n9,n10,n12,n13,n14,n15,n16,n17,n18,n19,n20,n21,n23,n24,n25,n26,n27,n28,n29,n30,n31,n32,n33,n34 cyclic
+    class n19,n20,n23,n24,n26,n30,n32 resource
+    class n18,n19,n20,n21,n22,n23,n24,n25,n26,n27,n28,n29,n30,n31,n32,n33,n34 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

@@ -1,0 +1,2 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_rubber_plantation+default_building_rubber_plantation+slave_exploitation_rubber+pm_road_carts,good:rubber,output,rubber,building_rubber_plantation+default_building_rubber_plantation+slave_exploitation_rubber+pm_road_carts,45.0,2500.0,40.0,100000.0,True,False

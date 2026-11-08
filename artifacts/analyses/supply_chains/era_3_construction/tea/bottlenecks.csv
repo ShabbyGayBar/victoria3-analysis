@@ -1,0 +1,4 @@
+kind,family,label,realized_value,bound,slack,residual,binding,solver_marginal,improvement_per_unit
+inequality,min_goods_balance,engines,0.0,0.0,0.0,0.0,True,-18.75,18.75
+inequality,min_goods_balance,hardwood,0.0,0.0,0.0,0.0,True,-10.0,10.0
+inequality,min_goods_balance,tea,-2000.0,-2000.0,0.0,0.0,True,-5.0,5.0

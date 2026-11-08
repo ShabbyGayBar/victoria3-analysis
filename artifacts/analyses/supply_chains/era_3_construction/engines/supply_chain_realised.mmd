@@ -1,0 +1,78 @@
+flowchart LR
+    n0(("clothes"))
+    n1(("coal"))
+    n2(("dye"))
+    n3(("engines ★"))
+    n4(("explosives"))
+    n5(("fabric"))
+    n6(("fertilizer"))
+    n7(("furniture"))
+    n8(("grain"))
+    n9(("iron"))
+    n10(("liquor"))
+    n11(("meat"))
+    n12(("paper"))
+    n13(("rubber"))
+    n14(("services"))
+    n15(("steel"))
+    n16(("sulfur"))
+    n17(("tools"))
+    n18(("wood"))
+    n19["building_chemical_plant<br/>lvl=0.5251 | active"]
+    n20["building_coal_mine<br/>lvl=6.364 | active"]
+    n21["building_cossack_host<br/>lvl=22.06 | active"]
+    n22["building_dye_plantation<br/>lvl=0.08169 | active"]
+    n23["building_explosives_factory<br/>lvl=1.838 | active"]
+    n24["building_iron_mine<br/>lvl=12.69 | active"]
+    n25["building_motor_industry<br/>lvl=41.67 | active"]
+    n26["building_paper_mill<br/>lvl=0.3676 | active"]
+    n27["building_rubber_plantation<br/>lvl=0.6126 | active"]
+    n28["building_steel_mill<br/>lvl=11.11 | active"]
+    n29["building_sulfur_mine<br/>lvl=1.162 | active"]
+    n30["building_tooling_workshop<br/>lvl=2.757 | active"]
+    n1 -.->|"190.4"| n24
+    n1 -.->|"333.2"| n28
+    n1 -.->|"17.43"| n29
+    n2 -->|"3.676"| n26
+    n4 -.->|"63.64"| n20
+    n4 -.->|"126.9"| n24
+    n4 -.->|"11.62"| n29
+    n6 -.->|"73.52"| n23
+    n9 -.->|"15.75"| n19
+    n9 -.->|"999.5"| n28
+    n12 -.->|"36.76"| n23
+    n13 -->|"27.57"| n30
+    n15 -->|"1250"| n25
+    n15 -.->|"82.71"| n30
+    n16 -.->|"15.75"| n19
+    n16 -.->|"73.52"| n23
+    n16 -.->|"3.676"| n26
+    n17 -.->|"95.47"| n20
+    n17 -.->|"190.4"| n24
+    n17 -.->|"17.43"| n29
+    n18 -->|"11.03"| n26
+    n19 -.->|"73.52"| n6
+    n20 -.->|"541"| n1
+    n21 -->|"5.514"| n0
+    n21 -->|"66.17"| n5
+    n21 -->|"5.514"| n7
+    n21 -->|"110.3"| n8
+    n21 -->|"5.514"| n10
+    n21 -->|"88.22"| n11
+    n21 -->|"5.514"| n14
+    n21 -->|"11.03"| n18
+    n22 -->|"3.676"| n2
+    n23 -.->|"202.2"| n4
+    n24 -.->|"1015"| n9
+    n25 -->|"1667"| n3
+    n26 -.->|"36.76"| n12
+    n27 -->|"27.57"| n13
+    n28 -.->|"1333"| n15
+    n29 -.->|"92.95"| n16
+    n30 -.->|"303.3"| n17
+    class n1,n4,n6,n9,n12,n15,n16,n17,n19,n20,n23,n24,n26,n28,n29,n30 cyclic
+    class n20,n24,n27,n29 resource
+    class n19,n20,n21,n22,n23,n24,n25,n26,n27,n28,n29,n30 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8
