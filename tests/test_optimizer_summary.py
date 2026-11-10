@@ -306,7 +306,7 @@ def test_example_summary_exports(
     assert row["max_evaluations"] == 1
     assert row["employment_cap"] == 1_000_000
     assert row["workforce_ratio"] == 0.4
-    assert row["objective"] == ("average_wealth" if building_search else "gdp")
+    assert row["objective"] == "gdp"
     assert row["gdp_weekly"] == pytest.approx(state.gdp_weekly)
     assert row["annual_gdp"] == pytest.approx(state.gdp(annual=True))
     assert row["initial_gdp_weekly"] == pytest.approx(state.gdp_weekly)

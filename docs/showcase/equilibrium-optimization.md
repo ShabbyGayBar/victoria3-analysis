@@ -1,14 +1,14 @@
 ---
 title: Equilibrium optimization
-description: Search equilibrium wealth with up to one million workers and a 40% workforce ratio.
+description: Maximize equilibrium GDP with up to one million workers and a 40% workforce ratio.
 ---
 
-# Million-worker equilibrium wealth search
+# Million-worker equilibrium GDP search
 
 `examples/optimize_equilibrium.py` uses `EquilibriumOptimizer` to search for
-the highest average wealth found while household wealth, consumption, prices, and finances
-settle together. The search is deterministic and local; its result does not
-establish a global maximum.
+the highest weekly GDP at equilibrium market prices while household wealth,
+consumption, prices, and finances settle together. The search is deterministic
+and local; its result does not establish a global maximum.
 
 ## Scenario and inputs
 
@@ -72,18 +72,19 @@ within the trial budget, the search fails without overwriting exports. Other
 initialization errors still propagate. See
 [tax-funded operating losses](../guides/economy.md#tax-funded-operating-losses).
 
-Direct-file execution is also supported. A short run can validate the pipeline
-and regenerate reviewable snapshots:
+Direct-file execution is also supported. If `buildings.csv` already contains
+a verified solution, a short resumed run can validate the pipeline. A fresh
+start may need more trials to find a mix that can fund its operating losses:
 
 ```bash
-uv run python examples/optimize_equilibrium.py --max-evaluations 8 --max-iterations 1
+uv run python examples/optimize_equilibrium.py --resume --loss-reduction 0 --max-evaluations 8 --max-iterations 1
 ```
 
 The CLI enables timestamped INFO progress on stderr by default, with periodic
 summaries every 100 trials. Use a shorter interval for a small-budget run:
 
 ```bash
-uv run python -m examples.optimize_equilibrium --max-evaluations 8 --max-iterations 1 --log-every 2
+uv run python -m examples.optimize_equilibrium --resume --loss-reduction 0 --max-evaluations 8 --max-iterations 1 --log-every 2
 ```
 
 `--log-level DEBUG` adds individual trial outcomes, new incumbents, and concise
@@ -107,11 +108,11 @@ same absolute/relative loss tolerance as the supply-chain example. Other levels
 are unchanged, and employment is not scaled back up. The adjusted mix must
 remain feasible under the scenario's worker cap and building exclusions.
 
-Iteration stops when the returned objective is strictly lower than the preceding
-search's objective. The scenario maximizes **average wealth**; GDP remains a
-reported metric. Equal objectives continue, and the earliest result wins ties.
+Iteration stops when the returned weekly GDP is strictly lower than the preceding
+search's GDP. Equal GDP values continue, and the earliest result wins ties.
+Average wealth remains a reported metric.
 `--max-iterations` optionally caps completed local searches. Omission means
-unlimited searches, so an equal-objective plateau can continue indefinitely.
+unlimited searches, so a GDP plateau can continue indefinitely.
 `--loss-reduction 0` disables reductions for all restarts.
 
 To start from the saved solution:

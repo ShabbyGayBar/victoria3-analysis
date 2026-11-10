@@ -204,17 +204,17 @@ def example_output(
     ("endpoints", "best_iteration", "max_iterations", "stop_reason"),
     [
         (
-            [[30, 10], [10, 10], [10, 10], [2, 6], [10, 10]],
+            [[2, 6], [10, 10], [10, 10], [30, 10], [10, 10]],
             4,
             None,
             "objective_worsened",
         ),
-        ([[30, 10], [10, 10], [10, 10], [30, 10]], 2, None, "objective_worsened"),
+        ([[10, 10], [30, 10], [30, 10], [10, 10]], 2, None, "objective_worsened"),
         ([[10, 10], [10, 10], [10, 10]], 1, 3, "max_iterations"),
-        ([[30, 10], [10, 10]], 2, 2, "max_iterations"),
+        ([[10, 10], [30, 10]], 2, 2, "max_iterations"),
     ],
 )
-def test_iteration_uses_wealth_and_exports_only_best(
+def test_iteration_uses_gdp_and_exports_only_best(
     example_output: Path,
     monkeypatch: pytest.MonkeyPatch,
     endpoints: list[list[float]],
@@ -283,10 +283,12 @@ def test_iteration_uses_wealth_and_exports_only_best(
         "previous_iteration"
     ] * (len(endpoints) - 1)
     assert report["loss_reduction"].tolist() == [0.0] + [0.25] * (len(endpoints) - 1)
-    np.testing.assert_allclose(report["objective_value"], report["average_wealth"])
+    assert (report["objective"] == "gdp").all()
+    np.testing.assert_allclose(report["objective_value"], report["gdp_weekly"])
     np.testing.assert_allclose(
         report["objective_change"].to_numpy()[1:], np.diff(report["objective_value"])
     )
+    np.testing.assert_allclose(report["objective_change"], report["gdp_weekly_change"])
     assert report["objective_change"].isna().iloc[0]
     assert (report["elapsed_seconds"] >= 0).all()
     assert (report["total_elapsed_seconds"] >= report["elapsed_seconds"].sum()).all()
@@ -294,13 +296,13 @@ def test_iteration_uses_wealth_and_exports_only_best(
     np.testing.assert_array_equal(state.building_levels, endpoints[best_iteration - 1])
     assert not state.building_levels.flags.writeable
     assert not state.market_prices.flags.writeable
-    if endpoints[0] == [30, 10]:
-        # Wealth improves even though GDP falls; the loop must continue.
-        assert report["gdp_weekly_change"].to_numpy(dtype=float)[1] < 0
+    if endpoints[0] != endpoints[1]:
+        # GDP improves even though wealth falls; the loop must continue.
+        assert report["average_wealth"].iloc[1] < report["average_wealth"].iloc[0]
         assert report["objective_change"].to_numpy(dtype=float)[1] > 0
-    if best_iteration == 4:
-        # The stopping result has higher GDP and lower wealth than the best.
-        assert report["gdp_weekly_change"].to_numpy(dtype=float)[-1] > 0
+    if stop_reason == "objective_worsened":
+        # The stopping result has higher wealth and lower GDP than the best.
+        assert report["average_wealth"].iloc[-1] > report["average_wealth"].iloc[-2]
         assert report["objective_change"].to_numpy(dtype=float)[-1] < 0
     for name, expected in (
         ("buildings", model.df_buildings(state)),
@@ -316,7 +318,7 @@ def test_resume_preserves_saved_best(
     example_output: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setattr(
-        example, "_initial_levels", lambda economy: np.array([1.0, 3.0])
+        example, "_initial_levels", lambda economy: np.array([30.0, 10.0])
     )
     _, saved_state = example.run(max_evaluations=1, max_iterations=1)
     saved_files = {path.name: path.read_bytes() for path in example_output.iterdir()}
@@ -335,21 +337,23 @@ def test_resume_preserves_saved_best(
         return original_solve(
             self,
             problem,
-            x0=np.array([30.0, 10.0]),
+            x0=np.array([1.0, 3.0]),
             options=options,
             log_every=log_every,
         )
 
     monkeypatch.setattr(EquilibriumOptimizer, "solve_problem", solve)
     _, state = example.run(max_evaluations=1, resume=True, loss_reduction=0)
-    assert state.average_wealth == saved_state.average_wealth
+    np.testing.assert_array_equal(state.building_levels, saved_state.building_levels)
     report = pd.read_csv(example_output / "summary.csv", encoding="utf-8")
     assert report["iteration"].tolist() == [0, 1]
     assert report["is_best"].tolist() == [True, False]
     assert report["stop_reason"].tolist() == ["objective_worsened"] * 2
-    assert report["gdp_weekly_change"].to_numpy(dtype=float)[1] > 0
+    assert report["average_wealth"].iloc[1] > report["average_wealth"].iloc[0]
     assert report["objective_change"].to_numpy(dtype=float)[1] < 0
-    assert report["objective_value"].to_numpy(dtype=float)[0] == state.average_wealth
+    assert report["objective_value"].to_numpy(dtype=float)[0] == pytest.approx(
+        state.gdp_weekly
+    )
     assert (
         report.loc[0, ["search_success", "trial_evaluations"]].isna().to_numpy().all()
     )

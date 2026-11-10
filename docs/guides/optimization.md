@@ -167,7 +167,7 @@ state = MarketOptimizer(economy).solve(scenario)
 ## Equilibrium optimization
 
 For a runnable example and saved building levels, see the
-[million-worker wealth search](../showcase/equilibrium-optimization.md).
+[million-worker GDP search](../showcase/equilibrium-optimization.md).
 
 `EquilibriumOptimizer` chooses building levels while the existing
 [household equilibrium solver](economy.md#solving-equilibrium) determines
@@ -179,7 +179,7 @@ an employment cap does not require the optimizer to employ everyone.
 from vic3_analysis import EquilibriumOptimizer, Scenario
 
 scenario = Scenario(
-    objective="average_wealth",
+    objective="gdp",
     min_goods_balance=None,
     workforce_ratio=0.25,
     building_level_caps=tuple(
@@ -190,7 +190,7 @@ scenario = Scenario(
 optimizer = EquilibriumOptimizer(economy)
 problem = optimizer.compile(scenario, max_iterations=1000)
 state = optimizer.solve_problem(problem, options={"maxiter": 20_000})
-print(state.average_wealth, state.gdp_per_capita(annual=True))
+print(state.gdp(annual=True), state.average_wealth)
 print(optimizer.result.success, optimizer.result.message)
 print(optimizer.result.equilibrium_failures)
 ```

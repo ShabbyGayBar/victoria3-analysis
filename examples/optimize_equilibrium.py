@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Brian Li
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Search equilibrium wealth using production units from era_5_automation chains."""
+"""Maximize equilibrium GDP using production units from era_5_automation chains."""
 
 import argparse
 import logging
@@ -211,9 +211,9 @@ def run(
     loss_reduction: float = 0.5,
     max_iterations: int | None = None,
 ) -> tuple[Economy, EconomyState]:
-    """Restart local searches until the objective decreases, exporting the best.
+    """Restart local searches until weekly GDP decreases, exporting the best.
 
-    Each local search gets ``max_evaluations`` trials. Equal objectives continue;
+    Each local search gets ``max_evaluations`` trials. Equal GDP values continue;
     ``max_iterations`` optionally limits completed searches. Errors propagate
     before any exports are overwritten. Callers configure logging.
     ``subsidize_operating_losses`` enables income-tax-funded operating losses
@@ -241,7 +241,7 @@ def run(
         ),
     )
     scenario = Scenario(
-        objective="average_wealth",
+        objective="gdp",
         employment_cap=1_000_000,
         workforce_ratio=0.4,
         banned_building_groups=DEFAULT_BANNED_BGS,
@@ -422,7 +422,7 @@ def main() -> None:
         "--max-iterations",
         type=int,
         default=None,
-        help="Maximum local searches; omitted means continue until the objective decreases.",
+        help="Maximum local searches; omitted means continue until weekly GDP decreases.",
     )
     parser.add_argument(
         "--max-evaluations",

@@ -246,8 +246,8 @@ population.
 
 `examples/optimize_equilibrium.py` writes one row per completed local search to
 `artifacts/analyses/optimization/equilibrium/summary.csv`, including the worse
-attempt that ends iteration. The current objective is average wealth. A resumed
-invocation includes iteration zero for the re-evaluated saved solution, with
+attempt that ends iteration. The objective is weekly GDP at equilibrium prices.
+A resumed invocation includes iteration zero for the re-evaluated saved solution, with
 empty search diagnostics. `is_best` identifies the earliest highest-objective
 state exported in the solution files. Each local search gets a fresh trial
 budget; equal objectives continue until a strict decrease or the optional
@@ -258,7 +258,7 @@ writing new files. The companion `buildings.csv` uses the
 
 | Column | Type / unit | Meaning / calculation | Presence / edge cases |
 | --- | --- | --- | --- |
-| `objective` | String / category | Scenario objective, currently `average_wealth`. | Older snapshots may use `gdp`; GDP remains a reported metric. |
+| `objective` | String / category | Scenario objective, `gdp`. | Older snapshots may use `average_wealth`. |
 | `employment_cap` | Integer / workers | Upper bound on employed workers, 1,000,000. | Does not require full employment. |
 | `workforce_ratio` | Float / fraction | Workers divided by total population, 0.4. | Shared uniformly across households. |
 | `subsidize_operating_losses` | Boolean | Whether a uniform household income tax funds operating losses. | Defaults to true; applies to every equilibrium evaluation, including saved baselines and restarts. |
@@ -275,7 +275,7 @@ writing new files. The companion `buildings.csv` uses the
 | `initial_equilibrium_status` | String / category | `converged` or `insufficient_income` for the starting mix. | An unfunded start is passed to the optimizer without accepting it as a valid baseline. |
 | `initial_gdp_weekly` | Float / £ per week | GDP at this search's initial mix after household equilibrium. | Empty for an unfunded start, as are initial annual GDP and average wealth. Uses the same scenario and wealth seed as search trials; baseline rows use their own state. |
 | `initial_annual_gdp` | Float / £ per year | `52 * initial_gdp_weekly`. | Baseline for comparison with the final state. |
-| `gdp_weekly` | Float / £ per week | This row's returned equilibrium GDP. | Selection uses the scenario objective, which may differ from GDP. |
+| `gdp_weekly` | Float / £ per week | This row's returned equilibrium GDP. | Used to select the best solution. |
 | `annual_gdp` | Float / £ per year | `52 * gdp_weekly`. | Includes all modeled production. |
 | `employment` | Float / workers | Returned state's total employed workers. | At most the cap within solver tolerance. |
 | `population` | Float / people | `employment / workforce_ratio`. | Includes dependents. |
@@ -297,9 +297,9 @@ writing new files. The companion `buildings.csv` uses the
 | `initial_average_wealth` | Float / wealth tier | Average wealth at this search's starting levels. | Baseline rows use their own state. |
 | `loss_reduction` | Float / fraction | Fraction applied to loss-making configurations before this search. | Defaults to 0.5; zero for a fresh first search or baseline row. |
 | `reduced_configuration_count` | Integer / configurations | Number of levels actually reduced before this search. | No employment rescaling is applied. |
-| `objective_value` | Float / objective units | Returned objective in the optimizer's units, currently average wealth. | GDP-based objectives, if configured, use weekly units. |
+| `objective_value` | Float / £ per week | Returned objective, equal to `gdp_weekly`. | Older snapshots may report a wealth tier instead. |
 | `objective_change` | Float / objective units | Objective minus the preceding search's value, or saved baseline for a first resumed search. | Empty without a predecessor; a strict negative value ends iteration. |
-| `gdp_weekly_change` | Float / £ per week | GDP minus the preceding search's GDP, or saved baseline on first resume. | Diagnostic only when maximizing wealth; empty without a predecessor. |
+| `gdp_weekly_change` | Float / £ per week | GDP minus the preceding search's GDP, or saved baseline on first resume. | Equals `objective_change` for GDP runs; empty without a predecessor. |
 | `started_at_utc` | String / ISO timestamp | UTC start time for this search. | Baseline rows record invocation setup start. |
 | `elapsed_seconds` | Float / seconds | Search duration including starting-point evaluation. | Baseline rows cover setup through saved-state evaluation and adjustment. |
 | `is_best` | Boolean | True only for the earliest highest-objective row. | All solution reports use that row's state. |
