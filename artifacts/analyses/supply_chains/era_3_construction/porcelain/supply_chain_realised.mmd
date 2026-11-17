@@ -1,0 +1,32 @@
+flowchart LR
+    n0(("clothes"))
+    n1(("dye"))
+    n2(("fabric"))
+    n3(("furniture"))
+    n4(("glass"))
+    n5(("grain"))
+    n6(("liquor"))
+    n7(("meat"))
+    n8(("porcelain ★"))
+    n9(("services"))
+    n10(("wood"))
+    n11["building_cossack_host<br/>lvl=2857 | active"]
+    n12["building_dye_plantation<br/>lvl=10.58 | active"]
+    n13["building_glassworks<br/>lvl=47.62 | active"]
+    n1 -->|"476.2"| n13
+    n10 -->|"1429"| n13
+    n11 -->|"714.3"| n0
+    n11 -->|"8571"| n2
+    n11 -->|"714.3"| n3
+    n11 -->|"1.429e+04"| n5
+    n11 -->|"714.3"| n6
+    n11 -->|"1.143e+04"| n7
+    n11 -->|"714.3"| n9
+    n11 -->|"1429"| n10
+    n12 -->|"476.2"| n1
+    n13 -->|"476.2"| n4
+    n13 -->|"1429"| n8
+    class n11,n12,n13 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

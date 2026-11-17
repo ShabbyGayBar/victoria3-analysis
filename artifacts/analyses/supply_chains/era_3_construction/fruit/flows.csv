@@ -1,0 +1,2 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_banana_plantation+default_building_banana_plantation+slave_exploitation_banana+pm_road_carts,good:fruit,output,fruit,building_banana_plantation+default_building_banana_plantation+slave_exploitation_banana+pm_road_carts,45.0,3333.3333333333335,30.0,100000.0,True,False

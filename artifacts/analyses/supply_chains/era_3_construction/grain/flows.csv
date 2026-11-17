@@ -1,0 +1,9 @@
+source,target,role,good,process,unit_rate,realized_amount,price,realized_value,active,in_cycle
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:clothes,output,clothes,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,0.25,250.0,30.0,7500.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:fabric,output,fabric,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,3.0,3000.0,20.0,60000.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:furniture,output,furniture,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,0.25,250.0,30.0,7500.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:grain,output,grain,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,5.0,5000.0,20.0,100000.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:liquor,output,liquor,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,0.25,250.0,30.0,7500.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:meat,output,meat,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,4.0,4000.0,30.0,120000.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:services,output,services,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,0.25,250.0,30.0,7500.0,True,False
+process:building_cossack_host+pm_cossack_host+pm_cossack_recruitment,good:wood,output,wood,building_cossack_host+pm_cossack_host+pm_cossack_recruitment,0.5,500.0,20.0,10000.0,True,False

@@ -1,0 +1,22 @@
+flowchart LR
+    n0(("clothes ★"))
+    n1(("fabric"))
+    n2(("furniture"))
+    n3(("grain"))
+    n4(("liquor"))
+    n5(("meat"))
+    n6(("services"))
+    n7(("wood"))
+    n8["building_cossack_host<br/>lvl=1.333e+04 | active"]
+    n8 -->|"3333"| n0
+    n8 -->|"4e+04"| n1
+    n8 -->|"3333"| n2
+    n8 -->|"6.667e+04"| n3
+    n8 -->|"3333"| n4
+    n8 -->|"5.333e+04"| n5
+    n8 -->|"3333"| n6
+    n8 -->|"6667"| n7
+    class n8 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8

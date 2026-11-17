@@ -1,0 +1,132 @@
+flowchart LR
+    n0(("coal"))
+    n1(("copper"))
+    n2(("dye"))
+    n3(("electricity"))
+    n4(("engines"))
+    n5(("explosives"))
+    n6(("fertilizer"))
+    n7(("fish ★"))
+    n8(("iron"))
+    n9(("oil"))
+    n10(("paper"))
+    n11(("rubber"))
+    n12(("steamers"))
+    n13(("steel"))
+    n14(("sulfur"))
+    n15(("tools"))
+    n16(("transportation"))
+    n17(("wood"))
+    n18["building_chemical_plant<br/>lvl=0.3271 | active"]
+    n19["building_coal_mine<br/>lvl=9.519 | active"]
+    n20["building_copper_mine<br/>lvl=1.299 | active"]
+    n21["building_explosives_factory<br/>lvl=0.8958 | active"]
+    n22["building_fishing_wharf<br/>lvl=50 | active"]
+    n23["building_iron_mine<br/>lvl=2.129 | active"]
+    n24["building_logging_camp<br/>lvl=0.08062 | active"]
+    n25["building_motor_industry<br/>lvl=2.064 | active"]
+    n26["building_oil_rig<br/>lvl=0.6719 | active"]
+    n27["building_paper_mill<br/>lvl=0.2687 | active"]
+    n28["building_power_plant<br/>lvl=11.58 | active"]
+    n29["building_railway<br/>lvl=7.102 | active"]
+    n30["building_rubber_plantation<br/>lvl=0.3121 | active"]
+    n31["building_shipyard<br/>lvl=3.125 | active"]
+    n32["building_steel_mill<br/>lvl=1.818 | active"]
+    n33["building_sulfur_mine<br/>lvl=0.4901 | active"]
+    n34["building_synthetics_plant<br/>lvl=0.03359 | active"]
+    n35["building_tooling_workshop<br/>lvl=2.028 | active"]
+    n0 -.->|"5.198"| n20
+    n0 -->|"750"| n22
+    n0 -.->|"8.515"| n23
+    n0 -.->|"0.3225"| n24
+    n0 -.->|"20.64"| n25
+    n0 -.->|"2.687"| n27
+    n0 -.->|"173.7"| n28
+    n0 -.->|"72.71"| n32
+    n0 -.->|"1.96"| n33
+    n0 -.->|"30.43"| n35
+    n1 -->|"50"| n22
+    n1 -.->|"20.64"| n25
+    n1 -.->|"46.31"| n28
+    n2 -.->|"2.687"| n27
+    n3 -.->|"17.92"| n21
+    n3 -->|"300"| n22
+    n3 -.->|"0.4031"| n24
+    n3 -.->|"41.28"| n25
+    n3 -.->|"71.02"| n29
+    n3 -->|"93.75"| n31
+    n3 -.->|"54.53"| n32
+    n4 -.->|"9.519"| n19
+    n4 -.->|"1.299"| n20
+    n4 -.->|"2.129"| n23
+    n4 -.->|"0.08062"| n24
+    n4 -.->|"6.719"| n26
+    n4 -.->|"69.47"| n28
+    n4 -.->|"42.61"| n29
+    n4 -.->|"1.56"| n30
+    n4 -->|"31.25"| n31
+    n4 -.->|"0.4901"| n33
+    n5 -.->|"95.19"| n19
+    n5 -.->|"12.99"| n20
+    n5 -.->|"21.29"| n23
+    n5 -.->|"4.901"| n33
+    n6 -.->|"44.79"| n21
+    n6 -.->|"1.008"| n34
+    n8 -.->|"9.814"| n18
+    n8 -.->|"181.8"| n32
+    n9 -.->|"47.6"| n19
+    n9 -.->|"6.497"| n20
+    n9 -.->|"10.64"| n23
+    n9 -.->|"2.45"| n33
+    n10 -.->|"26.87"| n21
+    n11 -.->|"20.28"| n35
+    n12 -->|"250"| n22
+    n13 -.->|"82.56"| n25
+    n13 -.->|"35.51"| n29
+    n13 -->|"93.75"| n31
+    n13 -.->|"60.85"| n35
+    n14 -.->|"9.814"| n18
+    n14 -.->|"35.83"| n21
+    n14 -.->|"2.687"| n27
+    n14 -.->|"0.6719"| n34
+    n15 -.->|"142.8"| n19
+    n15 -.->|"19.49"| n20
+    n15 -.->|"31.93"| n23
+    n15 -.->|"0.8062"| n24
+    n15 -.->|"10.32"| n25
+    n15 -.->|"1.344"| n27
+    n15 -.->|"9.089"| n32
+    n15 -.->|"7.351"| n33
+    n16 -.->|"47.6"| n19
+    n16 -.->|"6.497"| n20
+    n16 -->|"350"| n22
+    n16 -.->|"10.64"| n23
+    n16 -.->|"0.645"| n24
+    n16 -.->|"6.719"| n26
+    n16 -.->|"1.56"| n30
+    n16 -.->|"2.45"| n33
+    n17 -.->|"8.062"| n27
+    n18 -.->|"45.8"| n6
+    n19 -.->|"1066"| n0
+    n20 -.->|"117"| n1
+    n21 -.->|"134.4"| n5
+    n22 -->|"5000"| n7
+    n23 -.->|"191.6"| n8
+    n24 -.->|"8.062"| n17
+    n25 -.->|"165.1"| n4
+    n26 -.->|"67.19"| n9
+    n27 -.->|"26.87"| n10
+    n28 -.->|"578.9"| n3
+    n29 -.->|"426.1"| n16
+    n30 -.->|"20.28"| n11
+    n31 -->|"250"| n12
+    n32 -.->|"272.7"| n13
+    n33 -.->|"49.01"| n14
+    n34 -.->|"2.687"| n2
+    n35 -.->|"223.1"| n15
+    class n0,n1,n2,n3,n4,n5,n6,n8,n9,n10,n11,n13,n14,n15,n16,n17,n18,n19,n20,n21,n23,n24,n25,n26,n27,n28,n29,n30,n32,n33,n34,n35 cyclic
+    class n19,n20,n22,n23,n24,n26,n30,n33 resource
+    class n18,n19,n20,n21,n22,n23,n24,n25,n26,n27,n28,n29,n30,n31,n32,n33,n34,n35 active
+    classDef cyclic stroke:#d97706,stroke-width:2px
+    classDef resource fill:#dcfce7,stroke:#15803d
+    classDef active fill:#dbeafe,stroke:#1d4ed8
